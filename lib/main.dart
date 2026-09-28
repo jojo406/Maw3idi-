@@ -45,53 +45,105 @@ class _HomePageState extends State<HomePage> {
   final List<Appointment> appointments = [];
 
   Future<void> addAppointment() async {
-    final controller = TextEditingController();
-    DateTime date = DateTime.now();
-    TimeOfDay time = TimeOfDay.now();
+  final controller = TextEditingController();
+  DateTime date = DateTime.now();
+  TimeOfDay time = TimeOfDay.now();
 
-    await showDialog(
-      context: context,
-      builder: (dialogContext) {
-        return AlertDialog(
-          title: const Text('إضافة موعد'),
-          content: TextField(
-            controller: controller,
-            decoration: const InputDecoration(
-              labelText: 'اسم الموعد',
-              border: OutlineInputBorder(),
+  await showDialog(
+    context: context,
+    builder: (dialogContext) {
+      return StatefulBuilder(
+        builder: (context, setDialogState) {
+          return AlertDialog(
+            title: const Text('إضافة موعد'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: controller,
+                  decoration: const InputDecoration(
+                    labelText: 'اسم الموعد',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+                const SizedBox(height: 15),
+
+                ListTile(
+                  leading: const Icon(Icons.calendar_month),
+                  title: const Text('التاريخ'),
+                  subtitle: Text(
+                    '${date.day}/${date.month}/${date.year}',
+                  ),
+                  onTap: () async {
+                    final picked = await showDatePicker(
+                      context: context,
+                      initialDate: date,
+                      firstDate: DateTime.now(),
+                      lastDate: DateTime(2100),
+                    );
+
+                    if (picked != null) {
+                      setDialogState(() {
+                        date = picked;
+                      });
+                    }
+                  },
+                ),
+
+                ListTile(
+                  leading: const Icon(Icons.access_time),
+                  title: const Text('الساعة'),
+                  subtitle: Text(
+                    time.format(context),
+                  ),
+                  onTap: () async {
+                    final picked = await showTimePicker(
+                      context: context,
+                      initialTime: time,
+                    );
+
+                    if (picked != null) {
+                      setDialogState(() {
+                        time = picked;
+                      });
+                    }
+                  },
+                ),
+              ],
             ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(dialogContext),
-              child: const Text('إلغاء'),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                if (controller.text.trim().isEmpty) {
-                  return;
-                }
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(dialogContext),
+                child: const Text('إلغاء'),
+              ),
+              ElevatedButton(
+                onPressed: () {
+                  if (controller.text.trim().isEmpty) {
+                    return;
+                  }
 
-                setState(() {
-                  appointments.add(
-                    Appointment(
-                      title: controller.text.trim(),
-                      date: date,
-                      time: time,
-                    ),
-                  );
-                });
+                  setState(() {
+                    appointments.add(
+                      Appointment(
+                        title: controller.text.trim(),
+                        date: date,
+                        time: time,
+                      ),
+                    );
+                  });
 
-                Navigator.pop(dialogContext);
-              },
-              child: const Text('حفظ'),
-            ),
-          ],
-        );
-      },
-    );
+                  Navigator.pop(dialogContext);
+                },
+                child: const Text('حفظ'),
+              ),
+            ],
+          );
+        },
+      );
+    },
+  );
 
-    controller.dispose();
+  controller.dispose();
   }
     void deleteAppointment(int index) {
     setState(() {
