@@ -25,15 +25,13 @@ class Appointment {
   String title;
   DateTime date;
   TimeOfDay time;
-  bool important;
-  bool completed;
+  bool done;
 
   Appointment({
     required this.title,
     required this.date,
     required this.time,
-    this.important = false,
-    this.completed = false,
+    this.done = false,
   });
 }
 
@@ -43,42 +41,107 @@ class HomePage extends StatefulWidget {
   @override
   State<HomePage> createState() => _HomePageState();
 }
-
 class _HomePageState extends State<HomePage> {
   final List<Appointment> appointments = [];
 
-  String search = '';
-  String filter = 'الكل';
-
-  List<Appointment> get filteredAppointments {
-    return appointments.where((a) {
-      final matchesSearch =
-          a.title.toLowerCase().contains(search.toLowerCase());
-
-      final matchesFilter =
-          filter == 'الكل' ||
-          (filter == 'القادمة' && !a.completed) ||
-          (filter == 'المكتملة' && a.completed);
-
-      return matchesSearch && matchesFilter;
-    }).toList();
-  }
-
-  Future<void> addOrEditAppointment({int? index}) async {
-    final editing = index != null;
-
-    final old = editing ? appointments[index] : null;
-
-    final titleController = TextEditingController(
-      text: old?.title ?? '',
-    );
-
-    DateTime selectedDate = old?.date ?? DateTime.now();
-    TimeOfDay selectedTime = old?.time ?? TimeOfDay.now();
-    bool important = old?.important ?? false;
+  Future<void> addAppointment() async {
+    final controller = TextEditingController();
+    DateTime date = DateTime.now();
+    TimeOfDay time = TimeOfDay.now();
 
     await showDialog(
       context: context,
       builder: (dialogContext) {
-        return StatefulBuilder(
-         
+        return AlertDialog(
+          title: const Text('إضافة موعد'),
+          content: TextField(
+            controller: controller,
+            decoration: const InputDecoration(
+              labelText: 'اسم الموعد',
+              border: OutlineInputBorder(),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('إلغاء'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                if (controller.text.trim().isEmpty) {
+                  return;
+                }
+
+                setState(() {
+                  appointments.add(
+                    Appointment(
+                      title: controller.text.trim(),
+                      date: date,
+                      time: time,
+                    ),
+                  );
+                });
+
+                Navigator.pop(dialogContext);
+              },
+              child: const Text('حفظ'),
+            ),
+          ],
+        );
+      },
+    );
+
+    controller.dispose();
+  }
+    void deleteAppointment(int index) {
+    setState(() {
+      appointments.removeAt(index);
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Directionality(
+      textDirection: TextDirection.rtl,
+      child: Scaffold(
+        appBar: AppBar(
+          title: const Text('موعدي'),
+          centerTitle: true,
+        ),
+        body: appointments.isEmpty
+            ? const Center(
+                child: Text(
+                  'لا توجد مواعيد',
+                  style: TextStyle(fontSize: 24),
+                ),
+              )
+            : ListView.builder(
+                itemCount: appointments.length,
+                itemBuilder: (context, index) {
+                  final appointment = appointments[index];
+
+                  return Card(
+                    child: ListTile(
+                      title: Text(appointment.title),
+                      subtitle: Text(
+                        '${appointment.date.day}/${appointment.date.month}/${appointment.date.year}',
+                      ),
+                      trailing: IconButton(
+                        icon: const Icon(Icons.delete),
+                        onPressed: () {
+                          deleteAppointment(index);
+                        },
+                      ),
+                    ),
+                  );
+                },
+              ),
+        floatingActionButton: FloatingActionButton.extended(
+          onPressed: addAppointment,
+          icon: const Icon(Icons.add),
+          label: const Text('إضافة موعد'),
+        ),
+      ),
+    );
+  }
+}
