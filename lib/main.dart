@@ -178,22 +178,20 @@ class _HomePageState extends State<HomePage> {
                         '${appointment.date.day}/${appointment.date.month}/${appointment.date.year}'
                         ' - ${appointment.time.format(context)}',
                       ),
-                      trailing: IconButton(
-                        icon: const Icon(Icons.delete),
-                        onPressed: () {
-                          deleteAppointment(index);
-                        },
-                      ),
-                    ),
-                  );
-                },
-              ),
-        floatingActionButton: FloatingActionButton.extended(
-          onPressed: addAppointment,
-          icon: const Icon(Icons.add),
-          label: const Text('إضافة موعد'),
-        ),
-      ),
-    );
-  }
-}
+                      trailing: Row(
+  mainAxisSize: MainAxisSize.min,
+  children: [
+    IconButton(
+      icon: const Icon(Icons.edit),
+      onPressed: () {
+        // تعديل الموعد لاحقًا
+      },
+    ),
+    IconButton(
+      icon: const Icon(Icons.delete),
+      onPressed: () {
+        deleteAppointment(index);
+      },
+    ),
+  ],
+),
