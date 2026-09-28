@@ -176,7 +176,9 @@ class _HomePageState extends State<HomePage> {
                     child: ListTile(
                       title: Text(appointment.title),
                       subtitle: Text(
-                        '${appointment.date.day}/${appointment.date.month}/${appointment.date.year}',
+  '${appointment.date.day}/${appointment.date.month}/${appointment.date.year}'
+  ' - ${appointment.time.format(context)}',
+),
                       ),
                       trailing: IconButton(
                         icon: const Icon(Icons.delete),
