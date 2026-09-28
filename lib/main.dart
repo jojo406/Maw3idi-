@@ -21,18 +21,6 @@ class Maw3idiApp extends StatelessWidget {
   }
 }
 
-class Appointment {
-  String title;
-  DateTime date;
-  TimeOfDay time;
-
-  Appointment({
-    required this.title,
-    required this.date,
-    required this.time,
-  });
-}
-
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
 
@@ -41,25 +29,103 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
-  final List<Appointment> appointments = [];
+  final List<String> appointments = [];
 
-  Future<void> addAppointment() async {
-    final titleController = TextEditingController();
+  void addAppointment() {
+    final controller = TextEditingController();
 
-    DateTime selectedDate = DateTime.now();
-    TimeOfDay selectedTime = TimeOfDay.now();
-
-    await showDialog(
+    showDialog(
       context: context,
       builder: (context) {
-        return StatefulBuilder(
-          builder: (context, setDialogState) {
-            return AlertDialog(
-              title: const Text('إضافة موعد'),
-              content: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  TextField(
-                    controller: titleController,
-                    decoration: const InputDecoration(
-                      labelText: 'اسم الموعد
+        return AlertDialog(
+          title: const Text('إضافة موعد'),
+          content: TextField(
+            controller: controller,
+            decoration: const InputDecoration(
+              labelText: 'اسم الموعد',
+              border: OutlineInputBorder(),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('إلغاء'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                if (controller.text.trim().isNotEmpty) {
+                  setState(() {
+                    appointments.add(controller.text.trim());
+                  });
+                }
+                Navigator.pop(context);
+              },
+              child: const Text('حفظ'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Directionality(
+      textDirection: TextDirection.rtl,
+      child: Scaffold(
+        appBar: AppBar(
+          title: const Text('موعدي'),
+          centerTitle: true,
+        ),
+        body: appointments.isEmpty
+            ? Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(
+                      Icons.calendar_month,
+                      size: 90,
+                    ),
+                    const SizedBox(height: 20),
+                    const Text(
+                      'مرحبا بك في موعدي',
+                      style: TextStyle(
+                        fontSize: 26,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    const Text(
+                      'نظّم مواعيدك بسهولة',
+                      style: TextStyle(fontSize: 18),
+                    ),
+                    const SizedBox(height: 30),
+                    ElevatedButton.icon(
+                      onPressed: addAppointment,
+                      icon: const Icon(Icons.add),
+                      label: const Text('إضافة موعد'),
+                    ),
+                  ],
+                ),
+              )
+            : ListView.builder(
+                padding: const EdgeInsets.all(16),
+                itemCount: appointments.length,
+                itemBuilder: (context, index) {
+                  return Card(
+                    child: ListTile(
+                      leading: const Icon(Icons.event),
+                      title: Text(appointments[index]),
+                    ),
+                  );
+                },
+              ),
+        floatingActionButton: FloatingActionButton.extended(
+          onPressed: addAppointment,
+          icon: const Icon(Icons.add),
+          label: const Text('إضافة موعد'),
+        ),
+      ),
+    );
+  }
+}
