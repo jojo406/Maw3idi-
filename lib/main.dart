@@ -21,49 +21,45 @@ class Maw3idiApp extends StatelessWidget {
   }
 }
 
-class HomePage extends StatelessWidget {
+class Appointment {
+  String title;
+  DateTime date;
+  TimeOfDay time;
+
+  Appointment({
+    required this.title,
+    required this.date,
+    required this.time,
+  });
+}
+
+class HomePage extends StatefulWidget {
   const HomePage({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    return Directionality(
-      textDirection: TextDirection.rtl,
-      child: Scaffold(
-        appBar: AppBar(
-          title: const Text('موعدي'),
-          centerTitle: true,
-        ),
-        body: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Icon(
-                Icons.calendar_month,
-                size: 90,
-              ),
-              const SizedBox(height: 20),
-              const Text(
-                'مرحبا بك في موعدي',
-                style: TextStyle(
-                  fontSize: 26,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 10),
-              const Text(
-                'نظّم مواعيدك بسهولة',
-                style: TextStyle(fontSize: 18),
-              ),
-              const SizedBox(height: 30),
-              ElevatedButton.icon(
-                onPressed: () {},
-                icon: const Icon(Icons.add),
-                label: const Text('إضافة موعد'),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
+  State<HomePage> createState() => _HomePageState();
 }
+
+class _HomePageState extends State<HomePage> {
+  final List<Appointment> appointments = [];
+
+  Future<void> addAppointment() async {
+    final titleController = TextEditingController();
+
+    DateTime selectedDate = DateTime.now();
+    TimeOfDay selectedTime = TimeOfDay.now();
+
+    await showDialog(
+      context: context,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              title: const Text('إضافة موعد'),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextField(
+                    controller: titleController,
+                    decoration: const InputDecoration(
+                      labelText: 'اسم الموعد
