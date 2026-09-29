@@ -271,7 +271,7 @@ await saveAppointments();
                       appointment.date = date;
                       appointment.time = time;
                     });
-
+await saveAppointments();
                     Navigator.pop(dialogContext);
                   },
                   child: const Text('حفظ التعديل'),
