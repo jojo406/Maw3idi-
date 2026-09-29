@@ -12,6 +12,7 @@ Future<void> initializeNotifications() async {
   tz.initializeTimeZones();
 
   final currentTimeZone = await FlutterTimezone.getLocalTimezone();
+
   tz.setLocalLocation(
     tz.getLocation(currentTimeZone.identifier),
   );
@@ -25,8 +26,8 @@ Future<void> initializeNotifications() async {
   );
 
   await notificationsPlugin.initialize(
-  settings: initializationSettings,
-);
+    settings: initializationSettings,
+  );
 
   final androidPlugin = notificationsPlugin
       .resolvePlatformSpecificImplementation<
@@ -70,6 +71,16 @@ class Appointment {
   String location;
   String notes;
 
+  // مدة التنبيه بالدقائق
+  // -1 = بدون تنبيه
+  // 0 = عند وقت الموعد
+  // 5 = قبل 5 دقائق
+  // 15 = قبل 15 دقيقة
+  // 30 = قبل 30 دقيقة
+  // 60 = قبل ساعة
+  // 1440 = قبل يوم
+  int reminderMinutes;
+
   Appointment({
     required this.title,
     required this.date,
@@ -79,6 +90,7 @@ class Appointment {
     required this.phone,
     required this.location,
     required this.notes,
+    required this.reminderMinutes,
   });
 }
 
@@ -100,6 +112,16 @@ class _HomePageState extends State<HomePage> {
     'شخصي',
     'أخرى',
   ];
+
+  final Map<int, String> reminderOptions = {
+    -1: 'بدون تنبيه',
+    0: 'عند وقت الموعد',
+    5: 'قبل 5 دقائق',
+    15: 'قبل 15 دقيقة',
+    30: 'قبل 30 دقيقة',
+    60: 'قبل ساعة',
+    1440: 'قبل يوم',
+  };
 
   String searchText = '';
   String selectedFilter = 'الكل';
@@ -125,6 +147,13 @@ class _HomePageState extends State<HomePage> {
         final minute = int.tryParse(parts[3]);
 
         if (date != null && hour != null && minute != null) {
+          int reminderMinutes = 60;
+
+          if (parts.length >= 10) {
+            reminderMinutes =
+                int.tryParse(parts[9]) ?? 60;
+          }
+
           loaded.add(
             Appointment(
               title: parts[0],
@@ -138,6 +167,7 @@ class _HomePageState extends State<HomePage> {
               phone: parts[6],
               location: parts[7],
               notes: parts.length >= 9 ? parts[8] : '',
+              reminderMinutes: reminderMinutes,
             ),
           );
         }
@@ -168,6 +198,7 @@ class _HomePageState extends State<HomePage> {
         appointment.phone,
         appointment.location,
         appointment.notes,
+        appointment.reminderMinutes.toString(),
       ].join('|');
     }).toList();
 
@@ -189,6 +220,11 @@ class _HomePageState extends State<HomePage> {
     Appointment appointment,
     int id,
   ) async {
+    // إذا اختار المستخدم بدون تنبيه
+    if (appointment.reminderMinutes == -1) {
+      return;
+    }
+
     final appointmentDateTime = DateTime(
       appointment.date.year,
       appointment.date.month,
@@ -197,8 +233,9 @@ class _HomePageState extends State<HomePage> {
       appointment.time.minute,
     );
 
-    final reminderDateTime =
-        appointmentDateTime.subtract(const Duration(hours: 1));
+    final reminderDateTime = appointmentDateTime.subtract(
+      Duration(minutes: appointment.reminderMinutes),
+    );
 
     if (!reminderDateTime.isAfter(DateTime.now())) {
       return;
@@ -317,6 +354,9 @@ class _HomePageState extends State<HomePage> {
 
     String type =
         appointment?.type ?? 'شخصي';
+
+    int reminderMinutes =
+        appointment?.reminderMinutes ?? 60;
 
     await showDialog(
       context: context,
@@ -461,6 +501,34 @@ class _HomePageState extends State<HomePage> {
                         }
                       },
                     ),
+
+                    const SizedBox(height: 8),
+
+                    DropdownButtonFormField<int>(
+                      initialValue: reminderMinutes,
+                      decoration: const InputDecoration(
+                        labelText: 'التنبيه',
+                        prefixIcon: Icon(
+                          Icons.notifications_active,
+                        ),
+                        border: OutlineInputBorder(),
+                      ),
+                      items: reminderOptions.entries.map(
+                        (entry) {
+                          return DropdownMenuItem<int>(
+                            value: entry.key,
+                            child: Text(entry.value),
+                          );
+                        },
+                      ).toList(),
+                      onChanged: (value) {
+                        if (value != null) {
+                          setDialogState(() {
+                            reminderMinutes = value;
+                          });
+                        }
+                      },
+                    ),
                   ],
                 ),
               ),
@@ -471,6 +539,7 @@ class _HomePageState extends State<HomePage> {
                   },
                   child: const Text('إلغاء'),
                 ),
+
                 ElevatedButton(
                   onPressed: () async {
                     if (titleController.text
@@ -496,6 +565,8 @@ class _HomePageState extends State<HomePage> {
                                 locationController.text.trim(),
                             notes:
                                 notesController.text.trim(),
+                            reminderMinutes:
+                                reminderMinutes,
                           ),
                         );
                       });
@@ -503,21 +574,32 @@ class _HomePageState extends State<HomePage> {
                       setState(() {
                         appointment.title =
                             titleController.text.trim();
+
                         appointment.date = date;
+
                         appointment.time = time;
+
                         appointment.type = type;
+
                         appointment.person =
                             personController.text.trim();
+
                         appointment.phone =
                             phoneController.text.trim();
+
                         appointment.location =
                             locationController.text.trim();
+
                         appointment.notes =
                             notesController.text.trim();
+
+                        appointment.reminderMinutes =
+                            reminderMinutes;
                       });
                     }
 
                     await saveAppointments();
+
                     await scheduleAllNotifications();
 
                     if (dialogContext.mounted) {
@@ -552,6 +634,7 @@ class _HomePageState extends State<HomePage> {
     });
 
     await saveAppointments();
+
     await scheduleAllNotifications();
   }
 
@@ -654,6 +737,18 @@ class _HomePageState extends State<HomePage> {
               title: const Text('ملاحظات'),
               subtitle: Text(appointment.notes),
             ),
+
+          ListTile(
+            leading: const Icon(
+              Icons.notifications_active,
+            ),
+            title: const Text('التنبيه'),
+            subtitle: Text(
+              reminderOptions[
+                      appointment.reminderMinutes] ??
+                  'بدون تنبيه',
+            ),
+          ),
 
           Padding(
             padding: const EdgeInsets.only(
@@ -786,6 +881,7 @@ class _HomePageState extends State<HomePage> {
             ),
           ],
         ),
+
         floatingActionButton:
             FloatingActionButton.extended(
           onPressed: addAppointment,
