@@ -556,7 +556,74 @@ class _HomePageState extends State<HomePage> {
       },
     );
   }
+Future<void> showCalendar() async {
+  DateTime selectedDate = DateTime.now();
 
+  await showDialog(
+    context: context,
+    builder: (context) {
+      return StatefulBuilder(
+        builder: (context, setDialogState) {
+          final dayAppointments = appointments.where((appointment) {
+            return appointment.date.year == selectedDate.year &&
+                appointment.date.month == selectedDate.month &&
+                appointment.date.day == selectedDate.day;
+          }).toList();
+
+          return AlertDialog(
+            title: const Text('📅 التقويم'),
+            content: SizedBox(
+              width: double.maxFinite,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  CalendarDatePicker(
+                    initialDate: selectedDate,
+                    firstDate: DateTime(2020),
+                    lastDate: DateTime(2100),
+                    onDateChanged: (date) {
+                      setDialogState(() {
+                        selectedDate = date;
+                      });
+                    },
+                  ),
+                  const Divider(),
+                  if (dayAppointments.isEmpty)
+                    const Padding(
+                      padding: EdgeInsets.all(16),
+                      child: Text(
+                        'ماكانش مواعيد في هذا اليوم',
+                      ),
+                    )
+                  else
+                    ...dayAppointments.map(
+                      (appointment) => ListTile(
+                        leading: const Icon(Icons.event),
+                        title: Text(appointment.title),
+                        subtitle: Text(
+                          '${appointment.time.hour.toString().padLeft(2, '0')}:'
+                          '${appointment.time.minute.toString().padLeft(2, '0')}'
+                          ' • ${appointment.type}',
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  Navigator.pop(context);
+                },
+                child: const Text('إغلاق'),
+              ),
+            ],
+          );
+        },
+      );
+    },
+  );
+}
   Widget _statRow(
     IconData icon,
     String title,
