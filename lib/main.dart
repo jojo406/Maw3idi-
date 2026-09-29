@@ -46,7 +46,11 @@ class _HomePageState extends State<HomePage> {
   Future<void> loadAppointments() async {
   final prefs = await SharedPreferences.getInstance();
   final data = prefs.getStringList('appointments') ?? [];
-
+@override
+void initState() {
+  super.initState();
+  loadAppointments();
+}
   setState(() {
     appointments.clear();
 
