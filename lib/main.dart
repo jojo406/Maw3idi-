@@ -1063,6 +1063,13 @@ class _HomePageState extends State<HomePage> {
                 const Icon(Icons.bar_chart),
             onPressed: showStatistics,
           ),
+            IconButton(
+  tooltip: 'التقويم',
+  icon: const Icon(Icons.calendar_month),
+  onPressed: () {
+    showCalendar();
+  },
+),
           IconButton(
             tooltip: 'الوضع الليلي',
             icon: Icon(
