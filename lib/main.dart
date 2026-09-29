@@ -25,8 +25,8 @@ Future<void> initializeNotifications() async {
   );
 
   await notificationsPlugin.initialize(
-    initializationSettings,
-  );
+  settings: initializationSettings,
+);
 
   final androidPlugin = notificationsPlugin
       .resolvePlatformSpecificImplementation<
