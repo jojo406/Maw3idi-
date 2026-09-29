@@ -1,7 +1,45 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:flutter_timezone/flutter_timezone.dart';
+import 'package:timezone/data/latest.dart' as tz;
+import 'package:timezone/timezone.dart' as tz;
 
-void main() {
+final FlutterLocalNotificationsPlugin notificationsPlugin =
+    FlutterLocalNotificationsPlugin();
+
+Future<void> initializeNotifications() async {
+  tz.initializeTimeZones();
+
+  final currentTimeZone = await FlutterTimezone.getLocalTimezone();
+  tz.setLocalLocation(
+    tz.getLocation(currentTimeZone.identifier),
+  );
+
+  const androidSettings = AndroidInitializationSettings(
+    '@mipmap/ic_launcher',
+  );
+
+  const initializationSettings = InitializationSettings(
+    android: androidSettings,
+  );
+
+  await notificationsPlugin.initialize(
+    initializationSettings,
+  );
+
+  final androidPlugin = notificationsPlugin
+      .resolvePlatformSpecificImplementation<
+          AndroidFlutterLocalNotificationsPlugin>();
+
+  await androidPlugin?.requestNotificationsPermission();
+}
+
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  await initializeNotifications();
+
   runApp(const Maw3idiApp());
 }
 
@@ -112,6 +150,8 @@ class _HomePageState extends State<HomePage> {
       appointments.clear();
       appointments.addAll(loaded);
     });
+
+    await scheduleAllNotifications();
   }
 
   Future<void> saveAppointments() async {
@@ -132,6 +172,66 @@ class _HomePageState extends State<HomePage> {
     }).toList();
 
     await prefs.setStringList('appointments', data);
+  }
+
+  Future<void> scheduleAllNotifications() async {
+    await notificationsPlugin.cancelAll();
+
+    for (int i = 0; i < appointments.length; i++) {
+      await scheduleAppointmentNotification(
+        appointments[i],
+        i + 1,
+      );
+    }
+  }
+
+  Future<void> scheduleAppointmentNotification(
+    Appointment appointment,
+    int id,
+  ) async {
+    final appointmentDateTime = DateTime(
+      appointment.date.year,
+      appointment.date.month,
+      appointment.date.day,
+      appointment.time.hour,
+      appointment.time.minute,
+    );
+
+    final reminderDateTime =
+        appointmentDateTime.subtract(const Duration(hours: 1));
+
+    if (!reminderDateTime.isAfter(DateTime.now())) {
+      return;
+    }
+
+    final scheduledDate = tz.TZDateTime.from(
+      reminderDateTime,
+      tz.local,
+    );
+
+    const androidDetails = AndroidNotificationDetails(
+      'appointments_channel',
+      'تذكيرات المواعيد',
+      channelDescription: 'تنبيهات وتذكيرات المواعيد',
+      importance: Importance.high,
+      priority: Priority.high,
+      playSound: true,
+      enableVibration: true,
+    );
+
+    const notificationDetails = NotificationDetails(
+      android: androidDetails,
+    );
+
+    await notificationsPlugin.zonedSchedule(
+      id: id,
+      title: 'تذكير بموعدك 🔔',
+      body: appointment.title,
+      scheduledDate: scheduledDate,
+      notificationDetails: notificationDetails,
+      androidScheduleMode:
+          AndroidScheduleMode.inexactAllowWhileIdle,
+    );
   }
 
   List<Appointment> get filteredAppointments {
@@ -178,7 +278,9 @@ class _HomePageState extends State<HomePage> {
     await showAppointmentDialog();
   }
 
-  Future<void> editAppointment(Appointment appointment) async {
+  Future<void> editAppointment(
+    Appointment appointment,
+  ) async {
     await showAppointmentDialog(
       appointment: appointment,
     );
@@ -207,10 +309,14 @@ class _HomePageState extends State<HomePage> {
       text: appointment?.notes ?? '',
     );
 
-    DateTime date = appointment?.date ?? DateTime.now();
-    TimeOfDay time = appointment?.time ?? TimeOfDay.now();
+    DateTime date =
+        appointment?.date ?? DateTime.now();
 
-    String type = appointment?.type ?? 'شخصي';
+    TimeOfDay time =
+        appointment?.time ?? TimeOfDay.now();
+
+    String type =
+        appointment?.type ?? 'شخصي';
 
     await showDialog(
       context: context,
@@ -367,7 +473,9 @@ class _HomePageState extends State<HomePage> {
                 ),
                 ElevatedButton(
                   onPressed: () async {
-                    if (titleController.text.trim().isEmpty) {
+                    if (titleController.text
+                        .trim()
+                        .isEmpty) {
                       return;
                     }
 
@@ -375,7 +483,8 @@ class _HomePageState extends State<HomePage> {
                       setState(() {
                         appointments.add(
                           Appointment(
-                            title: titleController.text.trim(),
+                            title:
+                                titleController.text.trim(),
                             date: date,
                             time: time,
                             type: type,
@@ -409,6 +518,7 @@ class _HomePageState extends State<HomePage> {
                     }
 
                     await saveAppointments();
+                    await scheduleAllNotifications();
 
                     if (dialogContext.mounted) {
                       Navigator.pop(dialogContext);
@@ -442,6 +552,7 @@ class _HomePageState extends State<HomePage> {
     });
 
     await saveAppointments();
+    await scheduleAllNotifications();
   }
 
   Future<void> confirmDelete(
@@ -478,7 +589,9 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
-  Widget appointmentCard(Appointment appointment) {
+  Widget appointmentCard(
+    Appointment appointment,
+  ) {
     return Card(
       margin: const EdgeInsets.symmetric(
         horizontal: 12,
@@ -549,7 +662,8 @@ class _HomePageState extends State<HomePage> {
               bottom: 12,
             ),
             child: Row(
-              mainAxisAlignment: MainAxisAlignment.end,
+              mainAxisAlignment:
+                  MainAxisAlignment.end,
               children: [
                 OutlinedButton.icon(
                   onPressed: () {
@@ -587,7 +701,6 @@ class _HomePageState extends State<HomePage> {
           title: const Text('موعدي'),
           centerTitle: true,
         ),
-
         body: Column(
           children: [
             Padding(
@@ -600,18 +713,23 @@ class _HomePageState extends State<HomePage> {
                 },
                 decoration: InputDecoration(
                   hintText: 'ابحث عن موعد...',
-                  prefixIcon: const Icon(Icons.search),
-                  suffixIcon: searchText.isNotEmpty
-                      ? IconButton(
-                          onPressed: () {
-                            setState(() {
-                              searchText = '';
-                            });
-                          },
-                          icon: const Icon(Icons.clear),
-                        )
-                      : null,
-                  border: const OutlineInputBorder(),
+                  prefixIcon:
+                      const Icon(Icons.search),
+                  suffixIcon:
+                      searchText.isNotEmpty
+                          ? IconButton(
+                              onPressed: () {
+                                setState(() {
+                                  searchText = '';
+                                });
+                              },
+                              icon: const Icon(
+                                Icons.clear,
+                              ),
+                            )
+                          : null,
+                  border:
+                      const OutlineInputBorder(),
                 ),
               ),
             ),
@@ -619,13 +737,16 @@ class _HomePageState extends State<HomePage> {
             SizedBox(
               height: 50,
               child: ListView(
-                scrollDirection: Axis.horizontal,
-                padding: const EdgeInsets.symmetric(
+                scrollDirection:
+                    Axis.horizontal,
+                padding:
+                    const EdgeInsets.symmetric(
                   horizontal: 12,
                 ),
                 children: [
                   filterChip('الكل'),
-                  ...appointmentTypes.map(filterChip),
+                  ...appointmentTypes
+                      .map(filterChip),
                 ],
               ),
             ),
@@ -636,7 +757,8 @@ class _HomePageState extends State<HomePage> {
               child: filtered.isEmpty
                   ? const Center(
                       child: Column(
-                        mainAxisSize: MainAxisSize.min,
+                        mainAxisSize:
+                            MainAxisSize.min,
                         children: [
                           Icon(
                             Icons.event_busy,
@@ -654,7 +776,8 @@ class _HomePageState extends State<HomePage> {
                     )
                   : ListView.builder(
                       itemCount: filtered.length,
-                      itemBuilder: (context, index) {
+                      itemBuilder:
+                          (context, index) {
                         return appointmentCard(
                           filtered[index],
                         );
@@ -663,7 +786,6 @@ class _HomePageState extends State<HomePage> {
             ),
           ],
         ),
-
         floatingActionButton:
             FloatingActionButton.extended(
           onPressed: addAppointment,
@@ -679,7 +801,8 @@ class _HomePageState extends State<HomePage> {
       padding: const EdgeInsets.only(left: 6),
       child: ChoiceChip(
         label: Text(filter),
-        selected: selectedFilter == filter,
+        selected:
+            selectedFilter == filter,
         onSelected: (selected) {
           if (selected) {
             setState(() {
