@@ -102,6 +102,7 @@ class _HomePageState extends State<HomePage> {
 
   Future<void> addAppointment() async {
     final controller = TextEditingController();
+
     DateTime date = DateTime.now();
     TimeOfDay time = TimeOfDay.now();
 
@@ -123,6 +124,7 @@ class _HomePageState extends State<HomePage> {
                     ),
                   ),
                   const SizedBox(height: 10),
+
                   ListTile(
                     leading: const Icon(Icons.calendar_month),
                     title: const Text('التاريخ'),
@@ -144,10 +146,13 @@ class _HomePageState extends State<HomePage> {
                       }
                     },
                   ),
+
                   ListTile(
                     leading: const Icon(Icons.access_time),
                     title: const Text('الساعة'),
-                    subtitle: Text(time.format(context)),
+                    subtitle: Text(
+                      time.format(context),
+                    ),
                     onTap: () async {
                       final picked = await showTimePicker(
                         context: context,
@@ -165,7 +170,9 @@ class _HomePageState extends State<HomePage> {
               ),
               actions: [
                 TextButton(
-                  onPressed: () => Navigator.pop(dialogContext),
+                  onPressed: () {
+                    Navigator.pop(dialogContext);
+                  },
                   child: const Text('إلغاء'),
                 ),
                 ElevatedButton(
@@ -201,15 +208,16 @@ class _HomePageState extends State<HomePage> {
 
     controller.dispose();
   }
-Future<void> editAppointment(int index) async {
-  final appointment = appointments[index];
 
-  final controller = TextEditingController(
-    text: appointment.title,
-  );
+  Future<void> editAppointment(int index) async {
+    final appointment = appointments[index];
 
-  DateTime date = appointment.date;
-  TimeOfDay time = appointment.time;
+    final controller = TextEditingController(
+      text: appointment.title,
+    );
+
+    DateTime date = appointment.date;
+    TimeOfDay time = appointment.time;
 
     await showDialog(
       context: context,
@@ -229,6 +237,7 @@ Future<void> editAppointment(int index) async {
                     ),
                   ),
                   const SizedBox(height: 10),
+
                   ListTile(
                     leading: const Icon(Icons.calendar_month),
                     title: const Text('التاريخ'),
@@ -250,10 +259,13 @@ Future<void> editAppointment(int index) async {
                       }
                     },
                   ),
+
                   ListTile(
                     leading: const Icon(Icons.access_time),
                     title: const Text('الساعة'),
-                    subtitle: Text(time.format(context)),
+                    subtitle: Text(
+                      time.format(context),
+                    ),
                     onTap: () async {
                       final picked = await showTimePicker(
                         context: context,
@@ -271,114 +283,9 @@ Future<void> editAppointment(int index) async {
               ),
               actions: [
                 TextButton(
-                  onPressed: () => Navigator.pop
-                  onPressed: () => Navigator.pop(dialogContext),
-child: const Text('إلغاء'),
-),
-ElevatedButton(
-  onPressed: () async {
-    if (controller.text.trim().isEmpty) {
-      return;
-    }
-
-    setState(() {
-      appointments.add(
-        Appointment(
-          title: controller.text.trim(),
-          date: date,
-          time: time,
-        ),
-      );
-    });
-
-    await saveAppointments();
-
-    if (dialogContext.mounted) {
-      Navigator.pop(dialogContext);
-    }
-  },
-  child: const Text('حفظ'),
-),
-                ],
-);
-},
-);
-},
-);
-
-controller.dispose();
-}
-
-Future<void> editAppointment(int index) async {
-  final appointment = appointments[index];
-
-  final controller = TextEditingController(
-    text: appointment.title,
-  );
-
-  DateTime date = appointment.date;
-  TimeOfDay time = appointment.time;
-      await showDialog(
-      context: context,
-      builder: (dialogContext) {
-        return StatefulBuilder(
-          builder: (context, setDialogState) {
-            return AlertDialog(
-              title: const Text('تعديل الموعد'),
-              content: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  TextField(
-                    controller: controller,
-                    decoration: const InputDecoration(
-                      labelText: 'اسم الموعد',
-                      border: OutlineInputBorder(),
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                  ListTile(
-                    leading: const Icon(Icons.calendar_month),
-                    title: const Text('التاريخ'),
-                    subtitle: Text(
-                      '${date.day}/${date.month}/${date.year}',
-                    ),
-                    onTap: () async {
-                      final picked = await showDatePicker(
-                        context: context,
-                        initialDate: date,
-                        firstDate: DateTime.now(),
-                        lastDate: DateTime(2100),
-                      );
-
-                      if (picked != null) {
-                        setDialogState(() {
-                          date = picked;
-                        });
-                      }
-                    },
-                  ),
-                  ListTile(
-                    leading: const Icon(Icons.access_time),
-                    title: const Text('الساعة'),
-                    subtitle: Text(time.format(context)),
-                    onTap: () async {
-                      final picked = await showTimePicker(
-                        context: context,
-                        initialTime: time,
-                      );
-
-                      if (picked != null) {
-                        setDialogState(() {
-                          time = picked;
-                        });
-                      }
-                    },
-                  ),
-                ],
-              ),
-                            actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(dialogContext),
+                  onPressed: () {
+                    Navigator.pop(dialogContext);
+                  },
                   child: const Text('إلغاء'),
                 ),
                 ElevatedButton(
@@ -418,7 +325,8 @@ Future<void> editAppointment(int index) async {
 
     await saveAppointments();
   }
-    @override
+
+  @override
   Widget build(BuildContext context) {
     return Directionality(
       textDirection: TextDirection.rtl,
@@ -440,8 +348,17 @@ Future<void> editAppointment(int index) async {
                   final appointment = appointments[index];
 
                   return Card(
+                    margin: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 6,
+                    ),
                     child: ListTile(
-                      title: Text(appointment.title),
+                      title: Text(
+                        appointment.title,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
                       subtitle: Text(
                         '${appointment.date.day}/${appointment.date.month}/${appointment.date.year}'
                         ' - ${appointment.time.format(context)}',
