@@ -43,7 +43,18 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage> {
   final List<Appointment> appointments = [];
+Future<void> saveAppointments() async {
+  final prefs = await SharedPreferences.getInstance();
 
+  final data = appointments.map((appointment) {
+    return '${appointment.title}|'
+        '${appointment.date.toIso8601String()}|'
+        '${appointment.time.hour}|'
+        '${appointment.time.minute}';
+  }).toList();
+
+  await prefs.setStringList('appointments', data);
+}
   Future<void> addAppointment() async {
     final controller = TextEditingController();
     DateTime date = DateTime.now();
