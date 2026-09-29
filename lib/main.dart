@@ -290,6 +290,7 @@ await saveAppointments();
     setState(() {
       appointments.removeAt(index);
     });
+    await saveAppointments();
   }
 
   @override
