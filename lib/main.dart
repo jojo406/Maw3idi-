@@ -173,7 +173,7 @@ Future<void> saveAppointments() async {
                         ),
                       );
                     });
-
+await saveAppointments();
                     Navigator.pop(dialogContext);
                   },
                   child: const Text('حفظ'),
