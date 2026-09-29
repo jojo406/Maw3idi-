@@ -201,16 +201,15 @@ class _HomePageState extends State<HomePage> {
 
     controller.dispose();
   }
+Future<void> editAppointment(int index) async {
+  final appointment = appointments[index];
 
-  Future<void> editAppointment(int index) async {
-    final appointment = appointments[index];
+  final controller = TextEditingController(
+    text: appointment.title,
+  );
 
-    final controller = TextEditingController(
-      text: appointment.title,
-    );
-
-    DateTime date = appointment.date;
-    TimeOfDay time = appointment.time;
+  DateTime date = appointment.date;
+  TimeOfDay time = appointment.time;
 
     await showDialog(
       context: context,
