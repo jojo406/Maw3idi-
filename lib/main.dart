@@ -43,6 +43,37 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage> {
   final List<Appointment> appointments = [];
+  Future<void> loadAppointments() async {
+  final prefs = await SharedPreferences.getInstance();
+  final data = prefs.getStringList('appointments') ?? [];
+
+  setState(() {
+    appointments.clear();
+
+    for (final item in data) {
+      final parts = item.split('|');
+
+      if (parts.length == 4) {
+        final date = DateTime.tryParse(parts[1]);
+        final hour = int.tryParse(parts[2]);
+        final minute = int.tryParse(parts[3]);
+
+        if (date != null && hour != null && minute != null) {
+          appointments.add(
+            Appointment(
+              title: parts[0],
+              date: date,
+              time: TimeOfDay(
+                hour: hour,
+                minute: minute,
+              ),
+            ),
+          );
+        }
+      }
+    }
+  });
+  }
 Future<void> saveAppointments() async {
   final prefs = await SharedPreferences.getInstance();
 
