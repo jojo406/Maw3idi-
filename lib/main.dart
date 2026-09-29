@@ -43,16 +43,18 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage> {
   final List<Appointment> appointments = [];
+
+  @override
+  void initState() {
+    super.initState();
+    loadAppointments();
+  }
+
   Future<void> loadAppointments() async {
-  final prefs = await SharedPreferences.getInstance();
-  final data = prefs.getStringList('appointments') ?? [];
-@override
-void initState() {
-  super.initState();
-  loadAppointments();
-}
-  setState(() {
-    appointments.clear();
+    final prefs = await SharedPreferences.getInstance();
+    final data = prefs.getStringList('appointments') ?? [];
+
+    final loadedAppointments = <Appointment>[];
 
     for (final item in data) {
       final parts = item.split('|');
@@ -63,7 +65,7 @@ void initState() {
         final minute = int.tryParse(parts[3]);
 
         if (date != null && hour != null && minute != null) {
-          appointments.add(
+          loadedAppointments.add(
             Appointment(
               title: parts[0],
               date: date,
@@ -76,20 +78,28 @@ void initState() {
         }
       }
     }
-  });
+
+    if (!mounted) return;
+
+    setState(() {
+      appointments.clear();
+      appointments.addAll(loadedAppointments);
+    });
   }
-Future<void> saveAppointments() async {
-  final prefs = await SharedPreferences.getInstance();
 
-  final data = appointments.map((appointment) {
-    return '${appointment.title}|'
-        '${appointment.date.toIso8601String()}|'
-        '${appointment.time.hour}|'
-        '${appointment.time.minute}';
-  }).toList();
+  Future<void> saveAppointments() async {
+    final prefs = await SharedPreferences.getInstance();
 
-  await prefs.setStringList('appointments', data);
-}
+    final data = appointments.map((appointment) {
+      return '${appointment.title}|'
+          '${appointment.date.toIso8601String()}|'
+          '${appointment.time.hour}|'
+          '${appointment.time.minute}';
+    }).toList();
+
+    await prefs.setStringList('appointments', data);
+  }
+
   Future<void> addAppointment() async {
     final controller = TextEditingController();
     DateTime date = DateTime.now();
@@ -159,7 +169,7 @@ Future<void> saveAppointments() async {
                   child: const Text('إلغاء'),
                 ),
                 ElevatedButton(
-                  onPressed: () {
+                  onPressed: () async {
                     if (controller.text.trim().isEmpty) {
                       return;
                     }
@@ -173,8 +183,12 @@ Future<void> saveAppointments() async {
                         ),
                       );
                     });
-await saveAppointments();
-                    Navigator.pop(dialogContext);
+
+                    await saveAppointments();
+
+                    if (dialogContext.mounted) {
+                      Navigator.pop(dialogContext);
+                    }
                   },
                   child: const Text('حفظ'),
                 ),
@@ -190,6 +204,7 @@ await saveAppointments();
 
   Future<void> editAppointment(int index) async {
     final appointment = appointments[index];
+
     final controller = TextEditingController(
       text: appointment.title,
     );
@@ -257,11 +272,118 @@ await saveAppointments();
               ),
               actions: [
                 TextButton(
+                  onPressed: () => Navigator.pop
+                  onPressed: () => Navigator.pop(dialogContext),
+child: const Text('إلغاء'),
+),
+ElevatedButton(
+  onPressed: () async {
+    if (controller.text.trim().isEmpty) {
+      return;
+    }
+
+    setState(() {
+      appointments.add(
+        Appointment(
+          title: controller.text.trim(),
+          date: date,
+          time: time,
+        ),
+      );
+    });
+
+    await saveAppointments();
+
+    if (dialogContext.mounted) {
+      Navigator.pop(dialogContext);
+    }
+  },
+  child: const Text('حفظ'),
+),
+                ],
+);
+},
+);
+},
+);
+
+controller.dispose();
+}
+
+Future<void> editAppointment(int index) async {
+  final appointment = appointments[index];
+
+  final controller = TextEditingController(
+    text: appointment.title,
+  );
+
+  DateTime date = appointment.date;
+  TimeOfDay time = appointment.time;
+      await showDialog(
+      context: context,
+      builder: (dialogContext) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              title: const Text('تعديل الموعد'),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextField(
+                    controller: controller,
+                    decoration: const InputDecoration(
+                      labelText: 'اسم الموعد',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  ListTile(
+                    leading: const Icon(Icons.calendar_month),
+                    title: const Text('التاريخ'),
+                    subtitle: Text(
+                      '${date.day}/${date.month}/${date.year}',
+                    ),
+                    onTap: () async {
+                      final picked = await showDatePicker(
+                        context: context,
+                        initialDate: date,
+                        firstDate: DateTime.now(),
+                        lastDate: DateTime(2100),
+                      );
+
+                      if (picked != null) {
+                        setDialogState(() {
+                          date = picked;
+                        });
+                      }
+                    },
+                  ),
+                  ListTile(
+                    leading: const Icon(Icons.access_time),
+                    title: const Text('الساعة'),
+                    subtitle: Text(time.format(context)),
+                    onTap: () async {
+                      final picked = await showTimePicker(
+                        context: context,
+                        initialTime: time,
+                      );
+
+                      if (picked != null) {
+                        setDialogState(() {
+                          time = picked;
+                        });
+                      }
+                    },
+                  ),
+                ],
+              ),
+                            actions: [
+                TextButton(
                   onPressed: () => Navigator.pop(dialogContext),
                   child: const Text('إلغاء'),
                 ),
                 ElevatedButton(
-                  onPressed: () {
+                  onPressed: () async {
                     if (controller.text.trim().isEmpty) {
                       return;
                     }
@@ -271,8 +393,12 @@ await saveAppointments();
                       appointment.date = date;
                       appointment.time = time;
                     });
-await saveAppointments();
-                    Navigator.pop(dialogContext);
+
+                    await saveAppointments();
+
+                    if (dialogContext.mounted) {
+                      Navigator.pop(dialogContext);
+                    }
                   },
                   child: const Text('حفظ التعديل'),
                 ),
@@ -286,14 +412,14 @@ await saveAppointments();
     controller.dispose();
   }
 
-  void deleteAppointment(int index) {
+  Future<void> deleteAppointment(int index) async {
     setState(() {
       appointments.removeAt(index);
     });
+
     await saveAppointments();
   }
-
-  @override
+    @override
   Widget build(BuildContext context) {
     return Directionality(
       textDirection: TextDirection.rtl,
