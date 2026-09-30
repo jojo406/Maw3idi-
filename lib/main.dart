@@ -1,11 +1,12 @@
 import 'dart:async';
-
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -33,9 +34,9 @@ class AloWaselniApp extends StatelessWidget {
   }
 }
 
-// =====================================================
+// ============================================================
 // HOME
-// =====================================================
+// ============================================================
 
 class HomePage extends StatelessWidget {
   const HomePage({super.key});
@@ -50,15 +51,12 @@ class HomePage extends StatelessWidget {
           child: Column(
             children: [
               const SizedBox(height: 25),
-
               const Icon(
                 Icons.local_shipping_rounded,
-                size: 70,
+                size: 72,
                 color: Color(0xFF1565C0),
               ),
-
-              const SizedBox(height: 12),
-
+              const SizedBox(height: 10),
               const Text(
                 'ألو وصلني',
                 style: TextStyle(
@@ -67,18 +65,14 @@ class HomePage extends StatelessWidget {
                   color: Color(0xFF1565C0),
                 ),
               ),
-
-              const SizedBox(height: 5),
-
               const Text(
                 'خدمة التوصيل داخل البلدية',
                 style: TextStyle(
-                  fontSize: 16,
                   color: Colors.grey,
+                  fontSize: 16,
                 ),
               ),
-
-              const SizedBox(height: 45),
+              const SizedBox(height: 42),
 
               RoleButton(
                 icon: Icons.person_rounded,
@@ -94,7 +88,7 @@ class HomePage extends StatelessWidget {
                 },
               ),
 
-              const SizedBox(height: 18),
+              const SizedBox(height: 16),
 
               RoleButton(
                 icon: Icons.directions_car_rounded,
@@ -112,7 +106,7 @@ class HomePage extends StatelessWidget {
                 },
               ),
 
-              const SizedBox(height: 18),
+              const SizedBox(height: 16),
 
               RoleButton(
                 icon: Icons.two_wheeler_rounded,
@@ -137,10 +131,6 @@ class HomePage extends StatelessWidget {
   }
 }
 
-// =====================================================
-// ROLE BUTTON
-// =====================================================
-
 class RoleButton extends StatelessWidget {
   final IconData icon;
   final String title;
@@ -159,13 +149,13 @@ class RoleButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return Material(
       color: Colors.white,
-      borderRadius: BorderRadius.circular(22),
       elevation: 2,
+      borderRadius: BorderRadius.circular(22),
       child: InkWell(
         borderRadius: BorderRadius.circular(22),
         onTap: onTap,
         child: Padding(
-          padding: const EdgeInsets.all(20),
+          padding: const EdgeInsets.all(19),
           child: Row(
             children: [
               Container(
@@ -177,11 +167,11 @@ class RoleButton extends StatelessWidget {
                 ),
                 child: Icon(
                   icon,
-                  color: const Color(0xFF1565C0),
                   size: 30,
+                  color: const Color(0xFF1565C0),
                 ),
               ),
-              const SizedBox(width: 16),
+              const SizedBox(width: 15),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -216,9 +206,9 @@ class RoleButton extends StatelessWidget {
   }
 }
 
-// =====================================================
-// CUSTOMER
-// =====================================================
+// ============================================================
+// CUSTOMER HOME
+// ============================================================
 
 class CustomerPage extends StatelessWidget {
   const CustomerPage({super.key});
@@ -251,9 +241,7 @@ class CustomerPage extends StatelessWidget {
                 );
               },
             ),
-
-            const SizedBox(height: 18),
-
+            const SizedBox(height: 16),
             ServiceButton(
               icon: Icons.shopping_bag_rounded,
               title: 'ألو جيبلي',
@@ -263,6 +251,20 @@ class CustomerPage extends StatelessWidget {
                   context,
                   MaterialPageRoute(
                     builder: (_) => const JibliPage(),
+                  ),
+                );
+              },
+            ),
+            const SizedBox(height: 16),
+            ServiceButton(
+              icon: Icons.history,
+              title: 'طلباتي السابقة',
+              subtitle: 'شوف الطلبات والتقييمات',
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => const HistoryPage(),
                   ),
                 );
               },
@@ -292,13 +294,13 @@ class ServiceButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return Material(
       color: Colors.white,
-      borderRadius: BorderRadius.circular(22),
       elevation: 2,
+      borderRadius: BorderRadius.circular(22),
       child: InkWell(
         borderRadius: BorderRadius.circular(22),
         onTap: onTap,
         child: Padding(
-          padding: const EdgeInsets.all(22),
+          padding: const EdgeInsets.all(20),
           child: Row(
             children: [
               CircleAvatar(
@@ -306,11 +308,11 @@ class ServiceButton extends StatelessWidget {
                 backgroundColor: const Color(0xFFE3F2FD),
                 child: Icon(
                   icon,
-                  color: const Color(0xFF1565C0),
                   size: 30,
+                  color: const Color(0xFF1565C0),
                 ),
               ),
-              const SizedBox(width: 16),
+              const SizedBox(width: 15),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -318,11 +320,11 @@ class ServiceButton extends StatelessWidget {
                     Text(
                       title,
                       style: const TextStyle(
-                        fontSize: 20,
+                        fontSize: 19,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
-                    const SizedBox(height: 5),
+                    const SizedBox(height: 4),
                     Text(
                       subtitle,
                       style: const TextStyle(color: Colors.grey),
@@ -339,22 +341,58 @@ class ServiceButton extends StatelessWidget {
   }
 }
 
-// =====================================================
-// LOCATION MAP
-// =====================================================
+// ============================================================
+// LOCATION HELPERS
+// ============================================================
+
+Future<LatLng?> getCurrentLocation() async {
+  try {
+    if (!await Geolocator.isLocationServiceEnabled()) {
+      return null;
+    }
+
+    var permission = await Geolocator.checkPermission();
+
+    if (permission == LocationPermission.denied) {
+      permission = await Geolocator.requestPermission();
+    }
+
+    if (permission == LocationPermission.denied ||
+        permission == LocationPermission.deniedForever) {
+      return null;
+    }
+
+    final position = await Geolocator.getCurrentPosition();
+
+    return LatLng(
+      position.latitude,
+      position.longitude,
+    );
+  } catch (_) {
+    return null;
+  }
+}
+
+// ============================================================
+// MAP PICKER
+// ============================================================
 
 class LocationMap extends StatefulWidget {
   final LatLng? pickup;
   final LatLng? destination;
+  final LatLng? driverLocation;
   final Function(LatLng) onMapTap;
   final bool showDestination;
+  final bool showDriver;
 
   const LocationMap({
     super.key,
     this.pickup,
     this.destination,
+    this.driverLocation,
     required this.onMapTap,
     this.showDestination = true,
+    this.showDriver = false,
   });
 
   @override
@@ -370,54 +408,21 @@ class _LocationMapState extends State<LocationMap> {
   @override
   void initState() {
     super.initState();
-    _getLocation();
+    _loadLocation();
   }
 
-  Future<void> _getLocation() async {
-    try {
-      final serviceEnabled =
-          await Geolocator.isLocationServiceEnabled();
+  Future<void> _loadLocation() async {
+    final location = await getCurrentLocation();
 
-      if (!serviceEnabled) {
-        setState(() => loading = false);
-        return;
-      }
+    if (!mounted) return;
 
-      LocationPermission permission =
-          await Geolocator.checkPermission();
+    setState(() {
+      currentLocation = location;
+      loading = false;
+    });
 
-      if (permission == LocationPermission.denied) {
-        permission = await Geolocator.requestPermission();
-      }
-
-      if (permission == LocationPermission.denied ||
-          permission == LocationPermission.deniedForever) {
-        setState(() => loading = false);
-        return;
-      }
-
-      final position =
-          await Geolocator.getCurrentPosition();
-
-      final location = LatLng(
-        position.latitude,
-        position.longitude,
-      );
-
-      setState(() {
-        currentLocation = location;
-        loading = false;
-      });
-
+    if (location != null) {
       mapController.move(location, 15);
-    } catch (_) {
-      setState(() => loading = false);
-    }
-  }
-
-  void _centerLocation() {
-    if (currentLocation != null) {
-      mapController.move(currentLocation!, 16);
     }
   }
 
@@ -434,12 +439,12 @@ class _LocationMapState extends State<LocationMap> {
       markers.add(
         Marker(
           point: currentLocation!,
-          width: 55,
-          height: 55,
+          width: 50,
+          height: 50,
           child: const Icon(
             Icons.my_location,
             color: Colors.blue,
-            size: 38,
+            size: 35,
           ),
         ),
       );
@@ -476,6 +481,22 @@ class _LocationMapState extends State<LocationMap> {
       );
     }
 
+    if (widget.showDriver &&
+        widget.driverLocation != null) {
+      markers.add(
+        Marker(
+          point: widget.driverLocation!,
+          width: 60,
+          height: 60,
+          child: const Icon(
+            Icons.local_taxi,
+            color: Colors.orange,
+            size: 40,
+          ),
+        ),
+      );
+    }
+
     return ClipRRect(
       borderRadius: BorderRadius.circular(22),
       child: Stack(
@@ -499,10 +520,9 @@ class _LocationMapState extends State<LocationMap> {
               MarkerLayer(markers: markers),
             ],
           ),
-
           Positioned(
-            right: 12,
-            bottom: 12,
+            right: 10,
+            bottom: 10,
             child: Column(
               children: [
                 MapControlButton(
@@ -514,7 +534,7 @@ class _LocationMapState extends State<LocationMap> {
                     );
                   },
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: 7),
                 MapControlButton(
                   icon: Icons.remove,
                   onTap: () {
@@ -524,15 +544,21 @@ class _LocationMapState extends State<LocationMap> {
                     );
                   },
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: 7),
                 MapControlButton(
                   icon: Icons.my_location,
-                  onTap: _centerLocation,
+                  onTap: () {
+                    if (currentLocation != null) {
+                      mapController.move(
+                        currentLocation!,
+                        16,
+                      );
+                    }
+                  },
                 ),
               ],
             ),
           ),
-
           if (loading)
             const Positioned.fill(
               child: Center(
@@ -545,9 +571,9 @@ class _LocationMapState extends State<LocationMap> {
   }
 }
 
-// =====================================================
+// ============================================================
 // WASELNI
-// =====================================================
+// ============================================================
 
 class WaselniPage extends StatefulWidget {
   const WaselniPage({super.key});
@@ -561,12 +587,11 @@ class _WaselniPageState extends State<WaselniPage> {
   LatLng? destination;
 
   String vehicle = 'car';
-
-  final phoneController = TextEditingController();
-
   String? requestId;
 
   Timer? locationTimer;
+
+  final phoneController = TextEditingController();
 
   @override
   void dispose() {
@@ -588,14 +613,14 @@ class _WaselniPageState extends State<WaselniPage> {
     });
   }
 
-  Future<void> sendRequest() async {
+  Future<void> _sendRequest() async {
     if (pickup == null || destination == null) {
-      _showMessage('حدد نقطة الانطلاق والوجهة من الخريطة');
+      _message('حدد نقطة الانطلاق والوجهة');
       return;
     }
 
     if (phoneController.text.trim().isEmpty) {
-      _showMessage('أدخل رقم الهاتف');
+      _message('أدخل رقم الهاتف');
       return;
     }
 
@@ -611,49 +636,27 @@ class _WaselniPageState extends State<WaselniPage> {
         'destinationLng': destination!.longitude,
         'phone': phoneController.text.trim(),
         'status': 'pending',
-
-        // الموقع الحالي للزبون
         'customerLocationLat': pickup!.latitude,
         'customerLocationLng': pickup!.longitude,
         'customerLocationUpdatedAt':
             FieldValue.serverTimestamp(),
-
         'createdAt': FieldValue.serverTimestamp(),
       });
 
       requestId = doc.id;
 
-      _startLiveLocation();
+      await saveRequestId(doc.id);
+      _startLocationTracking();
 
-      if (!mounted) return;
-
-      showDialog(
-        context: context,
-        barrierDismissible: false,
-        builder: (_) {
-          return AlertDialog(
-            title: const Text('تم إرسال الطلب ✅'),
-            content: const Text(
-              'الطلب وصل للسائقين.\n'
-              'موقعك الحالي يتحدث تلقائياً للسائق.',
-            ),
-            actions: [
-              TextButton(
-                onPressed: () {
-                  Navigator.pop(context);
-                },
-                child: const Text('حسناً'),
-              ),
-            ],
-          );
-        },
-      );
-    } catch (e) {
-      _showMessage('حدث خطأ أثناء إرسال الطلب');
+      if (mounted) {
+        setState(() {});
+      }
+    } catch (_) {
+      _message('حدث خطأ أثناء إرسال الطلب');
     }
   }
 
-  void _startLiveLocation() {
+  void _startLocationTracking() {
     locationTimer?.cancel();
 
     locationTimer = Timer.periodic(
@@ -667,42 +670,26 @@ class _WaselniPageState extends State<WaselniPage> {
   Future<void> _updateCustomerLocation() async {
     if (requestId == null) return;
 
+    final location = await getCurrentLocation();
+
+    if (location == null) return;
+
     try {
-      final serviceEnabled =
-          await Geolocator.isLocationServiceEnabled();
-
-      if (!serviceEnabled) return;
-
-      LocationPermission permission =
-          await Geolocator.checkPermission();
-
-      if (permission == LocationPermission.denied) {
-        permission = await Geolocator.requestPermission();
-      }
-
-      if (permission == LocationPermission.denied ||
-          permission == LocationPermission.deniedForever) {
-        return;
-      }
-
-      final position =
-          await Geolocator.getCurrentPosition();
-
       await FirebaseFirestore.instance
           .collection('requests')
           .doc(requestId)
           .update({
-        'customerLocationLat': position.latitude,
-        'customerLocationLng': position.longitude,
+        'customerLocationLat': location.latitude,
+        'customerLocationLng': location.longitude,
         'customerLocationUpdatedAt':
             FieldValue.serverTimestamp(),
       });
     } catch (_) {}
   }
 
-  void _showMessage(String message) {
+  void _message(String text) {
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message)),
+      SnackBar(content: Text(text)),
     );
   }
 
@@ -717,91 +704,102 @@ class _WaselniPageState extends State<WaselniPage> {
         centerTitle: true,
       ),
       backgroundColor: const Color(0xFFF5F7FA),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          children: [
-            SizedBox(
-              height: 330,
-              child: LocationMap(
-                pickup: pickup,
-                destination: destination,
-                onMapTap: _mapTap,
+      body: requestId != null
+          ? CustomerTrackingPage(
+              requestId: requestId!,
+              onCancel: () async {
+                await FirebaseFirestore.instance
+                    .collection('requests')
+                    .doc(requestId)
+                    .update({
+                  'status': 'cancelled',
+                });
+
+                locationTimer?.cancel();
+
+                if (mounted) {
+                  setState(() {
+                    requestId = null;
+                  });
+                }
+              },
+            )
+          : SingleChildScrollView(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                children: [
+                  SizedBox(
+                    height: 330,
+                    child: LocationMap(
+                      pickup: pickup,
+                      destination: destination,
+                      onMapTap: _mapTap,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  const Text(
+                    'اضغط على الخريطة: أول نقطة للانطلاق، والثانية للوجهة',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: Colors.grey),
+                  ),
+                  const SizedBox(height: 14),
+
+                  Row(
+                    children: [
+                      Expanded(
+                        child: VehicleButton(
+                          icon: Icons.directions_car,
+                          title: 'سيارة',
+                          selected: vehicle == 'car',
+                          onTap: () {
+                            setState(() {
+                              vehicle = 'car';
+                            });
+                          },
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: VehicleButton(
+                          icon: Icons.two_wheeler,
+                          title: 'دراجة',
+                          selected: vehicle == 'motorcycle',
+                          onTap: () {
+                            setState(() {
+                              vehicle = 'motorcycle';
+                            });
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
+
+                  const SizedBox(height: 14),
+
+                  ModernTextField(
+                    controller: phoneController,
+                    hint: 'رقم الهاتف',
+                    icon: Icons.phone,
+                    keyboardType: TextInputType.phone,
+                  ),
+
+                  const SizedBox(height: 18),
+
+                  MainButton(
+                    icon: Icons.send,
+                    text: 'اطلب الآن',
+                    onPressed: _sendRequest,
+                  ),
+                ],
               ),
             ),
-
-            const SizedBox(height: 14),
-
-            const Text(
-              'اضغط على الخريطة لاختيار الانطلاق ثم الوجهة',
-              textAlign: TextAlign.center,
-              style: TextStyle(color: Colors.grey),
-            ),
-
-            const SizedBox(height: 15),
-
-            Row(
-              children: [
-                Expanded(
-                  child: VehicleButton(
-                    icon: Icons.directions_car,
-                    title: 'سيارة',
-                    selected: vehicle == 'car',
-                    onTap: () {
-                      setState(() => vehicle = 'car');
-                    },
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: VehicleButton(
-                    icon: Icons.two_wheeler,
-                    title: 'دراجة',
-                    selected: vehicle == 'motorcycle',
-                    onTap: () {
-                      setState(() => vehicle = 'motorcycle');
-                    },
-                  ),
-                ),
-              ],
-            ),
-
-            const SizedBox(height: 14),
-
-            ModernTextField(
-              controller: phoneController,
-              hint: 'رقم الهاتف',
-              icon: Icons.phone,
-              keyboardType: TextInputType.phone,
-            ),
-
-            const SizedBox(height: 18),
-
-            SizedBox(
-              width: double.infinity,
-              height: 55,
-              child: ElevatedButton.icon(
-                onPressed: sendRequest,
-                icon: const Icon(Icons.send),
-                label: const Text(
-                  'اطلب الآن',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
     );
   }
 }
 
-// =====================================================
+// ============================================================
 // JIBLI
-// =====================================================
+// ============================================================
 
 class JibliPage extends StatefulWidget {
   const JibliPage({super.key});
@@ -814,11 +812,11 @@ class _JibliPageState extends State<JibliPage> {
   LatLng? pickup;
   LatLng? destination;
 
-  final itemController = TextEditingController();
-  final phoneController = TextEditingController();
-
   String? requestId;
   Timer? locationTimer;
+
+  final itemController = TextEditingController();
+  final phoneController = TextEditingController();
 
   @override
   void dispose() {
@@ -841,19 +839,19 @@ class _JibliPageState extends State<JibliPage> {
     });
   }
 
-  Future<void> sendRequest() async {
+  Future<void> _sendRequest() async {
     if (pickup == null || destination == null) {
-      _showMessage('حدد نقطة الانطلاق والوجهة');
+      _message('حدد نقطة الانطلاق والوجهة');
       return;
     }
 
     if (itemController.text.trim().isEmpty) {
-      _showMessage('اكتب واش حاب السائق يجيبلك');
+      _message('اكتب واش حاب السائق يجيبلك');
       return;
     }
 
     if (phoneController.text.trim().isEmpty) {
-      _showMessage('أدخل رقم الهاتف');
+      _message('أدخل رقم الهاتف');
       return;
     }
 
@@ -869,94 +867,60 @@ class _JibliPageState extends State<JibliPage> {
         'destinationLng': destination!.longitude,
         'phone': phoneController.text.trim(),
         'status': 'pending',
-
         'customerLocationLat': pickup!.latitude,
         'customerLocationLng': pickup!.longitude,
         'customerLocationUpdatedAt':
             FieldValue.serverTimestamp(),
-
         'createdAt': FieldValue.serverTimestamp(),
       });
 
       requestId = doc.id;
 
-      _startLiveLocation();
+      await saveRequestId(doc.id);
+      _startLocationTracking();
 
-      if (!mounted) return;
-
-      showDialog(
-        context: context,
-        barrierDismissible: false,
-        builder: (_) {
-          return AlertDialog(
-            title: const Text('تم إرسال الطلب ✅'),
-            content: const Text(
-              'السائقين يقدرو يشوفو موقعك الحالي على الخريطة.',
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text('حسناً'),
-              ),
-            ],
-          );
-        },
-      );
+      if (mounted) {
+        setState(() {});
+      }
     } catch (_) {
-      _showMessage('حدث خطأ أثناء إرسال الطلب');
+      _message('حدث خطأ أثناء إرسال الطلب');
     }
   }
 
-  void _startLiveLocation() {
+  void _startLocationTracking() {
     locationTimer?.cancel();
 
     locationTimer = Timer.periodic(
       const Duration(seconds: 5),
-      (_) => _updateCustomerLocation(),
+      (_) => _updateLocation(),
     );
 
-    _updateCustomerLocation();
+    _updateLocation();
   }
 
-  Future<void> _updateCustomerLocation() async {
+  Future<void> _updateLocation() async {
     if (requestId == null) return;
 
+    final location = await getCurrentLocation();
+
+    if (location == null) return;
+
     try {
-      final serviceEnabled =
-          await Geolocator.isLocationServiceEnabled();
-
-      if (!serviceEnabled) return;
-
-      LocationPermission permission =
-          await Geolocator.checkPermission();
-
-      if (permission == LocationPermission.denied) {
-        permission = await Geolocator.requestPermission();
-      }
-
-      if (permission == LocationPermission.denied ||
-          permission == LocationPermission.deniedForever) {
-        return;
-      }
-
-      final position =
-          await Geolocator.getCurrentPosition();
-
       await FirebaseFirestore.instance
           .collection('requests')
           .doc(requestId)
           .update({
-        'customerLocationLat': position.latitude,
-        'customerLocationLng': position.longitude,
+        'customerLocationLat': location.latitude,
+        'customerLocationLng': location.longitude,
         'customerLocationUpdatedAt':
             FieldValue.serverTimestamp(),
       });
     } catch (_) {}
   }
 
-  void _showMessage(String message) {
+  void _message(String text) {
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message)),
+      SnackBar(content: Text(text)),
     );
   }
 
@@ -971,73 +935,266 @@ class _JibliPageState extends State<JibliPage> {
         centerTitle: true,
       ),
       backgroundColor: const Color(0xFFF5F7FA),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          children: [
-            ModernTextField(
-              controller: itemController,
-              hint: 'واش حاب السائق يجيبلك؟',
-              icon: Icons.shopping_bag,
-            ),
+      body: requestId != null
+          ? CustomerTrackingPage(
+              requestId: requestId!,
+              onCancel: () async {
+                await FirebaseFirestore.instance
+                    .collection('requests')
+                    .doc(requestId)
+                    .update({
+                  'status': 'cancelled',
+                });
 
-            const SizedBox(height: 14),
+                locationTimer?.cancel();
 
-            ModernTextField(
-              controller: phoneController,
-              hint: 'رقم الهاتف',
-              icon: Icons.phone,
-              keyboardType: TextInputType.phone,
-            ),
-
-            const SizedBox(height: 15),
-
-            SizedBox(
-              height: 330,
-              child: LocationMap(
-                pickup: pickup,
-                destination: destination,
-                onMapTap: _mapTap,
-              ),
-            ),
-
-            const SizedBox(height: 12),
-
-            const Text(
-              'حدد مكان الانطلاق ثم مكان التسليم',
-              textAlign: TextAlign.center,
-              style: TextStyle(color: Colors.grey),
-            ),
-
-            const SizedBox(height: 18),
-
-            SizedBox(
-              width: double.infinity,
-              height: 55,
-              child: ElevatedButton.icon(
-                onPressed: sendRequest,
-                icon: const Icon(Icons.send),
-                label: const Text(
-                  'أرسل الطلب',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
+                if (mounted) {
+                  setState(() {
+                    requestId = null;
+                  });
+                }
+              },
+            )
+          : SingleChildScrollView(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                children: [
+                  ModernTextField(
+                    controller: itemController,
+                    hint: 'واش حاب السائق يجيبلك؟',
+                    icon: Icons.shopping_bag,
                   ),
-                ),
+                  const SizedBox(height: 12),
+                  ModernTextField(
+                    controller: phoneController,
+                    hint: 'رقم الهاتف',
+                    icon: Icons.phone,
+                    keyboardType: TextInputType.phone,
+                  ),
+                  const SizedBox(height: 14),
+                  SizedBox(
+                    height: 330,
+                    child: LocationMap(
+                      pickup: pickup,
+                      destination: destination,
+                      onMapTap: _mapTap,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  const Text(
+                    'حدد مكان الاستلام ثم مكان التسليم',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: Colors.grey),
+                  ),
+                  const SizedBox(height: 18),
+                  MainButton(
+                    icon: Icons.send,
+                    text: 'أرسل الطلب',
+                    onPressed: _sendRequest,
+                  ),
+                ],
               ),
             ),
-          ],
-        ),
-      ),
     );
   }
 }
 
-// =====================================================
-// DRIVER
-// =====================================================
+// ============================================================
+// CUSTOMER TRACKING
+// ============================================================
 
-class DriverPage extends StatelessWidget {
+class CustomerTrackingPage extends StatelessWidget {
+  final String requestId;
+  final VoidCallback onCancel;
+
+  const CustomerTrackingPage({
+    super.key,
+    required this.requestId,
+    required this.onCancel,
+  });
+
+  String statusTitle(String status) {
+    switch (status) {
+      case 'pending':
+        return 'جاري البحث عن سائق';
+      case 'accepted':
+        return 'تم قبول طلبك';
+      case 'driver_arriving':
+        return 'السائق في الطريق إليك';
+      case 'driver_arrived':
+        return 'السائق وصل';
+      case 'completed':
+        return 'تم إنهاء الطلب';
+      case 'cancelled':
+        return 'تم إلغاء الطلب';
+      default:
+        return 'حالة الطلب';
+    }
+  }
+
+  IconData statusIcon(String status) {
+    switch (status) {
+      case 'accepted':
+        return Icons.check_circle;
+      case 'driver_arriving':
+        return Icons.directions_car;
+      case 'driver_arrived':
+        return Icons.location_on;
+      case 'completed':
+        return Icons.done_all;
+      case 'cancelled':
+        return Icons.cancel;
+      default:
+        return Icons.search;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return StreamBuilder<DocumentSnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection('requests')
+          .doc(requestId)
+          .snapshots(),
+      builder: (context, snapshot) {
+        if (!snapshot.hasData) {
+          return const Center(
+            child: CircularProgressIndicator(),
+          );
+        }
+
+        if (!snapshot.data!.exists) {
+          return const Center(
+            child: Text('الطلب غير موجود'),
+          );
+        }
+
+        final data =
+            snapshot.data!.data() as Map<String, dynamic>;
+
+        final status = data['status'] ?? 'pending';
+
+        LatLng? driverLocation;
+
+        if (data['driverLocationLat'] != null &&
+            data['driverLocationLng'] != null) {
+          driverLocation = LatLng(
+            (data['driverLocationLat'] as num).toDouble(),
+            (data['driverLocationLng'] as num).toDouble(),
+          );
+        }
+
+        LatLng? pickup;
+
+        if (data['pickupLat'] != null &&
+            data['pickupLng'] != null) {
+          pickup = LatLng(
+            (data['pickupLat'] as num).toDouble(),
+            (data['pickupLng'] as num).toDouble(),
+          );
+        }
+
+        return SingleChildScrollView(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            children: [
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(18),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(22),
+                ),
+                child: Column(
+                  children: [
+                    Icon(
+                      statusIcon(status),
+                      size: 50,
+                      color: status == 'cancelled'
+                          ? Colors.red
+                          : const Color(0xFF1565C0),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      statusTitle(status),
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                        fontSize: 21,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              const SizedBox(height: 15),
+
+              if (pickup != null)
+                SizedBox(
+                  height: 330,
+                  child: LocationMap(
+                    pickup: pickup,
+                    driverLocation: driverLocation,
+                    showDestination: false,
+                    showDriver: driverLocation != null,
+                    onMapTap: (_) {},
+                  ),
+                ),
+
+              const SizedBox(height: 15),
+
+              if (data['driverId'] != null)
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(18),
+                  ),
+                  child: const Row(
+                    children: [
+                      CircleAvatar(
+                        child: Icon(Icons.person),
+                      ),
+                      SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          'تم العثور على سائق لطلبك',
+                          style: TextStyle(
+                            fontSize: 17,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+              const SizedBox(height: 15),
+
+              if (status == 'pending')
+                MainButton(
+                  icon: Icons.cancel,
+                  text: 'إلغاء الطلب',
+                  color: Colors.red,
+                  onPressed: onCancel,
+                ),
+
+              if (status == 'completed')
+                RatingWidget(requestId: requestId),
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
+
+// ============================================================
+// DRIVER
+// ============================================================
+
+class DriverPage extends StatefulWidget {
   final String vehicleType;
 
   const DriverPage({
@@ -1046,11 +1203,173 @@ class DriverPage extends StatelessWidget {
   });
 
   @override
+  State<DriverPage> createState() => _DriverPageState();
+}
+
+class _DriverPageState extends State<DriverPage> {
+  bool online = true;
+
+  String? driverId;
+  Timer? driverTimer;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadDriverId();
+  }
+
+  @override
+  void dispose() {
+    driverTimer?.cancel();
+    _setDriverOffline();
+    super.dispose();
+  }
+
+  Future<void> _loadDriverId() async {
+    final prefs = await SharedPreferences.getInstance();
+
+    driverId = prefs.getString('driver_id');
+
+    if (driverId == null) {
+      driverId =
+          'driver_${DateTime.now().millisecondsSinceEpoch}';
+
+      await prefs.setString(
+        'driver_id',
+        driverId!,
+      );
+    }
+
+    _setDriverOnline();
+    _startDriverLocation();
+  }
+
+  Future<void> _setDriverOnline() async {
+    if (driverId == null) return;
+
+    try {
+      await FirebaseFirestore.instance
+          .collection('drivers')
+          .doc(driverId)
+          .set({
+        'vehicleType': widget.vehicleType,
+        'online': true,
+        'updatedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+    } catch (_) {}
+  }
+
+  Future<void> _setDriverOffline() async {
+    if (driverId == null) return;
+
+    try {
+      await FirebaseFirestore.instance
+          .collection('drivers')
+          .doc(driverId)
+          .set({
+        'online': false,
+        'updatedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+    } catch (_) {}
+  }
+
+  void _startDriverLocation() {
+    driverTimer?.cancel();
+
+    driverTimer = Timer.periodic(
+      const Duration(seconds: 5),
+      (_) => _updateDriverLocation(),
+    );
+
+    _updateDriverLocation();
+  }
+
+  Future<void> _updateDriverLocation() async {
+    if (driverId == null || !online) return;
+
+    final location = await getCurrentLocation();
+
+    if (location == null) return;
+
+    try {
+      await FirebaseFirestore.instance
+          .collection('drivers')
+          .doc(driverId)
+          .set({
+        'vehicleType': widget.vehicleType,
+        'online': true,
+        'lat': location.latitude,
+        'lng': location.longitude,
+        'updatedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+    } catch (_) {}
+  }
+
+  Future<void> _toggleOnline(bool value) async {
+    setState(() {
+      online = value;
+    });
+
+    if (value) {
+      await _setDriverOnline();
+      _startDriverLocation();
+    } else {
+      await _setDriverOffline();
+      driverTimer?.cancel();
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
+    if (!online) {
+      return Scaffold(
+        appBar: AppBar(
+          title: const Text(
+            'السائق',
+            style: TextStyle(fontWeight: FontWeight.bold),
+          ),
+          centerTitle: true,
+        ),
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(25),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(
+                  Icons.power_settings_new,
+                  size: 75,
+                  color: Colors.grey,
+                ),
+                const SizedBox(height: 15),
+                const Text(
+                  'أنت غير متصل',
+                  style: TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 10),
+                const Text(
+                  'فعّل الاتصال باش تستقبل الطلبات',
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 20),
+                Switch(
+                  value: online,
+                  onChanged: _toggleOnline,
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
     return Scaffold(
       appBar: AppBar(
         title: Text(
-          vehicleType == 'car'
+          widget.vehicleType == 'car'
               ? 'طلبات السيارة'
               : 'طلبات الدراجة',
           style: const TextStyle(
@@ -1058,12 +1377,26 @@ class DriverPage extends StatelessWidget {
           ),
         ),
         centerTitle: true,
+        actions: [
+          Switch(
+            value: online,
+            onChanged: _toggleOnline,
+          ),
+        ],
       ),
       backgroundColor: const Color(0xFFF5F7FA),
       body: StreamBuilder<QuerySnapshot>(
         stream: FirebaseFirestore.instance
             .collection('requests')
-            .where('status', isEqualTo: 'pending')
+            .where(
+              'status',
+              whereIn: [
+                'pending',
+                'accepted',
+                'driver_arriving',
+                'driver_arrived',
+              ],
+            )
             .snapshots(),
         builder: (context, snapshot) {
           if (snapshot.connectionState ==
@@ -1078,7 +1411,6 @@ class DriverPage extends StatelessWidget {
               child: Text(
                 'تعذر تحميل الطلبات',
                 style: TextStyle(
-                  fontSize: 17,
                   fontWeight: FontWeight.bold,
                 ),
               ),
@@ -1093,12 +1425,20 @@ class DriverPage extends StatelessWidget {
 
             final service = data['service'];
 
-            // ألو جيبلي يبان لجميع السائقين
+            if (data['driverId'] == driverId) {
+              return true;
+            }
+
+            if (data['status'] != 'pending') {
+              return false;
+            }
+
             if (service == 'alo_jibli') {
               return true;
             }
 
-            return data['vehicleType'] == vehicleType;
+            return data['vehicleType'] ==
+                widget.vehicleType;
           }).toList();
 
           if (filtered.isEmpty) {
@@ -1121,7 +1461,7 @@ class DriverPage extends StatelessWidget {
                   ),
                   SizedBox(height: 5),
                   Text(
-                    'الطلبات الجديدة راح تظهر هنا',
+                    'خليك متصل باش توصلك الطلبات',
                     style: TextStyle(color: Colors.grey),
                   ),
                 ],
@@ -1135,6 +1475,7 @@ class DriverPage extends StatelessWidget {
             itemBuilder: (context, index) {
               return DriverRequestCard(
                 doc: filtered[index],
+                driverId: driverId,
               );
             },
           );
@@ -1144,26 +1485,168 @@ class DriverPage extends StatelessWidget {
   }
 }
 
-// =====================================================
+// ============================================================
 // DRIVER REQUEST CARD
-// =====================================================
+// ============================================================
 
-class DriverRequestCard extends StatelessWidget {
+class DriverRequestCard extends StatefulWidget {
   final QueryDocumentSnapshot doc;
+  final String? driverId;
 
   const DriverRequestCard({
     super.key,
     required this.doc,
+    required this.driverId,
   });
+
+  @override
+  State<DriverRequestCard> createState() =>
+      _DriverRequestCardState();
+}
+
+class _DriverRequestCardState
+    extends State<DriverRequestCard> {
+  Timer? locationTimer;
+
+  @override
+  void initState() {
+    super.initState();
+    locationTimer = Timer.periodic(
+      const Duration(seconds: 5),
+      (_) => _updateLocationIfAccepted(),
+    );
+  }
+
+  @override
+  void dispose() {
+    locationTimer?.cancel();
+    super.dispose();
+  }
+
+  Future<void> _updateLocationIfAccepted() async {
+    final data =
+        widget.doc.data() as Map<String, dynamic>;
+
+    if (data['driverId'] != widget.driverId) {
+      return;
+    }
+
+    final status = data['status'];
+
+    if (status == 'completed' ||
+        status == 'cancelled') {
+      return;
+    }
+
+    final location = await getCurrentLocation();
+
+    if (location == null) return;
+
+    try {
+      await FirebaseFirestore.instance
+          .collection('requests')
+          .doc(widget.doc.id)
+          .update({
+        'driverLocationLat': location.latitude,
+        'driverLocationLng': location.longitude,
+        'driverLocationUpdatedAt':
+            FieldValue.serverTimestamp(),
+      });
+    } catch (_) {}
+  }
+
+  Future<void> _accept() async {
+    if (widget.driverId == null) return;
+
+    final location = await getCurrentLocation();
+
+    final update = <String, dynamic>{
+      'status': 'accepted',
+      'driverId': widget.driverId,
+      'acceptedAt': FieldValue.serverTimestamp(),
+    };
+
+    if (location != null) {
+      update['driverLocationLat'] = location.latitude;
+      update['driverLocationLng'] = location.longitude;
+      update['driverLocationUpdatedAt'] =
+          FieldValue.serverTimestamp();
+    }
+
+    await FirebaseFirestore.instance
+        .collection('requests')
+        .doc(widget.doc.id)
+        .update(update);
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('تم قبول الطلب ✅'),
+        ),
+      );
+    }
+  }
+
+  Future<void> _changeStatus(String status) async {
+    await FirebaseFirestore.instance
+        .collection('requests')
+        .doc(widget.doc.id)
+        .update({
+      'status': status,
+      '${status}At': FieldValue.serverTimestamp(),
+    });
+  }
+
+  Future<void> _callCustomer() async {
+    final data =
+        widget.doc.data() as Map<String, dynamic>;
+
+    final phone = data['phone'];
+
+    if (phone == null || phone.toString().isEmpty) {
+      return;
+    }
+
+    const channel =
+        MethodChannel('allo_waselni/phone');
+
+    try {
+      await channel.invokeMethod(
+        'call',
+        {
+          'phone': phone.toString(),
+        },
+      );
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('رقم الزبون: $phone'),
+          ),
+        );
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     final data =
-        doc.data() as Map<String, dynamic>;
+        widget.doc.data() as Map<String, dynamic>;
 
     final service = data['service'] ?? '';
+    final status = data['status'] ?? 'pending';
 
     final isJibli = service == 'alo_jibli';
+
+    LatLng? customerLocation;
+
+    if (data['customerLocationLat'] != null &&
+        data['customerLocationLng'] != null) {
+      customerLocation = LatLng(
+        (data['customerLocationLat'] as num).toDouble(),
+        (data['customerLocationLng'] as num).toDouble(),
+      );
+    }
 
     return Card(
       margin: const EdgeInsets.only(bottom: 16),
@@ -1178,7 +1661,7 @@ class DriverRequestCard extends StatelessWidget {
             Row(
               children: [
                 CircleAvatar(
-                  radius: 25,
+                  radius: 26,
                   backgroundColor:
                       const Color(0xFFE3F2FD),
                   child: Icon(
@@ -1188,9 +1671,7 @@ class DriverRequestCard extends StatelessWidget {
                     color: const Color(0xFF1565C0),
                   ),
                 ),
-
                 const SizedBox(width: 12),
-
                 Expanded(
                   child: Column(
                     crossAxisAlignment:
@@ -1205,31 +1686,19 @@ class DriverRequestCard extends StatelessWidget {
                           fontWeight: FontWeight.bold,
                         ),
                       ),
-
-                      if (isJibli &&
-                          data['item'] != null)
-                        Padding(
-                          padding:
-                              const EdgeInsets.only(top: 4),
-                          child: Text(
-                            'الطلب: ${data['item']}',
-                            style: const TextStyle(
-                              color: Colors.grey,
-                            ),
+                      if (isJibli)
+                        Text(
+                          'الطلب: ${data['item'] ?? ''}',
+                          style: const TextStyle(
+                            color: Colors.grey,
                           ),
                         ),
-
-                      if (data['phone'] != null)
-                        Padding(
-                          padding:
-                              const EdgeInsets.only(top: 3),
-                          child: Text(
-                            'الهاتف: ${data['phone']}',
-                            style: const TextStyle(
-                              color: Colors.grey,
-                            ),
-                          ),
+                      Text(
+                        'الهاتف: ${data['phone'] ?? ''}',
+                        style: const TextStyle(
+                          color: Colors.grey,
                         ),
+                      ),
                     ],
                   ),
                 ),
@@ -1238,94 +1707,71 @@ class DriverRequestCard extends StatelessWidget {
 
             const SizedBox(height: 12),
 
-            // =================================================
-            // خريطة السائق:
-            // موقع الزبون فقط
-            // بدون الوجهة
-            // =================================================
-
+            // خريطة السائق: الزبون فقط
             SizedBox(
               height: 250,
               child: LiveCustomerMap(
-                requestId: doc.id,
-                initialLat:
-                    (data['customerLocationLat'] ??
-                            data['pickupLat'])
-                        .toDouble(),
-                initialLng:
-                    (data['customerLocationLng'] ??
-                            data['pickupLng'])
-                        .toDouble(),
-              ),
-            ),
-
-            const SizedBox(height: 12),
-
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.symmetric(
-                horizontal: 14,
-                vertical: 11,
-              ),
-              decoration: BoxDecoration(
-                color: const Color(0xFFE3F2FD),
-                borderRadius: BorderRadius.circular(14),
-              ),
-              child: const Row(
-                children: [
-                  Icon(
-                    Icons.location_on,
-                    color: Colors.blue,
-                  ),
-                  SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      'موقع الزبون الحالي يتحدث مباشرة',
-                      style: TextStyle(
-                        fontWeight: FontWeight.w600,
-                      ),
+                initialLocation: customerLocation ??
+                    LatLng(
+                      (data['pickupLat'] as num)
+                          .toDouble(),
+                      (data['pickupLng'] as num)
+                          .toDouble(),
                     ),
-                  ),
-                ],
+                requestId: widget.doc.id,
               ),
             ),
+
+            const SizedBox(height: 10),
+
+            StatusChip(status: status),
 
             const SizedBox(height: 12),
 
-            SizedBox(
-              width: double.infinity,
-              height: 52,
-              child: ElevatedButton.icon(
-                onPressed: () async {
-                  await FirebaseFirestore.instance
-                      .collection('requests')
-                      .doc(doc.id)
-                      .update({
-                    'status': 'accepted',
-                    'acceptedAt':
-                        FieldValue.serverTimestamp(),
-                  });
-
-                  if (context.mounted) {
-                    ScaffoldMessenger.of(context)
-                        .showSnackBar(
-                      const SnackBar(
-                        content:
-                            Text('تم قبول الطلب ✅'),
-                      ),
-                    );
-                  }
-                },
-                icon: const Icon(Icons.check_circle),
-                label: const Text(
-                  'قبول الطلب',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
+            if (status == 'pending')
+              MainButton(
+                icon: Icons.check_circle,
+                text: 'قبول الطلب',
+                onPressed: _accept,
               ),
-            ),
+
+            if (status == 'accepted') ...[
+              MainButton(
+                icon: Icons.directions_car,
+                text: 'أنا في الطريق',
+                onPressed: () =>
+                    _changeStatus('driver_arriving'),
+              ),
+              const SizedBox(height: 8),
+              MainButton(
+                icon: Icons.phone,
+                text: 'اتصال بالزبون',
+                onPressed: _callCustomer,
+              ),
+            ],
+
+            if (status == 'driver_arriving') ...[
+              MainButton(
+                icon: Icons.location_on,
+                text: 'وصلت للزبون',
+                onPressed: () =>
+                    _changeStatus('driver_arrived'),
+              ),
+              const SizedBox(height: 8),
+              MainButton(
+                icon: Icons.phone,
+                text: 'اتصال بالزبون',
+                onPressed: _callCustomer,
+              ),
+            ],
+
+            if (status == 'driver_arrived')
+              MainButton(
+                icon: Icons.done_all,
+                text: 'تم إنهاء الطلب',
+                onPressed: () =>
+                    _changeStatus('completed'),
+              ),
           ],
         ),
       ),
@@ -1333,20 +1779,18 @@ class DriverRequestCard extends StatelessWidget {
   }
 }
 
-// =====================================================
-// LIVE CUSTOMER MAP
-// =====================================================
+// ============================================================
+// LIVE CUSTOMER MAP FOR DRIVER
+// ============================================================
 
 class LiveCustomerMap extends StatefulWidget {
   final String requestId;
-  final double initialLat;
-  final double initialLng;
+  final LatLng initialLocation;
 
   const LiveCustomerMap({
     super.key,
     required this.requestId,
-    required this.initialLat,
-    required this.initialLng,
+    required this.initialLocation,
   });
 
   @override
@@ -1356,18 +1800,14 @@ class LiveCustomerMap extends StatefulWidget {
 
 class _LiveCustomerMapState
     extends State<LiveCustomerMap> {
-  final MapController mapController = MapController();
+  final MapController controller = MapController();
 
   late LatLng customerLocation;
 
   @override
   void initState() {
     super.initState();
-
-    customerLocation = LatLng(
-      widget.initialLat,
-      widget.initialLng,
-    );
+    customerLocation = widget.initialLocation;
   }
 
   @override
@@ -1382,16 +1822,17 @@ class _LiveCustomerMapState
         builder: (context, snapshot) {
           if (snapshot.hasData &&
               snapshot.data!.exists) {
-            final data = snapshot.data!.data()
-                as Map<String, dynamic>;
+            final data =
+                snapshot.data!.data()
+                    as Map<String, dynamic>;
 
-            final lat = data['customerLocationLat'];
-            final lng = data['customerLocationLng'];
-
-            if (lat != null && lng != null) {
+            if (data['customerLocationLat'] != null &&
+                data['customerLocationLng'] != null) {
               customerLocation = LatLng(
-                (lat as num).toDouble(),
-                (lng as num).toDouble(),
+                (data['customerLocationLat'] as num)
+                    .toDouble(),
+                (data['customerLocationLng'] as num)
+                    .toDouble(),
               );
             }
           }
@@ -1399,7 +1840,7 @@ class _LiveCustomerMapState
           return Stack(
             children: [
               FlutterMap(
-                mapController: mapController,
+                mapController: controller,
                 options: MapOptions(
                   initialCenter: customerLocation,
                   initialZoom: 15,
@@ -1411,31 +1852,24 @@ class _LiveCustomerMapState
                     userAgentPackageName:
                         'com.example.maw3idi',
                   ),
-
                   MarkerLayer(
                     markers: [
                       Marker(
                         point: customerLocation,
-                        width: 70,
+                        width: 75,
                         height: 70,
                         child: Column(
                           children: [
                             Container(
                               padding:
                                   const EdgeInsets.symmetric(
-                                horizontal: 8,
-                                vertical: 4,
+                                horizontal: 7,
+                                vertical: 3,
                               ),
                               decoration: BoxDecoration(
                                 color: Colors.white,
                                 borderRadius:
                                     BorderRadius.circular(8),
-                                boxShadow: const [
-                                  BoxShadow(
-                                    blurRadius: 5,
-                                    color: Colors.black26,
-                                  ),
-                                ],
                               ),
                               child: const Text(
                                 'الزبون',
@@ -1458,14 +1892,13 @@ class _LiveCustomerMapState
                   ),
                 ],
               ),
-
               Positioned(
                 right: 10,
                 bottom: 10,
                 child: MapControlButton(
                   icon: Icons.my_location,
                   onTap: () {
-                    mapController.move(
+                    controller.move(
                       customerLocation,
                       16,
                     );
@@ -1480,9 +1913,323 @@ class _LiveCustomerMapState
   }
 }
 
-// =====================================================
-// TEXT FIELD
-// =====================================================
+// ============================================================
+// HISTORY
+// ============================================================
+
+Future<void> saveRequestId(String id) async {
+  final prefs = await SharedPreferences.getInstance();
+
+  final list =
+      prefs.getStringList('my_requests') ?? [];
+
+  if (!list.contains(id)) {
+    list.insert(0, id);
+  }
+
+  await prefs.setStringList('my_requests', list);
+}
+
+class HistoryPage extends StatelessWidget {
+  const HistoryPage({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text(
+          'طلباتي السابقة',
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
+        centerTitle: true,
+      ),
+      backgroundColor: const Color(0xFFF5F7FA),
+      body: FutureBuilder<SharedPreferences>(
+        future: SharedPreferences.getInstance(),
+        builder: (context, snapshot) {
+          if (!snapshot.hasData) {
+            return const Center(
+              child: CircularProgressIndicator(),
+            );
+          }
+
+          final ids =
+              snapshot.data!.getStringList('my_requests') ??
+                  [];
+
+          if (ids.isEmpty) {
+            return const Center(
+              child: Text('ما عندكش طلبات سابقة'),
+            );
+          }
+
+          return ListView.builder(
+            padding: const EdgeInsets.all(14),
+            itemCount: ids.length,
+            itemBuilder: (context, index) {
+              return FutureBuilder<DocumentSnapshot>(
+                future: FirebaseFirestore.instance
+                    .collection('requests')
+                    .doc(ids[index])
+                    .get(),
+                builder: (context, snap) {
+                  if (!snap.hasData ||
+                      !snap.data!.exists) {
+                    return const SizedBox();
+                  }
+
+                  final data =
+                      snap.data!.data()
+                          as Map<String, dynamic>;
+
+                  return HistoryCard(
+                    data: data,
+                    requestId: ids[index],
+                  );
+                },
+              );
+            },
+          );
+        },
+      ),
+    );
+  }
+}
+
+class HistoryCard extends StatelessWidget {
+  final Map<String, dynamic> data;
+  final String requestId;
+
+  const HistoryCard({
+    super.key,
+    required this.data,
+    required this.requestId,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final service = data['service'] ?? '';
+    final status = data['status'] ?? '';
+
+    return Card(
+      margin: const EdgeInsets.only(bottom: 12),
+      child: Padding(
+        padding: const EdgeInsets.all(15),
+        child: Column(
+          crossAxisAlignment:
+              CrossAxisAlignment.start,
+          children: [
+            Text(
+              service == 'alo_jibli'
+                  ? '📦 ألو جيبلي'
+                  : '🚗 ألو وصلني',
+              style: const TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 7),
+            Text('الحالة: $status'),
+            if (data['phone'] != null)
+              Text('الهاتف: ${data['phone']}'),
+            if (status == 'completed')
+              RatingWidget(requestId: requestId),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ============================================================
+// RATING
+// ============================================================
+
+class RatingWidget extends StatefulWidget {
+  final String requestId;
+
+  const RatingWidget({
+    super.key,
+    required this.requestId,
+  });
+
+  @override
+  State<RatingWidget> createState() =>
+      _RatingWidgetState();
+}
+
+class _RatingWidgetState
+    extends State<RatingWidget> {
+  int rating = 0;
+  bool saved = false;
+
+  Future<void> _saveRating() async {
+    if (rating == 0) return;
+
+    await FirebaseFirestore.instance
+        .collection('requests')
+        .doc(widget.requestId)
+        .update({
+      'rating': rating,
+      'ratedAt': FieldValue.serverTimestamp(),
+    });
+
+    setState(() {
+      saved = true;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (saved) {
+      return const Padding(
+        padding: EdgeInsets.only(top: 10),
+        child: Text(
+          'شكراً على تقييمك ⭐',
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+      );
+    }
+
+    return Column(
+      children: [
+        const SizedBox(height: 10),
+        const Text(
+          'قيّم الخدمة',
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        const SizedBox(height: 6),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: List.generate(
+            5,
+            (index) => IconButton(
+              onPressed: () {
+                setState(() {
+                  rating = index + 1;
+                });
+              },
+              icon: Icon(
+                Icons.star,
+                color: index < rating
+                    ? Colors.amber
+                    : Colors.grey,
+              ),
+            ),
+          ),
+        ),
+        TextButton(
+          onPressed: _saveRating,
+          child: const Text('إرسال التقييم'),
+        ),
+      ],
+    );
+  }
+}
+
+// ============================================================
+// STATUS CHIP
+// ============================================================
+
+class StatusChip extends StatelessWidget {
+  final String status;
+
+  const StatusChip({
+    super.key,
+    required this.status,
+  });
+
+  String get text {
+    switch (status) {
+      case 'pending':
+        return 'جديد';
+      case 'accepted':
+        return 'تم قبول الطلب';
+      case 'driver_arriving':
+        return 'السائق في الطريق';
+      case 'driver_arrived':
+        return 'السائق وصل';
+      case 'completed':
+        return 'مكتمل';
+      case 'cancelled':
+        return 'ملغى';
+      default:
+        return status;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(
+        vertical: 11,
+        horizontal: 14,
+      ),
+      decoration: BoxDecoration(
+        color: const Color(0xFFE3F2FD),
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Text(
+        text,
+        textAlign: TextAlign.center,
+        style: const TextStyle(
+          fontWeight: FontWeight.bold,
+        ),
+      ),
+    );
+  }
+}
+
+// ============================================================
+// UI
+// ============================================================
+
+class MainButton extends StatelessWidget {
+  final IconData icon;
+  final String text;
+  final VoidCallback onPressed;
+  final Color? color;
+
+  const MainButton({
+    super.key,
+    required this.icon,
+    required this.text,
+    required this.onPressed,
+    this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: double.infinity,
+      height: 53,
+      child: ElevatedButton.icon(
+        style: ElevatedButton.styleFrom(
+          backgroundColor:
+              color ?? const Color(0xFF1565C0),
+          foregroundColor: Colors.white,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(17),
+          ),
+        ),
+        onPressed: onPressed,
+        icon: Icon(icon),
+        label: Text(
+          text,
+          style: const TextStyle(
+            fontSize: 17,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+      ),
+    );
+  }
+}
 
 class ModernTextField extends StatelessWidget {
   final TextEditingController controller;
@@ -1512,18 +2259,10 @@ class ModernTextField extends StatelessWidget {
           borderRadius: BorderRadius.circular(18),
           borderSide: BorderSide.none,
         ),
-        contentPadding: const EdgeInsets.symmetric(
-          horizontal: 16,
-          vertical: 17,
-        ),
       ),
     );
   }
 }
-
-// =====================================================
-// VEHICLE BUTTON
-// =====================================================
 
 class VehicleButton extends StatelessWidget {
   final IconData icon;
@@ -1567,7 +2306,7 @@ class VehicleButton extends StatelessWidget {
                   ? const Color(0xFF1565C0)
                   : Colors.grey,
             ),
-            const SizedBox(width: 8),
+            const SizedBox(width: 7),
             Text(
               title,
               style: TextStyle(
@@ -1584,10 +2323,6 @@ class VehicleButton extends StatelessWidget {
   }
 }
 
-// =====================================================
-// MAP CONTROL
-// =====================================================
-
 class MapControlButton extends StatelessWidget {
   final IconData icon;
   final VoidCallback onTap;
@@ -1602,14 +2337,14 @@ class MapControlButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return Material(
       color: Colors.white,
-      borderRadius: BorderRadius.circular(12),
       elevation: 3,
+      borderRadius: BorderRadius.circular(12),
       child: InkWell(
         borderRadius: BorderRadius.circular(12),
         onTap: onTap,
         child: SizedBox(
-          width: 45,
-          height: 45,
+          width: 44,
+          height: 44,
           child: Icon(icon),
         ),
       ),
