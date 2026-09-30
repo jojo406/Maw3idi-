@@ -1,1172 +1,1173 @@
-import 'dart:convert';
-
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:flutter_timezone/flutter_timezone.dart';
-import 'package:timezone/data/latest.dart' as tz;
-import 'package:timezone/timezone.dart' as tz;
 
-final FlutterLocalNotificationsPlugin notificationsPlugin =
-    FlutterLocalNotificationsPlugin();
-
-Future<void> initializeNotifications() async {
-  tz.initializeTimeZones();
-
-  final currentTimeZone = await FlutterTimezone.getLocalTimezone();
-
-  tz.setLocalLocation(
-    tz.getLocation(currentTimeZone.identifier),
-  );
-
-  const androidSettings = AndroidInitializationSettings(
-    '@mipmap/ic_launcher',
-  );
-
-  const initializationSettings = InitializationSettings(
-    android: androidSettings,
-  );
-
-  await notificationsPlugin.initialize(
-    settings: initializationSettings,
-  );
-
-  final androidPlugin = notificationsPlugin
-      .resolvePlatformSpecificImplementation<
-          AndroidFlutterLocalNotificationsPlugin>();
-
-  await androidPlugin?.requestNotificationsPermission();
-}
-
-void main() async {
+void main() {
   WidgetsFlutterBinding.ensureInitialized();
-
-  await initializeNotifications();
-
-  runApp(const Maw3idiApp());
-}
-
-// ============================================================
-// MODEL
-// ============================================================
-
-class Appointment {
-  String id;
-  String title;
-  DateTime dateTime;
-  String type;
-  String person;
-  String phone;
-  String location;
-  String notes;
-  int reminderMinutes;
-  String recurrence;
-  bool completed;
-
-  Appointment({
-    required this.id,
-    required this.title,
-    required this.dateTime,
-    this.type = 'عام',
-    this.person = '',
-    this.phone = '',
-    this.location = '',
-    this.notes = '',
-    this.reminderMinutes = 15,
-    this.recurrence = 'لا يتكرر',
-    this.completed = false,
-  });
-
-  Map<String, dynamic> toJson() {
-    return {
-      'id': id,
-      'title': title,
-      'dateTime': dateTime.toIso8601String(),
-      'type': type,
-      'person': person,
-      'phone': phone,
-      'location': location,
-      'notes': notes,
-      'reminderMinutes': reminderMinutes,
-      'recurrence': recurrence,
-      'completed': completed,
-    };
-  }
-
-  factory Appointment.fromJson(Map<String, dynamic> json) {
-    return Appointment(
-      id: json['id']?.toString() ?? DateTime.now().microsecondsSinceEpoch.toString(),
-      title: json['title']?.toString() ?? 'موعد',
-      dateTime: DateTime.tryParse(
-            json['dateTime']?.toString() ?? '',
-          ) ??
-          DateTime.now(),
-      type: json['type']?.toString() ?? 'عام',
-      person: json['person']?.toString() ?? '',
-      phone: json['phone']?.toString() ?? '',
-      location: json['location']?.toString() ?? '',
-      notes: json['notes']?.toString() ?? '',
-      reminderMinutes: int.tryParse(
-            json['reminderMinutes']?.toString() ?? '15',
-          ) ??
-          15,
-      recurrence: json['recurrence']?.toString() ?? 'لا يتكرر',
-      completed: json['completed'] == true,
-    );
-  }
+  runApp(const AlloWasselniApp());
 }
 
 // ============================================================
 // APP
 // ============================================================
 
-class Maw3idiApp extends StatefulWidget {
-  const Maw3idiApp({super.key});
+class AlloWasselniApp extends StatefulWidget {
+  const AlloWasselniApp({super.key});
 
   @override
-  State<Maw3idiApp> createState() => _Maw3idiAppState();
+  State<AlloWasselniApp> createState() => _AlloWasselniAppState();
 }
 
-class _Maw3idiAppState extends State<Maw3idiApp> {
+class _AlloWasselniAppState extends State<AlloWasselniApp> {
   bool darkMode = false;
-
-  @override
-  void initState() {
-    super.initState();
-    loadTheme();
-  }
-
-  Future<void> loadTheme() async {
-    final prefs = await SharedPreferences.getInstance();
-
-    setState(() {
-      darkMode = prefs.getBool('darkMode') ?? false;
-    });
-  }
-
-  Future<void> changeTheme(bool value) async {
-    final prefs = await SharedPreferences.getInstance();
-
-    await prefs.setBool('darkMode', value);
-
-    setState(() {
-      darkMode = value;
-    });
-  }
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      title: 'موعدي',
+      title: 'ألو وصلني',
       themeMode: darkMode ? ThemeMode.dark : ThemeMode.light,
       theme: ThemeData(
         useMaterial3: true,
         fontFamily: 'Arial',
-        colorSchemeSeed: Colors.indigo,
-        brightness: Brightness.light,
-        scaffoldBackgroundColor: const Color(0xfff5f7fb),
-        cardTheme: CardThemeData(
-          elevation: 0,
-          margin: const EdgeInsets.symmetric(
-            horizontal: 12,
-            vertical: 6,
-          ),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
-          ),
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: const Color(0xFF16A34A),
         ),
-        inputDecorationTheme: InputDecorationTheme(
-          filled: true,
-          fillColor: Colors.white,
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(15),
-            borderSide: BorderSide.none,
-          ),
-        ),
+        scaffoldBackgroundColor: const Color(0xFFF5F7FA),
       ),
       darkTheme: ThemeData(
         useMaterial3: true,
         fontFamily: 'Arial',
-        colorSchemeSeed: Colors.indigo,
-        brightness: Brightness.dark,
-        cardTheme: CardThemeData(
-          elevation: 0,
-          margin: const EdgeInsets.symmetric(
-            horizontal: 12,
-            vertical: 6,
-          ),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
-          ),
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: const Color(0xFF16A34A),
+          brightness: Brightness.dark,
         ),
       ),
-      home: HomePage(
+      home: SplashScreen(
+        onThemeChanged: (value) {
+          setState(() {
+            darkMode = value;
+          });
+        },
         darkMode: darkMode,
-        onThemeChanged: changeTheme,
       ),
     );
   }
 }
 
 // ============================================================
-// HOME PAGE
+// COLORS
 // ============================================================
 
-class HomePage extends StatefulWidget {
-  final bool darkMode;
-  final Future<void> Function(bool) onThemeChanged;
+const primaryGreen = Color(0xFF16A34A);
+const darkGreen = Color(0xFF15803D);
+const lightGreen = Color(0xFFDCFCE7);
 
-  const HomePage({
+// ============================================================
+// SPLASH
+// ============================================================
+
+class SplashScreen extends StatefulWidget {
+  final bool darkMode;
+  final ValueChanged<bool> onThemeChanged;
+
+  const SplashScreen({
     super.key,
     required this.darkMode,
     required this.onThemeChanged,
   });
 
   @override
-  State<HomePage> createState() => _HomePageState();
+  State<SplashScreen> createState() => _SplashScreenState();
 }
 
-class _HomePageState extends State<HomePage> {
-  List<Appointment> appointments = [];
-
-  String searchText = '';
-  String selectedFilter = 'الكل';
-
-  int defaultReminder = 15;
-
-  final List<String> appointmentTypes = [
-    'عام',
-    'طبيب',
-    'عمل',
-    'دراسة',
-    'اجتماع',
-    'عائلي',
-    'إداري',
-    'سفر',
-    'أخرى',
-  ];
-
-  final List<String> filters = [
-    'الكل',
-    'اليوم',
-    'القادمة',
-    'المكتملة',
-    'المتأخرة',
-  ];
-
+class _SplashScreenState extends State<SplashScreen> {
   @override
   void initState() {
     super.initState();
-    loadData();
+
+    Future.delayed(const Duration(seconds: 2), () {
+      if (!mounted) return;
+
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (_) => RoleScreen(
+            darkMode: widget.darkMode,
+            onThemeChanged: widget.onThemeChanged,
+          ),
+        ),
+      );
+    });
   }
 
-  // ==========================================================
-  // STORAGE
-  // ==========================================================
-
-  Future<void> loadData() async {
-    final prefs = await SharedPreferences.getInstance();
-
-    final data = prefs.getString('appointments');
-
-    if (data != null && data.isNotEmpty) {
-      try {
-        final List decoded = jsonDecode(data);
-
-        appointments = decoded
-            .map(
-              (e) => Appointment.fromJson(
-                Map<String, dynamic>.from(e),
+  @override
+  Widget build(BuildContext context) {
+    return const Scaffold(
+      body: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            CircleAvatar(
+              radius: 55,
+              backgroundColor: lightGreen,
+              child: Icon(
+                Icons.local_taxi_rounded,
+                size: 65,
+                color: darkGreen,
               ),
-            )
-            .toList();
-      } catch (_) {
-        appointments = [];
-      }
-    }
-
-    defaultReminder = prefs.getInt('defaultReminder') ?? 15;
-
-    await refreshNotifications();
-
-    if (mounted) {
-      setState(() {});
-    }
-  }
-
-  Future<void> saveData() async {
-    final prefs = await SharedPreferences.getInstance();
-
-    final data = appointments
-        .map((appointment) => appointment.toJson())
-        .toList();
-
-    await prefs.setString(
-      'appointments',
-      jsonEncode(data),
-    );
-  }
-
-  // ==========================================================
-  // NOTIFICATIONS
-  // ==========================================================
-
-  int notificationId(Appointment appointment) {
-    return appointment.id.hashCode.abs();
-  }
-
-  Future<void> cancelNotification(
-    Appointment appointment,
-  ) async {
-    await notificationsPlugin.cancel(
-      id: notificationId(appointment),
-    );
-  }
-
-  DateTime nextOccurrence(Appointment appointment) {
-    DateTime current = appointment.dateTime;
-    final now = DateTime.now();
-
-    if (appointment.recurrence == 'يومياً') {
-      while (!current.isAfter(now)) {
-        current = current.add(const Duration(days: 1));
-      }
-    } else if (appointment.recurrence == 'أسبوعياً') {
-      while (!current.isAfter(now)) {
-        current = current.add(const Duration(days: 7));
-      }
-    } else if (appointment.recurrence == 'شهرياً') {
-      while (!current.isAfter(now)) {
-        int month = current.month + 1;
-        int year = current.year;
-
-        if (month > 12) {
-          month = 1;
-          year++;
-        }
-
-        int lastDay = DateTime(year, month + 1, 0).day;
-
-        current = DateTime(
-          year,
-          month,
-          current.day > lastDay ? lastDay : current.day,
-          current.hour,
-          current.minute,
-        );
-      }
-    }
-
-    return current;
-  }
-
-  Future<void> scheduleNotification(
-    Appointment appointment,
-  ) async {
-    await cancelNotification(appointment);
-
-    if (appointment.completed) return;
-
-    if (appointment.reminderMinutes < 0) return;
-
-    DateTime date = appointment.dateTime;
-
-    if (appointment.recurrence != 'لا يتكرر') {
-      date = nextOccurrence(appointment);
-    }
-
-    final scheduledDate = date.subtract(
-      Duration(
-        minutes: appointment.reminderMinutes,
+            ),
+            SizedBox(height: 25),
+            Text(
+              'ألو وصلني',
+              style: TextStyle(
+                fontSize: 36,
+                fontWeight: FontWeight.bold,
+                color: darkGreen,
+              ),
+            ),
+            SizedBox(height: 8),
+            Text(
+              'وصلتك قريبة... بضغطة واحدة',
+              style: TextStyle(
+                fontSize: 16,
+                color: Colors.grey,
+              ),
+            ),
+          ],
+        ),
       ),
     );
+  }
+}
 
-    if (scheduledDate.isBefore(DateTime.now())) {
+// ============================================================
+// ROLE SCREEN
+// ============================================================
+
+class RoleScreen extends StatelessWidget {
+  final bool darkMode;
+  final ValueChanged<bool> onThemeChanged;
+
+  const RoleScreen({
+    super.key,
+    required this.darkMode,
+    required this.onThemeChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Directionality(
+      textDirection: TextDirection.rtl,
+      child: Scaffold(
+        appBar: AppBar(
+          title: const Text(
+            'ألو وصلني',
+            style: TextStyle(fontWeight: FontWeight.bold),
+          ),
+          centerTitle: true,
+        ),
+        body: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.all(22),
+            child: Column(
+              children: [
+                const SizedBox(height: 35),
+
+                const CircleAvatar(
+                  radius: 45,
+                  backgroundColor: lightGreen,
+                  child: Icon(
+                    Icons.local_taxi_rounded,
+                    size: 50,
+                    color: darkGreen,
+                  ),
+                ),
+
+                const SizedBox(height: 25),
+
+                const Text(
+                  'مرحبا بك 👋',
+                  style: TextStyle(
+                    fontSize: 30,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+
+                const SizedBox(height: 10),
+
+                Text(
+                  'كيفاش تحب تستعمل ألو وصلني؟',
+                  style: TextStyle(
+                    fontSize: 17,
+                    color: Colors.grey.shade600,
+                  ),
+                ),
+
+                const SizedBox(height: 45),
+
+                RoleCard(
+                  icon: Icons.person_rounded,
+                  title: 'أنا راكب',
+                  subtitle: 'نحب نطلب توصيلة',
+                  color: primaryGreen,
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => LoginScreen(
+                          role: UserRole.passenger,
+                          darkMode: darkMode,
+                          onThemeChanged: onThemeChanged,
+                        ),
+                      ),
+                    );
+                  },
+                ),
+
+                const SizedBox(height: 18),
+
+                RoleCard(
+                  icon: Icons.directions_car_rounded,
+                  title: 'أنا سائق',
+                  subtitle: 'نحب نستقبل طلبات التوصيل',
+                  color: Colors.blue,
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => LoginScreen(
+                          role: UserRole.driver,
+                          darkMode: darkMode,
+                          onThemeChanged: onThemeChanged,
+                        ),
+                      ),
+                    );
+                  },
+                ),
+
+                const Spacer(),
+
+                Text(
+                  'الخدمة متوفرة داخل البلدية',
+                  style: TextStyle(
+                    color: Colors.grey.shade600,
+                    fontSize: 13,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ============================================================
+// ROLE CARD
+// ============================================================
+
+class RoleCard extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final Color color;
+  final VoidCallback onTap;
+
+  const RoleCard({
+    super.key,
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.color,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(24),
+      child: Container(
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: Theme.of(context).cardColor,
+          borderRadius: BorderRadius.circular(24),
+          border: Border.all(
+            color: color.withOpacity(.15),
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(.05),
+              blurRadius: 15,
+              offset: const Offset(0, 5),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 65,
+              height: 65,
+              decoration: BoxDecoration(
+                color: color.withOpacity(.12),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Icon(
+                icon,
+                color: color,
+                size: 34,
+              ),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: const TextStyle(
+                      fontSize: 21,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 5),
+                  Text(
+                    subtitle,
+                    style: TextStyle(
+                      color: Colors.grey.shade600,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const Icon(
+              Icons.arrow_back_ios_rounded,
+              size: 19,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ============================================================
+// USER ROLE
+// ============================================================
+
+enum UserRole {
+  passenger,
+  driver,
+}
+
+// ============================================================
+// LOGIN
+// ============================================================
+
+class LoginScreen extends StatefulWidget {
+  final UserRole role;
+  final bool darkMode;
+  final ValueChanged<bool> onThemeChanged;
+
+  const LoginScreen({
+    super.key,
+    required this.role,
+    required this.darkMode,
+    required this.onThemeChanged,
+  });
+
+  @override
+  State<LoginScreen> createState() => _LoginScreenState();
+}
+
+class _LoginScreenState extends State<LoginScreen> {
+  final nameController = TextEditingController();
+  final phoneController = TextEditingController();
+
+  bool loading = false;
+
+  bool get isDriver => widget.role == UserRole.driver;
+
+  @override
+  void dispose() {
+    nameController.dispose();
+    phoneController.dispose();
+    super.dispose();
+  }
+
+  Future<void> continueApp() async {
+    if (nameController.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('دخل اسمك من فضلك'),
+        ),
+      );
       return;
     }
 
-    final tzDate = tz.TZDateTime.from(
-      scheduledDate,
-      tz.local,
-    );
-
-    const notificationDetails = NotificationDetails(
-      android: AndroidNotificationDetails(
-        'maw3idi_reminders',
-        'تذكيرات موعدي',
-        channelDescription: 'تذكيرات المواعيد',
-        importance: Importance.high,
-        priority: Priority.high,
-      ),
-    );
-
-    await notificationsPlugin.zonedSchedule(
-      id: notificationId(appointment),
-      title: 'تذكير بموعدك 🔔',
-      body: appointment.title,
-      scheduledDate: tzDate,
-      notificationDetails: notificationDetails,
-      androidScheduleMode:
-          AndroidScheduleMode.inexactAllowWhileIdle,
-    );
-  }
-
-  Future<void> refreshNotifications() async {
-    for (final appointment in appointments) {
-      await scheduleNotification(appointment);
-    }
-  }
-
-  // ==========================================================
-  // HELPERS
-  // ==========================================================
-
-  bool sameDay(DateTime a, DateTime b) {
-    return a.year == b.year &&
-        a.month == b.month &&
-        a.day == b.day;
-  }
-
-  bool isToday(Appointment a) {
-    return sameDay(a.dateTime, DateTime.now());
-  }
-
-  bool isOverdue(Appointment a) {
-    return a.dateTime.isBefore(DateTime.now()) &&
-        !a.completed;
-  }
-
-  String formatDate(DateTime date) {
-    return '${date.day.toString().padLeft(2, '0')}/'
-        '${date.month.toString().padLeft(2, '0')}/'
-        '${date.year}';
-  }
-
-  String formatTime(DateTime date) {
-    return '${date.hour.toString().padLeft(2, '0')}:'
-        '${date.minute.toString().padLeft(2, '0')}';
-  }
-
-  String weekday(DateTime date) {
-    const days = [
-      'الاثنين',
-      'الثلاثاء',
-      'الأربعاء',
-      'الخميس',
-      'الجمعة',
-      'السبت',
-      'الأحد',
-    ];
-
-    return days[date.weekday - 1];
-  }
-
-  String reminderText(int minutes) {
-    if (minutes < 0) return 'بدون تذكير';
-    if (minutes == 0) return 'وقت الموعد';
-    if (minutes == 60) return 'قبل ساعة';
-    if (minutes == 1440) return 'قبل يوم';
-    return 'قبل $minutes دقيقة';
-  }
-
-  String recurrenceText(String value) {
-    return value;
-  }
-
-  IconData typeIcon(String type) {
-    switch (type) {
-      case 'طبيب':
-        return Icons.medical_services_rounded;
-      case 'عمل':
-        return Icons.work_rounded;
-      case 'دراسة':
-        return Icons.school_rounded;
-      case 'اجتماع':
-        return Icons.groups_rounded;
-      case 'عائلي':
-        return Icons.family_restroom_rounded;
-      case 'إداري':
-        return Icons.account_balance_rounded;
-      case 'سفر':
-        return Icons.flight_rounded;
-      default:
-        return Icons.event_rounded;
-    }
-  }
-
-  Color typeColor(String type) {
-    switch (type) {
-      case 'طبيب':
-        return Colors.red;
-      case 'عمل':
-        return Colors.blue;
-      case 'دراسة':
-        return Colors.orange;
-      case 'اجتماع':
-        return Colors.purple;
-      case 'عائلي':
-        return Colors.pink;
-      case 'إداري':
-        return Colors.teal;
-      case 'سفر':
-        return Colors.indigo;
-      default:
-        return Colors.green;
-    }
-  }
-
-  // ==========================================================
-  // FILTER
-  // ==========================================================
-
-  List<Appointment> get filteredAppointments {
-    List<Appointment> result = List.from(appointments);
-
-    if (searchText.trim().isNotEmpty) {
-      final query = searchText.toLowerCase();
-
-      result = result.where((appointment) {
-        return appointment.title.toLowerCase().contains(query) ||
-            appointment.person.toLowerCase().contains(query) ||
-            appointment.location.toLowerCase().contains(query) ||
-            appointment.type.toLowerCase().contains(query) ||
-            appointment.notes.toLowerCase().contains(query);
-      }).toList();
-    }
-
-    if (selectedFilter == 'اليوم') {
-      result = result.where(isToday).toList();
-    } else if (selectedFilter == 'القادمة') {
-      result = result
-          .where(
-            (a) =>
-                a.dateTime.isAfter(DateTime.now()) &&
-                !a.completed,
-          )
-          .toList();
-    } else if (selectedFilter == 'المكتملة') {
-      result = result.where((a) => a.completed).toList();
-    } else if (selectedFilter == 'المتأخرة') {
-      result = result.where(isOverdue).toList();
-    }
-
-    result.sort(
-      (a, b) => a.dateTime.compareTo(b.dateTime),
-    );
-
-    return result;
-  }
-
-  // ==========================================================
-  // STATISTICS
-  // ==========================================================
-
-  int get todayCount {
-    return appointments.where(isToday).length;
-  }
-
-  int get completedCount {
-    return appointments.where((a) => a.completed).length;
-  }
-
-  int get reminderCount {
-    return appointments
-        .where(
-          (a) =>
-              !a.completed &&
-              a.reminderMinutes >= 0,
-        )
-        .length;
-  }
-
-  int get overdueCount {
-    return appointments.where(isOverdue).length;
-  }
-
-  Appointment? get nextAppointment {
-    final list = appointments
-        .where(
-          (a) =>
-              !a.completed &&
-              a.dateTime.isAfter(DateTime.now()),
-        )
-        .toList();
-
-    list.sort(
-      (a, b) => a.dateTime.compareTo(b.dateTime),
-    );
-
-    return list.isEmpty ? null : list.first;
-  }
-
-  // ==========================================================
-  // ADD / EDIT
-  // ==========================================================
-
-  Future<void> showAppointmentDialog({
-    Appointment? appointment,
-  }) async {
-    final titleController = TextEditingController(
-      text: appointment?.title ?? '',
-    );
-
-    final personController = TextEditingController(
-      text: appointment?.person ?? '',
-    );
-
-    final phoneController = TextEditingController(
-      text: appointment?.phone ?? '',
-    );
-
-    final locationController = TextEditingController(
-      text: appointment?.location ?? '',
-    );
-
-    final notesController = TextEditingController(
-      text: appointment?.notes ?? '',
-    );
-
-    DateTime selectedDate =
-        appointment?.dateTime ?? DateTime.now();
-
-    TimeOfDay selectedTime = TimeOfDay(
-      hour: appointment?.dateTime.hour ??
-          TimeOfDay.now().hour,
-      minute: appointment?.dateTime.minute ??
-          TimeOfDay.now().minute,
-    );
-
-    String selectedType =
-        appointment?.type ?? 'عام';
-
-    int selectedReminder =
-        appointment?.reminderMinutes ?? defaultReminder;
-
-    String selectedRecurrence =
-        appointment?.recurrence ?? 'لا يتكرر';
-
-    final formKey = GlobalKey<FormState>();
-
-    await showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Theme.of(context)
-          .scaffoldBackgroundColor,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(
-          top: Radius.circular(28),
-        ),
-      ),
-      builder: (sheetContext) {
-        return StatefulBuilder(
-          builder: (context, setModalState) {
-            return Padding(
-              padding: EdgeInsets.only(
-                left: 18,
-                right: 18,
-                top: 20,
-                bottom: MediaQuery.of(context)
-                        .viewInsets
-                        .bottom +
-                    20,
-              ),
-              child: SingleChildScrollView(
-                child: Form(
-                  key: formKey,
-                  child: Column(
-                    crossAxisAlignment:
-                        CrossAxisAlignment.stretch,
-                    children: [
-                      Center(
-                        child: Container(
-                          width: 45,
-                          height: 5,
-                          decoration: BoxDecoration(
-                            color: Colors.grey.shade400,
-                            borderRadius:
-                                BorderRadius.circular(10),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 18),
-
-                      Text(
-                        appointment == null
-                            ? 'إضافة موعد جديد'
-                            : 'تعديل الموعد',
-                        textAlign: TextAlign.center,
-                        style: const TextStyle(
-                          fontSize: 23,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-
-                      const SizedBox(height: 20),
-
-                      TextFormField(
-                        controller: titleController,
-                        textDirection: TextDirection.rtl,
-                        decoration:
-                            const InputDecoration(
-                          labelText: 'عنوان الموعد *',
-                          prefixIcon:
-                              Icon(Icons.title_rounded),
-                        ),
-                        validator: (value) {
-                          if (value == null ||
-                              value.trim().isEmpty) {
-                            return 'أدخل عنوان الموعد';
-                          }
-                          return null;
-                        },
-                      ),
-
-                      const SizedBox(height: 12),
-
-                      DropdownButtonFormField<String>(
-                        initialValue: selectedType,
-                        decoration:
-                            const InputDecoration(
-                          labelText: 'نوع الموعد',
-                          prefixIcon:
-                              Icon(Icons.category_rounded),
-                        ),
-                        items: appointmentTypes
-                            .map(
-                              (type) =>
-                                  DropdownMenuItem(
-                                value: type,
-                                child: Text(type),
-                              ),
-                            )
-                            .toList(),
-                        onChanged: (value) {
-                          if (value == null) return;
-                          setModalState(() {
-                            selectedType = value;
-                          });
-                        },
-                      ),
-
-                      const SizedBox(height: 12),
-
-                      Row(
-                        children: [
-                          Expanded(
-                            child: OutlinedButton.icon(
-                              icon: const Icon(
-                                Icons.calendar_month_rounded,
-                              ),
-                              label: Text(
-                                formatDate(selectedDate),
-                              ),
-                              onPressed: () async {
-                                final picked =
-                                    await showDatePicker(
-                                  context: context,
-                                  initialDate: selectedDate,
-                                  firstDate:
-                                      DateTime(2020),
-                                  lastDate:
-                                      DateTime(2100),
-                                );
-
-                                if (picked != null) {
-                                  setModalState(() {
-                                    selectedDate = DateTime(
-                                      picked.year,
-                                      picked.month,
-                                      picked.day,
-                                    );
-                                  });
-                                }
-                              },
-                            ),
-                          ),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: OutlinedButton.icon(
-                              icon: const Icon(
-                                Icons.access_time_rounded,
-                              ),
-                              label: Text(
-                                selectedTime.format(context),
-                              ),
-                              onPressed: () async {
-                                final picked =
-                                    await showTimePicker(
-                                  context: context,
-                                  initialTime: selectedTime,
-                                );
-
-                                if (picked != null) {
-                                  setModalState(() {
-                                    selectedTime = picked;
-                                  });
-                                }
-                              },
-                            ),
-                          ),
-                        ],
-                      ),
-
-                      const SizedBox(height: 12),
-
-                      TextFormField(
-                        controller: personController,
-                        textDirection: TextDirection.rtl,
-                        decoration:
-                            const InputDecoration(
-                          labelText: 'الشخص / الجهة',
-                          prefixIcon:
-                              Icon(Icons.person_rounded),
-                        ),
-                      ),
-
-                      const SizedBox(height: 12),
-
-                      TextFormField(
-                        controller: phoneController,
-                        keyboardType: TextInputType.phone,
-                        decoration:
-                            const InputDecoration(
-                          labelText: 'رقم الهاتف',
-                          prefixIcon:
-                              Icon(Icons.phone_rounded),
-                        ),
-                      ),
-
-                      const SizedBox(height: 12),
-
-                      TextFormField(
-                        controller: locationController,
-                        textDirection: TextDirection.rtl,
-                        decoration:
-                            const InputDecoration(
-                          labelText: 'المكان',
-                          prefixIcon:
-                              Icon(Icons.location_on_rounded),
-                        ),
-                      ),
-
-                      const SizedBox(height: 12),
-
-                      TextFormField(
-                        controller: notesController,
-                        maxLines: 3,
-                        textDirection: TextDirection.rtl,
-                        decoration:
-                            const InputDecoration(
-                          labelText: 'ملاحظات',
-                          alignLabelWithHint: true,
-                          prefixIcon:
-                              Icon(Icons.notes_rounded),
-                        ),
-                      ),
-
-                      const SizedBox(height: 12),
-
-                      DropdownButtonFormField<int>(
-                        initialValue: selectedReminder,
-                        decoration:
-                            const InputDecoration(
-                          labelText: 'التذكير',
-                          prefixIcon:
-                              Icon(Icons.notifications_active_rounded),
-                        ),
-                        items: const [
-                          DropdownMenuItem(
-                            value: -1,
-                            child: Text('بدون تذكير'),
-                          ),
-                          DropdownMenuItem(
-                            value: 0,
-                            child: Text('وقت الموعد'),
-                          ),
-                          DropdownMenuItem(
-                            value: 5,
-                            child: Text('قبل 5 دقائق'),
-                          ),
-                          DropdownMenuItem(
-                            value: 15,
-                            child: Text('قبل 15 دقيقة'),
-                          ),
-                          DropdownMenuItem(
-                            value: 30,
-                            child: Text('قبل 30 دقيقة'),
-                          ),
-                          DropdownMenuItem(
-                            value: 60,
-                            child: Text('قبل ساعة'),
-                          ),
-                          DropdownMenuItem(
-                            value: 1440,
-                            child: Text('قبل يوم'),
-                          ),
-                        ],
-                        onChanged: (value) {
-                          if (value == null) return;
-                          setModalState(() {
-                            selectedReminder = value;
-                          });
-                        },
-                      ),
-
-                      const SizedBox(height: 12),
-
-                      DropdownButtonFormField<String>(
-                        initialValue: selectedRecurrence,
-                        decoration:
-                            const InputDecoration(
-                          labelText: 'التكرار',
-                          prefixIcon:
-                              Icon(Icons.repeat_rounded),
-                        ),
-                        items: const [
-                          DropdownMenuItem(
-                            value: 'لا يتكرر',
-                            child: Text('لا يتكرر'),
-                          ),
-                          DropdownMenuItem(
-                            value: 'يومياً',
-                            child: Text('يومياً'),
-                          ),
-                          DropdownMenuItem(
-                            value: 'أسبوعياً',
-                            child: Text('أسبوعياً'),
-                          ),
-                          DropdownMenuItem(
-                            value: 'شهرياً',
-                            child: Text('شهرياً'),
-                          ),
-                        ],
-                        onChanged: (value) {
-                          if (value == null) return;
-                          setModalState(() {
-                            selectedRecurrence = value;
-                          });
-                        },
-                      ),
-
-                      const SizedBox(height: 22),
-
-                      FilledButton.icon(
-                        icon: const Icon(
-                          Icons.save_rounded,
-                        ),
-                        label: Text(
-                          appointment == null
-                              ? 'حفظ الموعد'
-                              : 'حفظ التعديلات',
-                        ),
-                        style: FilledButton.styleFrom(
-                          minimumSize:
-                              const Size.fromHeight(55),
-                          shape: RoundedRectangleBorder(
-                            borderRadius:
-                                BorderRadius.circular(16),
-                          ),
-                        ),
-                        onPressed: () async {
-                          if (!formKey.currentState!
-                              .validate()) {
-                            return;
-                          }
-
-                          final dateTime = DateTime(
-                            selectedDate.year,
-                            selectedDate.month,
-                            selectedDate.day,
-                            selectedTime.hour,
-                            selectedTime.minute,
-                          );
-
-                          if (appointment == null) {
-                            final newAppointment =
-                                Appointment(
-                              id: DateTime.now()
-                                  .microsecondsSinceEpoch
-                                  .toString(),
-                              title:
-                                  titleController.text.trim(),
-                              dateTime: dateTime,
-                              type: selectedType,
-                              person:
-                                  personController.text.trim(),
-                              phone:
-                                  phoneController.text.trim(),
-                              location:
-                                  locationController.text.trim(),
-                              notes:
-                                  notesController.text.trim(),
-                              reminderMinutes:
-                                  selectedReminder,
-                              recurrence:
-                                  selectedRecurrence,
-                            );
-
-                            appointments
-                                .add(newAppointment);
-
-                            await saveData();
-
-                            await scheduleNotification(
-                              newAppointment,
-                            );
-                          } else {
-                            await cancelNotification(
-                              appointment,
-                            );
-
-                            appointment.title =
-                                titleController.text.trim();
-
-                            appointment.dateTime = dateTime;
-                            appointment.type =
-                                selectedType;
-
-                            appointment.person =
-                                personController.text.trim();
-
-                            appointment.phone =
-                                phoneController.text.trim();
-
-                            appointment.location =
-                                locationController.text.trim();
-
-                            appointment.notes =
-                                notesController.text.trim();
-
-                            appointment.reminderMinutes =
-                                selectedReminder;
-
-                            appointment.recurrence =
-                                selectedRecurrence;
-
-                            await saveData();
-
-                            await scheduleNotification(
-                              appointment,
-                            );
-                          }
-
-                          if (mounted) {
-                            setState(() {});
-                          }
-
-                          Navigator.pop(sheetContext);
-
-                          ScaffoldMessenger.of(context)
-                              .showSnackBar(
-                            SnackBar(
-                              content: Text(
-                                appointment == null
-                                    ? 'تمت إضافة الموعد بنجاح ✅'
-                                    : 'تم تعديل الموعد بنجاح ✅',
-                              ),
-                            ),
-                          );
-                        },
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            );
-          },
-        );
-      },
-    );
-
-    titleController.dispose();
-    personController.dispose();
-    phoneController.dispose();
-    locationController.dispose();
-    notesController.dispose();
-  }
-
-  // ==========================================================
-  // DELETE
-  // ==========================================================
-
-  Future<void> deleteAppointment(
-    Appointment appointment,
-  ) async {
-    final confirm = await showDialog<bool>(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: const Text('حذف الموعد'),
-          content: const Text(
-            'هل أنت متأكد أنك تريد حذف هذا الموعد؟',
-          ),
-          actions: [
-            TextButton(
-              onPressed: () =>
-                  Navigator.pop(context, false),
-              child: const Text('إلغاء'),
-            ),
-            FilledButton(
-              onPressed: () =>
-                  Navigator.pop(context, true),
-              child: const Text('حذف'),
-            ),
-          ],
-        );
-      },
-    );
-
-    if (confirm != true) return;
-
-    await cancelNotification(appointment);
-
-    appointments.removeWhere(
-      (a) => a.id == appointment.id,
-    );
-
-    await saveData();
-
-    setState(() {});
-
-    if (mounted) {
+    if (phoneController.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('تم حذف الموعد'),
+          content: Text('دخل رقم الهاتف'),
+        ),
+      );
+      return;
+    }
+
+    setState(() {
+      loading = true;
+    });
+
+    await Future.delayed(const Duration(milliseconds: 700));
+
+    if (!mounted) return;
+
+    setState(() {
+      loading = false;
+    });
+
+    if (isDriver) {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (_) => DriverHomeScreen(
+            name: nameController.text.trim(),
+            phone: phoneController.text.trim(),
+            darkMode: widget.darkMode,
+            onThemeChanged: widget.onThemeChanged,
+          ),
+        ),
+      );
+    } else {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (_) => PassengerHomeScreen(
+            name: nameController.text.trim(),
+            phone: phoneController.text.trim(),
+            darkMode: widget.darkMode,
+            onThemeChanged: widget.onThemeChanged,
+          ),
         ),
       );
     }
   }
 
-  // ==========================================================
-  // COMPLETE
-  // ==========================================================
+  @override
+  Widget build(BuildContext context) {
+    return Directionality(
+      textDirection: TextDirection.rtl,
+      child: Scaffold(
+        appBar: AppBar(
+          title: Text(
+            isDriver ? 'دخول السائق' : 'دخول الراكب',
+          ),
+        ),
+        body: ListView(
+          padding: const EdgeInsets.all(24),
+          children: [
+            const SizedBox(height: 30),
 
-  Future<void> toggleCompleted(
-    Appointment appointment,
-  ) async {
-    appointment.completed =
-        !appointment.completed;
+            CircleAvatar(
+              radius: 42,
+              backgroundColor: isDriver
+                  ? Colors.blue.withOpacity(.12)
+                  : lightGreen,
+              child: Icon(
+                isDriver
+                    ? Icons.directions_car_rounded
+                    : Icons.person_rounded,
+                size: 45,
+                color: isDriver ? Colors.blue : darkGreen,
+              ),
+            ),
 
-    if (appointment.completed) {
-      await cancelNotification(appointment);
-    } else {
-      await scheduleNotification(appointment);
-    }
+            const SizedBox(height: 25),
 
-    await saveData();
+            Text(
+              isDriver
+                  ? 'مرحبا بالسائق 🚕'
+                  : 'مرحبا بك 👋',
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                fontSize: 27,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
 
-    setState(() {});
+            const SizedBox(height: 8),
+
+            Text(
+              'دخل معلوماتك باش نكملو',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: Colors.grey.shade600,
+              ),
+            ),
+
+            const SizedBox(height: 35),
+
+            TextField(
+              controller: nameController,
+              textDirection: TextDirection.rtl,
+              decoration: InputDecoration(
+                labelText: 'الاسم',
+                prefixIcon: const Icon(
+                  Icons.person_outline_rounded,
+                ),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(16),
+                ),
+              ),
+            ),
+
+            const SizedBox(height: 15),
+
+            TextField(
+              controller: phoneController,
+              keyboardType: TextInputType.phone,
+              decoration: InputDecoration(
+                labelText: 'رقم الهاتف',
+                prefixIcon: const Icon(
+                  Icons.phone_rounded,
+                ),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(16),
+                ),
+              ),
+            ),
+
+            const SizedBox(height: 25),
+
+            SizedBox(
+              height: 55,
+              child: FilledButton(
+                onPressed: loading ? null : continueApp,
+                child: loading
+                    ? const SizedBox(
+                        width: 24,
+                        height: 24,
+                        child: CircularProgressIndicator(
+                          color: Colors.white,
+                        ),
+                      )
+                    : const Text(
+                        'متابعة',
+                        style: TextStyle(
+                          fontSize: 17,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+              ),
+            ),
+
+            const SizedBox(height: 20),
+
+            Text(
+              'في النسخة النهائية راح يكون الدخول مربوط برقم الهاتف وFirebase.',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 12,
+                color: Colors.grey.shade600,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ============================================================
+// PASSENGER HOME
+// ============================================================
+
+class PassengerHomeScreen extends StatefulWidget {
+  final String name;
+  final String phone;
+  final bool darkMode;
+  final ValueChanged<bool> onThemeChanged;
+
+  const PassengerHomeScreen({
+    super.key,
+    required this.name,
+    required this.phone,
+    required this.darkMode,
+    required this.onThemeChanged,
+  });
+
+  @override
+  State<PassengerHomeScreen> createState() =>
+      _PassengerHomeScreenState();
+}
+
+class _PassengerHomeScreenState extends State<PassengerHomeScreen> {
+  int currentIndex = 0;
+
+  String pickup = '';
+  String destination = '';
+
+  bool searching = false;
+  bool rideActive = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final pages = [
+      _buildHome(),
+      _buildRides(),
+      _buildAccount(),
+    ];
+
+    return Directionality(
+      textDirection: TextDirection.rtl,
+      child: Scaffold(
+        body: pages[currentIndex],
+        bottomNavigationBar: NavigationBar(
+          selectedIndex: currentIndex,
+          onDestinationSelected: (index) {
+            setState(() {
+              currentIndex = index;
+            });
+          },
+          destinations: const [
+            NavigationDestination(
+              icon: Icon(Icons.home_outlined),
+              selectedIcon: Icon(Icons.home_rounded),
+              label: 'الرئيسية',
+            ),
+            NavigationDestination(
+              icon: Icon(Icons.history_outlined),
+              selectedIcon: Icon(Icons.history_rounded),
+              label: 'رحلاتي',
+            ),
+            NavigationDestination(
+              icon: Icon(Icons.person_outline_rounded),
+              selectedIcon: Icon(Icons.person_rounded),
+              label: 'حسابي',
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
-  // ==========================================================
-  // DETAILS
-  // ==========================================================
+  Widget _buildHome() {
+    return SafeArea(
+      child: ListView(
+        padding: const EdgeInsets.all(16),
+        children: [
+          Row(
+            children: [
+              CircleAvatar(
+                radius: 25,
+                backgroundColor: lightGreen,
+                child: Text(
+                  widget.name.isNotEmpty
+                      ? widget.name[0].toUpperCase()
+                      : 'م',
+                  style: const TextStyle(
+                    color: darkGreen,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 20,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'مرحبا ${widget.name} 👋',
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    Text(
+                      'وين رايح اليوم؟',
+                      style: TextStyle(
+                        color: Colors.grey.shade600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              IconButton(
+                onPressed: _showNotifications,
+                icon: const Icon(
+                  Icons.notifications_none_rounded,
+                ),
+              ),
+            ],
+          ),
 
-  void showAppointmentDetails(
-    Appointment appointment,
+          const SizedBox(height: 18),
+
+          Container(
+            height: 230,
+            decoration: BoxDecoration(
+              color: Colors.grey.shade300,
+              borderRadius: BorderRadius.circular(25),
+            ),
+            child: Stack(
+              children: [
+                const Center(
+                  child: Icon(
+                    Icons.map_rounded,
+                    size: 70,
+                    color: Colors.grey,
+                  ),
+                ),
+                Positioned(
+                  top: 15,
+                  right: 15,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 7,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: const Row(
+                      children: [
+                        Icon(
+                          Icons.location_on_rounded,
+                          color: primaryGreen,
+                          size: 18,
+                        ),
+                        SizedBox(width: 5),
+                        Text('داخل البلدية'),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          const SizedBox(height: 15),
+
+          const Text(
+            'اطلب توصيلة',
+            style: TextStyle(
+              fontSize: 21,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+
+          const SizedBox(height: 10),
+
+          _locationField(
+            icon: Icons.my_location_rounded,
+            title: 'نقطة الانطلاق',
+            value: pickup,
+            color: Colors.blue,
+            onTap: () => _chooseLocation(true),
+          ),
+
+          const SizedBox(height: 10),
+
+          _locationField(
+            icon: Icons.location_on_rounded,
+            title: 'إلى أين؟',
+            value: destination,
+            color: Colors.red,
+            onTap: () => _chooseLocation(false),
+          ),
+
+          const SizedBox(height: 15),
+
+          SizedBox(
+            height: 56,
+            child: FilledButton.icon(
+              onPressed: pickup.isEmpty || destination.isEmpty
+                  ? null
+                  : _requestRide,
+              icon: const Icon(
+                Icons.local_taxi_rounded,
+              ),
+              label: const Text(
+                'اطلب توصيلة',
+                style: TextStyle(
+                  fontSize: 17,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ),
+
+          if (searching) ...[
+            const SizedBox(height: 18),
+            _searchingCard(),
+          ],
+
+          if (rideActive) ...[
+            const SizedBox(height: 18),
+            _activeRideCard(),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _locationField({
+    required IconData icon,
+    required String title,
+    required String value,
+    required Color color,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(17),
+      child: Container(
+        padding: const EdgeInsets.all(15),
+        decoration: BoxDecoration(
+          color: Theme.of(context).cardColor,
+          borderRadius: BorderRadius.circular(17),
+          border: Border.all(
+            color: Colors.grey.withOpacity(.15),
+          ),
+        ),
+        child: Row(
+          children: [
+            CircleAvatar(
+              backgroundColor: color.withOpacity(.1),
+              child: Icon(
+                icon,
+                color: color,
+                size: 20,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment:
+                    CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Colors.grey.shade600,
+                    ),
+                  ),
+                  const SizedBox(height: 3),
+                  Text(
+                    value.isEmpty ? 'اضغط لاختيار المكان' : value,
+                    style: TextStyle(
+                      fontWeight: FontWeight.w600,
+                      color: value.isEmpty
+                          ? Colors.grey
+                          : null,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const Icon(
+              Icons.chevron_left_rounded,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _searchingCard() {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(18),
+        child: Column(
+          children: [
+            const CircularProgressIndicator(),
+            const SizedBox(height: 15),
+            const Text(
+              'نقلبولك على سائق قريب...',
+              style: TextStyle(
+                fontSize: 17,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              'استنى لحظات',
+              style: TextStyle(
+                color: Colors.grey.shade600,
+              ),
+            ),
+            const SizedBox(height: 15),
+            OutlinedButton(
+              onPressed: () {
+                setState(() {
+                  searching = false;
+                  pickup = '';
+                  destination = '';
+                });
+              },
+              child: const Text('إلغاء الطلب'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _activeRideCard() {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(18),
+        child: Column(
+          children: [
+            const Row(
+              children: [
+                CircleAvatar(
+                  backgroundColor: lightGreen,
+                  child: Icon(
+                    Icons.person,
+                    color: darkGreen,
+                  ),
+                ),
+                SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment:
+                        CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'محمد - سائق',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      Text('Renault Symbol • 123456'),
+                    ],
+                  ),
+                ),
+                Icon(
+                  Icons.star_rounded,
+                  color: Colors.amber,
+                ),
+                Text('4.9'),
+              ],
+            ),
+            const SizedBox(height: 15),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: lightGreen,
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: const Row(
+                children: [
+                  Icon(
+                    Icons.directions_car_rounded,
+                    color: darkGreen,
+                  ),
+                  SizedBox(width: 10),
+                  Text(
+                    'السائق في الطريق إليك',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: darkGreen,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
+            OutlinedButton.icon(
+              onPressed: _cancelRide,
+              icon: const Icon(Icons.close_rounded),
+              label: const Text('إلغاء الرحلة'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildRides() {
+    return SafeArea(
+      child: ListView(
+        padding: const EdgeInsets.all(18),
+        children: [
+          const Text(
+            'رحلاتي',
+            style: TextStyle(
+              fontSize: 28,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'سجل الرحلات الخاصة بك',
+            style: TextStyle(
+              color: Colors.grey.shade600,
+            ),
+          ),
+          const SizedBox(height: 25),
+          if (!rideActive && !searching)
+            const Center(
+              child: Padding(
+                padding: EdgeInsets.only(top: 80),
+                child: Column(
+                  children: [
+                    Icon(
+                      Icons.route_rounded,
+                      size: 75,
+                      color: Colors.grey,
+                    ),
+                    SizedBox(height: 15),
+                    Text(
+                      'ما عندكش رحلات حالياً',
+                      style: TextStyle(
+                        fontSize: 17,
+                        color: Colors.grey,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            )
+          else
+            Card(
+              child: ListTile(
+                leading: const CircleAvatar(
+                  backgroundColor: lightGreen,
+                  child: Icon(
+                    Icons.local_taxi_rounded,
+                    color: darkGreen,
+                  ),
+                ),
+                title: Text(
+                  destination.isEmpty
+                      ? 'رحلة جديدة'
+                      : destination,
+                ),
+                subtitle: const Text(
+                  'رحلة قيد التنفيذ',
+                ),
+                trailing: const Icon(
+                  Icons.arrow_back_ios_rounded,
+                  size: 16,
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAccount() {
+    return SafeArea(
+      child: ListView(
+        padding: const EdgeInsets.all(18),
+        children: [
+          const SizedBox(height: 20),
+          CircleAvatar(
+            radius: 45,
+            backgroundColor: lightGreen,
+            child: Text(
+              widget.name.isNotEmpty
+                  ? widget.name[0].toUpperCase()
+                  : 'م',
+              style: const TextStyle(
+                fontSize: 35,
+                color: darkGreen,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            widget.name,
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              fontSize: 23,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          Text(
+            widget.phone,
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: Colors.grey.shade600,
+            ),
+          ),
+          const SizedBox(height: 30),
+          _accountTile(
+            Icons.person_outline_rounded,
+            'معلومات الحساب',
+            () {},
+          ),
+          _accountTile(
+            Icons.notifications_none_rounded,
+            'الإشعارات',
+            _showNotifications,
+          ),
+          _accountTile(
+            Icons.dark_mode_outlined,
+            'الوضع الليلي',
+            () {
+              _showThemeDialog();
+            },
+          ),
+          _accountTile(
+            Icons.help_outline_rounded,
+            'المساعدة',
+            _showHelp,
+          ),
+          _accountTile(
+            Icons.security_rounded,
+            'السلامة',
+            _showSafety,
+          ),
+          _accountTile(
+            Icons.logout_rounded,
+            'تسجيل الخروج',
+            () {
+              Navigator.pushAndRemoveUntil(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => RoleScreen(
+                    darkMode: widget.darkMode,
+                    onThemeChanged:
+                        widget.onThemeChanged,
+                  ),
+                ),
+                (route) => false,
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _accountTile(
+    IconData icon,
+    String title,
+    VoidCallback onTap,
   ) {
+    return Card(
+      child: ListTile(
+        leading: Icon(icon),
+        title: Text(title),
+        trailing: const Icon(
+          Icons.chevron_left_rounded,
+        ),
+        onTap: onTap,
+      ),
+    );
+  }
+
+  void _chooseLocation(bool isPickup) {
+    final controller = TextEditingController();
+
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -1176,182 +1177,569 @@ class _HomePageState extends State<HomePage> {
         ),
       ),
       builder: (context) {
-        return SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.all(22),
-            child: SingleChildScrollView(
-              child: Column(
-                crossAxisAlignment:
-                    CrossAxisAlignment.stretch,
-                children: [
-                  Center(
-                    child: Container(
-                      width: 45,
-                      height: 5,
-                      decoration: BoxDecoration(
-                        color: Colors.grey,
-                        borderRadius:
-                            BorderRadius.circular(10),
-                      ),
-                    ),
-                  ),
-
-                  const SizedBox(height: 20),
-
-                  CircleAvatar(
-                    radius: 34,
-                    backgroundColor:
-                        typeColor(appointment.type)
-                            .withOpacity(.15),
-                    child: Icon(
-                      typeIcon(appointment.type),
-                      size: 34,
-                      color: typeColor(
-                        appointment.type,
-                      ),
-                    ),
-                  ),
-
-                  const SizedBox(height: 14),
-
-                  Text(
-                    appointment.title,
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(
-                      fontSize: 25,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-
-                  const SizedBox(height: 20),
-
-                  _detailRow(
-                    Icons.calendar_month_rounded,
-                    'التاريخ',
-                    formatDate(
-                      appointment.dateTime,
-                    ),
-                  ),
-
-                  _detailRow(
-                    Icons.access_time_rounded,
-                    'الوقت',
-                    formatTime(
-                      appointment.dateTime,
-                    ),
-                  ),
-
-                  _detailRow(
-                    Icons.category_rounded,
-                    'النوع',
-                    appointment.type,
-                  ),
-
-                  if (appointment.person.isNotEmpty)
-                    _detailRow(
-                      Icons.person_rounded,
-                      'الشخص / الجهة',
-                      appointment.person,
-                    ),
-
-                  if (appointment.phone.isNotEmpty)
-                    _detailRow(
-                      Icons.phone_rounded,
-                      'الهاتف',
-                      appointment.phone,
-                    ),
-
-                  if (appointment.location.isNotEmpty)
-                    _detailRow(
-                      Icons.location_on_rounded,
-                      'المكان',
-                      appointment.location,
-                    ),
-
-                  _detailRow(
-                    Icons.notifications_rounded,
-                    'التذكير',
-                    reminderText(
-                      appointment.reminderMinutes,
-                    ),
-                  ),
-
-                  _detailRow(
-                    Icons.repeat_rounded,
-                    'التكرار',
-                    appointment.recurrence,
-                  ),
-
-                  if (appointment.notes.isNotEmpty)
-                    _detailRow(
-                      Icons.notes_rounded,
-                      'الملاحظات',
-                      appointment.notes,
-                    ),
-
-                  const SizedBox(height: 15),
-
-                  FilledButton.icon(
-                    icon: const Icon(
-                      Icons.edit_rounded,
-                    ),
-                    label: const Text(
-                      'تعديل الموعد',
-                    ),
-                    onPressed: () {
-                      Navigator.pop(context);
-                      showAppointmentDialog(
-                        appointment: appointment,
-                      );
-                    },
-                  ),
-
-                  const SizedBox(height: 8),
-
-                  OutlinedButton.icon(
-                    icon: const Icon(
-                      Icons.delete_outline_rounded,
-                    ),
-                    label: const Text(
-                      'حذف الموعد',
-                    ),
-                    onPressed: () {
-                      Navigator.pop(context);
-                      deleteAppointment(
-                        appointment,
-                      );
-                    },
-                  ),
-                ],
+        return Padding(
+          padding: EdgeInsets.only(
+            left: 20,
+            right: 20,
+            top: 20,
+            bottom: MediaQuery.of(context)
+                    .viewInsets
+                    .bottom +
+                20,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                isPickup
+                    ? 'حدد نقطة الانطلاق'
+                    : 'حدد الوجهة',
+                style: const TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
-            ),
+              const SizedBox(height: 18),
+              TextField(
+                controller: controller,
+                autofocus: true,
+                textDirection: TextDirection.rtl,
+                decoration: InputDecoration(
+                  hintText: isPickup
+                      ? 'مثال: البلدية'
+                      : 'مثال: وسط المدينة',
+                  prefixIcon: const Icon(
+                    Icons.location_on_rounded,
+                  ),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 15),
+              SizedBox(
+                width: double.infinity,
+                height: 52,
+                child: FilledButton(
+                  onPressed: () {
+                    if (controller.text.trim().isEmpty) {
+                      return;
+                    }
+
+                    setState(() {
+                      if (isPickup) {
+                        pickup =
+                            controller.text.trim();
+                      } else {
+                        destination =
+                            controller.text.trim();
+                      }
+                    });
+
+                    Navigator.pop(context);
+                  },
+                  child: const Text('تأكيد المكان'),
+                ),
+              ),
+            ],
           ),
         );
       },
     );
   }
 
-  Widget _detailRow(
+  void _requestRide() {
+    setState(() {
+      searching = true;
+    });
+
+    Future.delayed(const Duration(seconds: 3), () {
+      if (!mounted || !searching) return;
+
+      setState(() {
+        searching = false;
+        rideActive = true;
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'لقينا سائق قريب منك 🚕',
+          ),
+        ),
+      );
+    });
+  }
+
+  void _cancelRide() {
+    setState(() {
+      searching = false;
+      rideActive = false;
+      pickup = '';
+      destination = '';
+    });
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('تم إلغاء الرحلة'),
+      ),
+    );
+  }
+
+  void _showNotifications() {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return const AlertDialog(
+          title: Text('الإشعارات'),
+          content: Text(
+            'ما عندك حتى إشعار جديد حالياً.',
+          ),
+        );
+      },
+    );
+  }
+
+  void _showThemeDialog() {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('المظهر'),
+          content: SwitchListTile(
+            title: const Text('الوضع الليلي'),
+            value: widget.darkMode,
+            onChanged: (value) {
+              widget.onThemeChanged(value);
+              Navigator.pop(context);
+            },
+          ),
+        );
+      },
+    );
+  }
+
+  void _showHelp() {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return const AlertDialog(
+          title: Text('المساعدة'),
+          content: Text(
+            'إذا واجهتك مشكلة، راح نضيف مركز مساعدة ودعم مباشر في النسخة النهائية.',
+          ),
+        );
+      },
+    );
+  }
+
+  void _showSafety() {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('السلامة'),
+          content: const Text(
+            'في النسخة النهائية راح نضيف زر SOS، مشاركة الرحلة، وجهة اتصال للطوارئ وميزات أمان إضافية.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('حسناً'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+}
+
+// ============================================================
+// DRIVER HOME
+// ============================================================
+
+class DriverHomeScreen extends StatefulWidget {
+  final String name;
+  final String phone;
+  final bool darkMode;
+  final ValueChanged<bool> onThemeChanged;
+
+  const DriverHomeScreen({
+    super.key,
+    required this.name,
+    required this.phone,
+    required this.darkMode,
+    required this.onThemeChanged,
+  });
+
+  @override
+  State<DriverHomeScreen> createState() =>
+      _DriverHomeScreenState();
+}
+
+class _DriverHomeScreenState extends State<DriverHomeScreen> {
+  bool online = false;
+  bool hasRequest = false;
+  bool activeRide = false;
+
+  int currentIndex = 0;
+
+  @override
+  Widget build(BuildContext context) {
+    final pages = [
+      _driverHome(),
+      _driverEarnings(),
+      _driverAccount(),
+    ];
+
+    return Directionality(
+      textDirection: TextDirection.rtl,
+      child: Scaffold(
+        body: pages[currentIndex],
+        bottomNavigationBar: NavigationBar(
+          selectedIndex: currentIndex,
+          onDestinationSelected: (index) {
+            setState(() {
+              currentIndex = index;
+            });
+          },
+          destinations: const [
+            NavigationDestination(
+              icon: Icon(Icons.home_outlined),
+              selectedIcon: Icon(Icons.home_rounded),
+              label: 'الرئيسية',
+            ),
+            NavigationDestination(
+              icon: Icon(Icons.payments_outlined),
+              selectedIcon: Icon(Icons.payments_rounded),
+              label: 'الأرباح',
+            ),
+            NavigationDestination(
+              icon: Icon(Icons.person_outline_rounded),
+              selectedIcon: Icon(Icons.person_rounded),
+              label: 'حسابي',
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _driverHome() {
+    return SafeArea(
+      child: ListView(
+        padding: const EdgeInsets.all(16),
+        children: [
+          Row(
+            children: [
+              const CircleAvatar(
+                radius: 25,
+                backgroundColor: Colors.blueAccent,
+                child: Icon(
+                  Icons.directions_car_rounded,
+                  color: Colors.white,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment:
+                      CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'مرحبا ${widget.name}',
+                      style: const TextStyle(
+                        fontSize: 19,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    Text(
+                      online
+                          ? 'أنت متصل وتستقبل الطلبات'
+                          : 'أنت غير متصل',
+                      style: TextStyle(
+                        color: online
+                            ? primaryGreen
+                            : Colors.grey,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+
+          const SizedBox(height: 20),
+
+          Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                colors: [
+                  Color(0xFF2563EB),
+                  Color(0xFF1D4ED8),
+                ],
+              ),
+              borderRadius: BorderRadius.circular(25),
+            ),
+            child: Column(
+              children: [
+                const Text(
+                  'حالة السائق',
+                  style: TextStyle(
+                    color: Colors.white70,
+                  ),
+                ),
+                const SizedBox(height: 10),
+                Text(
+                  online ? 'متصل' : 'غير متصل',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 28,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 15),
+                Switch.adaptive(
+                  value: online,
+                  activeColor: Colors.white,
+                  onChanged: (value) {
+                    setState(() {
+                      online = value;
+                    });
+
+                    if (value) {
+                      Future.delayed(
+                        const Duration(seconds: 2),
+                        () {
+                          if (!mounted || !online) return;
+
+                          setState(() {
+                            hasRequest = true;
+                          });
+                        },
+                      );
+                    } else {
+                      setState(() {
+                        hasRequest = false;
+                      });
+                    }
+                  },
+                ),
+                const Text(
+                  'فعّل الحالة باش تستقبل طلبات',
+                  style: TextStyle(
+                    color: Colors.white70,
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          const SizedBox(height: 20),
+
+          if (hasRequest)
+            _rideRequestCard()
+          else if (activeRide)
+            _activeDriverRide()
+          else
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(25),
+                child: Column(
+                  children: [
+                    Icon(
+                      online
+                          ? Icons.radar_rounded
+                          : Icons.pause_circle_outline_rounded,
+                      size: 65,
+                      color: online
+                          ? primaryGreen
+                          : Colors.grey,
+                    ),
+                    const SizedBox(height: 12),
+                    Text(
+                      online
+                          ? 'نستناو في طلبات جديدة...'
+                          : 'فعّل الاتصال باش تبدأ',
+                      style: const TextStyle(
+                        fontSize: 17,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _rideRequestCard() {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(18),
+        child: Column(
+          children: [
+            const Row(
+              children: [
+                CircleAvatar(
+                  backgroundColor: lightGreen,
+                  child: Icon(
+                    Icons.person_rounded,
+                    color: darkGreen,
+                  ),
+                ),
+                SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    'طلب توصيلة جديد 🚕',
+                    style: TextStyle(
+                      fontSize: 19,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 18),
+            _routeRow(
+              Icons.my_location_rounded,
+              'نقطة الانطلاق',
+              'وسط البلدية',
+              Colors.blue,
+            ),
+            _routeRow(
+              Icons.location_on_rounded,
+              'الوجهة',
+              'حي النصر',
+              Colors.red,
+            ),
+            const Divider(height: 25),
+            const Row(
+              children: [
+                Icon(Icons.route_rounded),
+                SizedBox(width: 8),
+                Text('المسافة: 4.2 كم'),
+                Spacer(),
+                Text(
+                  '250 دج',
+                  style: TextStyle(
+                    fontSize: 19,
+                    fontWeight: FontWeight.bold,
+                    color: primaryGreen,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 18),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: () {
+                      setState(() {
+                        hasRequest = false;
+                      });
+                    },
+                    child: const Text('رفض'),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: FilledButton(
+                    onPressed: () {
+                      setState(() {
+                        hasRequest = false;
+                        activeRide = true;
+                      });
+                    },
+                    child: const Text('قبول الرحلة'),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _activeDriverRide() {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(18),
+        child: Column(
+          children: [
+            const Icon(
+              Icons.local_taxi_rounded,
+              size: 60,
+              color: primaryGreen,
+            ),
+            const SizedBox(height: 10),
+            const Text(
+              'رحلة نشطة',
+              style: TextStyle(
+                fontSize: 22,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 15),
+            _routeRow(
+              Icons.my_location_rounded,
+              'الانطلاق',
+              'وسط البلدية',
+              Colors.blue,
+            ),
+            _routeRow(
+              Icons.location_on_rounded,
+              'الوجهة',
+              'حي النصر',
+              Colors.red,
+            ),
+            const SizedBox(height: 15),
+            SizedBox(
+              width: double.infinity,
+              height: 52,
+              child: FilledButton(
+                onPressed: () {
+                  setState(() {
+                    activeRide = false;
+                  });
+
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text(
+                        'تم إنهاء الرحلة بنجاح ✅',
+                      ),
+                    ),
+                  );
+                },
+                child: const Text('إنهاء الرحلة'),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _routeRow(
     IconData icon,
     String title,
     String value,
+    Color color,
   ) {
     return Padding(
-      padding: const EdgeInsets.symmetric(
-        vertical: 7,
-      ),
+      padding: const EdgeInsets.symmetric(vertical: 7),
       child: Row(
-        crossAxisAlignment:
-            CrossAxisAlignment.start,
         children: [
           Icon(
             icon,
-            size: 22,
-            color: Theme.of(context)
-                .colorScheme
-                .primary,
+            color: color,
           ),
-          const SizedBox(width: 12),
+          const SizedBox(width: 10),
           Expanded(
             child: Column(
               crossAxisAlignment:
@@ -1360,15 +1748,13 @@ class _HomePageState extends State<HomePage> {
                 Text(
                   title,
                   style: TextStyle(
-                    color: Colors.grey.shade600,
                     fontSize: 12,
+                    color: Colors.grey.shade600,
                   ),
                 ),
-                const SizedBox(height: 2),
                 Text(
                   value,
                   style: const TextStyle(
-                    fontSize: 15,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
@@ -1380,1483 +1766,217 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  // ==========================================================
-  // CALENDAR
-  // ==========================================================
-
-  void showCalendar() {
-    DateTime selected =
-        DateTime.now();
-
-    showDialog(
-      context: context,
-      builder: (dialogContext) {
-        return StatefulBuilder(
-          builder: (context, setDialogState) {
-            final monthAppointments =
-                appointments.where(
-              (a) =>
-                  a.dateTime.year == selected.year &&
-                  a.dateTime.month == selected.month,
-            ).toList();
-
-            return AlertDialog(
-              title: Row(
-                children: [
-                  const Icon(
-                    Icons.calendar_month_rounded,
-                  ),
-                  const SizedBox(width: 8),
-                  const Expanded(
-                    child: Text('تقويم المواعيد'),
-                  ),
+  Widget _driverEarnings() {
+    return SafeArea(
+      child: ListView(
+        padding: const EdgeInsets.all(18),
+        children: [
+          const Text(
+            'الأرباح',
+            style: TextStyle(
+              fontSize: 28,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'ملخص نشاطك',
+            style: TextStyle(
+              color: Colors.grey.shade600,
+            ),
+          ),
+          const SizedBox(height: 20),
+          Container(
+            padding: const EdgeInsets.all(22),
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                colors: [
+                  primaryGreen,
+                  darkGreen,
                 ],
               ),
-              content: SizedBox(
-                width: 420,
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    CalendarDatePicker(
-                      initialDate: selected,
-                      firstDate: DateTime(2020),
-                      lastDate: DateTime(2100),
-                      onDateChanged: (date) {
-                        setDialogState(() {
-                          selected = date;
-                        });
-                      },
-                    ),
-
-                    const Divider(),
-
-                    Align(
-                      alignment:
-                          Alignment.centerRight,
-                      child: Text(
-                        'مواعيد هذا الشهر: ${monthAppointments.length}',
-                        style: const TextStyle(
-                          fontWeight:
-                              FontWeight.bold,
-                        ),
-                      ),
-                    ),
-
-                    const SizedBox(height: 10),
-
-                    if (monthAppointments.isEmpty)
-                      const Padding(
-                        padding:
-                            EdgeInsets.all(15),
-                        child: Text(
-                          'لا توجد مواعيد هذا الشهر',
-                        ),
-                      )
-                    else
-                      SizedBox(
-                        height: 170,
-                        child: ListView.builder(
-                          itemCount:
-                              monthAppointments.length,
-                          itemBuilder:
-                              (context, index) {
-                            final a =
-                                monthAppointments[
-                                    index];
-
-                            return ListTile(
-                              dense: true,
-                              leading: CircleAvatar(
-                                backgroundColor:
-                                    typeColor(
-                                      a.type,
-                                    ).withOpacity(.15),
-                                child: Icon(
-                                  typeIcon(
-                                    a.type,
-                                  ),
-                                  color:
-                                      typeColor(
-                                    a.type,
-                                  ),
-                                  size: 20,
-                                ),
-                              ),
-                              title: Text(
-                                a.title,
-                                maxLines: 1,
-                                overflow:
-                                    TextOverflow
-                                        .ellipsis,
-                              ),
-                              subtitle: Text(
-                                '${formatDate(a.dateTime)} - ${formatTime(a.dateTime)}',
-                              ),
-                            );
-                          },
-                        ),
-                      ),
-                  ],
+              borderRadius: BorderRadius.circular(25),
+            ),
+            child: const Column(
+              children: [
+                Text(
+                  'أرباح اليوم',
+                  style: TextStyle(
+                    color: Colors.white70,
+                  ),
                 ),
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () =>
-                      Navigator.pop(dialogContext),
-                  child: const Text('إغلاق'),
+                SizedBox(height: 8),
+                Text(
+                  '0 دج',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 35,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
               ],
-            );
-          },
-        );
-      },
-    );
-  }
-
-  // ==========================================================
-  // STATISTICS
-  // ==========================================================
-
-  void showStatistics() {
-    final total = appointments.length;
-
-    showDialog(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: const Row(
-            children: [
-              Icon(Icons.bar_chart_rounded),
-              SizedBox(width: 8),
-              Text('إحصائيات موعدي'),
-            ],
-          ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              _statRow(
-                'كل المواعيد',
-                total,
-                Icons.event_rounded,
-              ),
-              _statRow(
-                'مواعيد اليوم',
-                todayCount,
-                Icons.today_rounded,
-              ),
-              _statRow(
-                'القادمة',
-                appointments
-                    .where(
-                      (a) =>
-                          !a.completed &&
-                          a.dateTime
-                              .isAfter(DateTime.now()),
-                    )
-                    .length,
-                Icons.upcoming_rounded,
-              ),
-              _statRow(
-                'المكتملة',
-                completedCount,
-                Icons.check_circle_rounded,
-              ),
-              _statRow(
-                'المتأخرة',
-                overdueCount,
-                Icons.warning_rounded,
-              ),
-              _statRow(
-                'بتذكير',
-                reminderCount,
-                Icons.notifications_rounded,
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () =>
-                  Navigator.pop(context),
-              child: const Text('إغلاق'),
             ),
-          ],
-        );
-      },
+          ),
+          const SizedBox(height: 15),
+          Row(
+            children: [
+              Expanded(
+                child: _earningCard(
+                  'الرحلات',
+                  '0',
+                  Icons.route_rounded,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: _earningCard(
+                  'التقييم',
+                  '5.0',
+                  Icons.star_rounded,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
     );
   }
 
-  Widget _statRow(
+  Widget _earningCard(
     String title,
-    int value,
+    String value,
     IconData icon,
   ) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(
-        vertical: 7,
-      ),
-      child: Row(
-        children: [
-          Icon(icon, size: 22),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Text(title),
-          ),
-          Text(
-            value.toString(),
-            style: const TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // ==========================================================
-  // SETTINGS
-  // ==========================================================
-
-  Future<void> showSettings() async {
-    int reminder = defaultReminder;
-
-    await showModalBottomSheet(
-      context: context,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(
-          top: Radius.circular(28),
-        ),
-      ),
-      builder: (context) {
-        return StatefulBuilder(
-          builder: (context, setModalState) {
-            return SafeArea(
-              child: Padding(
-                padding: const EdgeInsets.all(20),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Text(
-                      'الإعدادات',
-                      style: TextStyle(
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-
-                    const SizedBox(height: 20),
-
-                    SwitchListTile(
-                      secondary: const Icon(
-                        Icons.dark_mode_rounded,
-                      ),
-                      title: const Text(
-                        'الوضع الليلي',
-                      ),
-                      value: widget.darkMode,
-                      onChanged: (value) async {
-                        await widget.onThemeChanged(
-                          value,
-                        );
-
-                        if (mounted) {
-                          setState(() {});
-                        }
-
-                        setModalState(() {});
-                      },
-                    ),
-
-                    ListTile(
-                      leading: const Icon(
-                        Icons.notifications_active_rounded,
-                      ),
-                      title: const Text(
-                        'التذكير الافتراضي',
-                      ),
-                      subtitle: Text(
-                        reminderText(reminder),
-                      ),
-                      onTap: () async {
-                        final value =
-                            await showDialog<int>(
-                          context: context,
-                          builder: (context) {
-                            return SimpleDialog(
-                              title: const Text(
-                                'التذكير الافتراضي',
-                              ),
-                              children: const [
-                                SimpleDialogOption(
-                                  child:
-                                      Text('بدون تذكير'),
-                                  value: -1,
-                                ),
-                                SimpleDialogOption(
-                                  child:
-                                      Text('وقت الموعد'),
-                                  value: 0,
-                                ),
-                                SimpleDialogOption(
-                                  child:
-                                      Text('قبل 5 دقائق'),
-                                  value: 5,
-                                ),
-                                SimpleDialogOption(
-                                  child:
-                                      Text('قبل 15 دقيقة'),
-                                  value: 15,
-                                ),
-                                SimpleDialogOption(
-                                  child:
-                                      Text('قبل 30 دقيقة'),
-                                  value: 30,
-                                ),
-                                SimpleDialogOption(
-                                  child:
-                                      Text('قبل ساعة'),
-                                  value: 60,
-                                ),
-                                SimpleDialogOption(
-                                  child:
-                                      Text('قبل يوم'),
-                                  value: 1440,
-                                ),
-                              ],
-                            );
-                          },
-                        );
-
-                        if (value != null) {
-                          final prefs =
-                              await SharedPreferences
-                                  .getInstance();
-
-                          await prefs.setInt(
-                            'defaultReminder',
-                            value,
-                          );
-
-                          setState(() {
-                            defaultReminder = value;
-                          });
-
-                          setModalState(() {
-                            reminder = value;
-                          });
-                        }
-                      },
-                    ),
-
-                    ListTile(
-                      leading: const Icon(
-                        Icons.delete_sweep_rounded,
-                      ),
-                      title: const Text(
-                        'حذف المواعيد المكتملة',
-                      ),
-                      onTap: () async {
-                        Navigator.pop(context);
-                        await clearCompleted();
-                      },
-                    ),
-
-                    ListTile(
-                      leading: const Icon(
-                        Icons.notifications_rounded,
-                      ),
-                      title: const Text(
-                        'تحديث التذكيرات',
-                      ),
-                      onTap: () async {
-                        await refreshNotifications();
-
-                        if (mounted) {
-                          Navigator.pop(context);
-
-                          ScaffoldMessenger.of(
-                            this.context,
-                          ).showSnackBar(
-                            const SnackBar(
-                              content: Text(
-                                'تم تحديث التذكيرات ✅',
-                              ),
-                            ),
-                          );
-                        }
-                      },
-                    ),
-
-                    ListTile(
-                      leading: const Icon(
-                        Icons.backup_rounded,
-                      ),
-                      title: const Text(
-                        'نسخ احتياطي',
-                      ),
-                      subtitle: const Text(
-                        'نسخ المواعيد إلى الحافظة',
-                      ),
-                      onTap: () async {
-                        await backupToClipboard();
-
-                        if (mounted) {
-                          Navigator.pop(context);
-
-                          ScaffoldMessenger.of(
-                            this.context,
-                          ).showSnackBar(
-                            const SnackBar(
-                              content: Text(
-                                'تم نسخ النسخة الاحتياطية ✅',
-                              ),
-                            ),
-                          );
-                        }
-                      },
-                    ),
-
-                    ListTile(
-                      leading: const Icon(
-                        Icons.restore_rounded,
-                      ),
-                      title: const Text(
-                        'استرجاع نسخة احتياطية',
-                      ),
-                      subtitle: const Text(
-                        'استرجاع المواعيد من الحافظة',
-                      ),
-                      onTap: () async {
-                        Navigator.pop(context);
-                        await restoreFromClipboard();
-                      },
-                    ),
-
-                    const SizedBox(height: 8),
-                  ],
-                ),
-              ),
-            );
-          },
-        );
-      },
-    );
-  }
-
-  // ==========================================================
-  // BACKUP
-  // ==========================================================
-
-  Future<void> backupToClipboard() async {
-    final data = appointments
-        .map((a) => a.toJson())
-        .toList();
-
-    await Clipboard.setData(
-      ClipboardData(
-        text: jsonEncode(data),
-      ),
-    );
-  }
-
-  Future<void> restoreFromClipboard() async {
-    final data =
-        await Clipboard.getData('text/plain');
-
-    if (data == null ||
-        data.text == null ||
-        data.text!.trim().isEmpty) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text(
-              'ماكانش نسخة احتياطية في الحافظة',
-            ),
-          ),
-        );
-      }
-      return;
-    }
-
-    try {
-      final decoded =
-          jsonDecode(data.text!);
-
-      if (decoded is! List) {
-        throw Exception();
-      }
-
-      final restored = decoded
-          .map(
-            (e) => Appointment.fromJson(
-              Map<String, dynamic>.from(e),
-            ),
-          )
-          .toList();
-
-      final confirm =
-          await showDialog<bool>(
-        context: context,
-        builder: (context) {
-          return AlertDialog(
-            title: const Text(
-              'استرجاع النسخة الاحتياطية',
-            ),
-            content: Text(
-              'تم العثور على ${restored.length} موعد.\n'
-              'هل تريد استبدال المواعيد الحالية؟',
-            ),
-            actions: [
-              TextButton(
-                onPressed: () =>
-                    Navigator.pop(context, false),
-                child: const Text('إلغاء'),
-              ),
-              FilledButton(
-                onPressed: () =>
-                    Navigator.pop(context, true),
-                child: const Text('استرجاع'),
-              ),
-            ],
-          );
-        },
-      );
-
-      if (confirm != true) return;
-
-      for (final appointment in appointments) {
-        await cancelNotification(appointment);
-      }
-
-      appointments = restored;
-
-      await saveData();
-      await refreshNotifications();
-
-      setState(() {});
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text(
-              'تم استرجاع المواعيد بنجاح ✅',
-            ),
-          ),
-        );
-      }
-    } catch (_) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text(
-              'النسخة الاحتياطية غير صالحة ❌',
-            ),
-          ),
-        );
-      }
-    }
-  }
-
-  // ==========================================================
-  // CLEAR COMPLETED
-  // ==========================================================
-
-  Future<void> clearCompleted() async {
-    final completed =
-        appointments.where((a) => a.completed).toList();
-
-    if (completed.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'ماكان حتى موعد مكتمل',
-          ),
-        ),
-      );
-      return;
-    }
-
-    final confirm = await showDialog<bool>(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: const Text(
-            'حذف المواعيد المكتملة',
-          ),
-          content: Text(
-            'سيتم حذف ${completed.length} موعد مكتمل.',
-          ),
-          actions: [
-            TextButton(
-              onPressed: () =>
-                  Navigator.pop(context, false),
-              child: const Text('إلغاء'),
-            ),
-            FilledButton(
-              onPressed: () =>
-                  Navigator.pop(context, true),
-              child: const Text('حذف'),
-            ),
-          ],
-        );
-      },
-    );
-
-    if (confirm != true) return;
-
-    for (final appointment in completed) {
-      await cancelNotification(appointment);
-    }
-
-    appointments.removeWhere(
-      (a) => a.completed,
-    );
-
-    await saveData();
-
-    setState(() {});
-  }
-
-  // ==========================================================
-  // UI COMPONENTS
-  // ==========================================================
-
-  Widget dashboardCard({
-    required String title,
-    required String value,
-    required IconData icon,
-    required Color color,
-    VoidCallback? onTap,
-  }) {
-    return Expanded(
-      child: InkWell(
-        borderRadius: BorderRadius.circular(20),
-        onTap: onTap,
-        child: Container(
-          padding: const EdgeInsets.all(15),
-          decoration: BoxDecoration(
-            color: color.withOpacity(.10),
-            borderRadius:
-                BorderRadius.circular(20),
-            border: Border.all(
-              color: color.withOpacity(.15),
-            ),
-          ),
-          child: Column(
-            crossAxisAlignment:
-                CrossAxisAlignment.start,
-            children: [
-              CircleAvatar(
-                radius: 19,
-                backgroundColor:
-                    color.withOpacity(.15),
-                child: Icon(
-                  icon,
-                  color: color,
-                  size: 21,
-                ),
-              ),
-              const SizedBox(height: 12),
-              Text(
-                value,
-                style: TextStyle(
-                  fontSize: 25,
-                  fontWeight: FontWeight.bold,
-                  color: color,
-                ),
-              ),
-              const SizedBox(height: 2),
-              Text(
-                title,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  color: color.withOpacity(.85),
-                  fontSize: 12,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget appointmentCard(
-    Appointment appointment,
-  ) {
-    final color = typeColor(
-      appointment.type,
-    );
-
-    final overdue = isOverdue(appointment);
-
     return Card(
-      child: InkWell(
-        borderRadius:
-            BorderRadius.circular(20),
-        onTap: () {
-          showAppointmentDetails(
-            appointment,
-          );
-        },
-        child: Padding(
-          padding: const EdgeInsets.all(15),
-          child: Column(
-            children: [
-              Row(
-                crossAxisAlignment:
-                    CrossAxisAlignment.start,
-                children: [
-                  CircleAvatar(
-                    radius: 25,
-                    backgroundColor:
-                        color.withOpacity(.13),
-                    child: Icon(
-                      typeIcon(
-                        appointment.type,
-                      ),
-                      color: color,
-                    ),
-                  ),
-
-                  const SizedBox(width: 12),
-
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment:
-                          CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            Expanded(
-                              child: Text(
-                                appointment.title,
-                                maxLines: 2,
-                                overflow:
-                                    TextOverflow.ellipsis,
-                                style: TextStyle(
-                                  fontSize: 17,
-                                  fontWeight:
-                                      FontWeight.bold,
-                                  decoration:
-                                      appointment
-                                              .completed
-                                          ? TextDecoration
-                                              .lineThrough
-                                          : null,
-                                ),
-                              ),
-                            ),
-                            if (appointment.completed)
-                              const Icon(
-                                Icons
-                                    .check_circle_rounded,
-                                color: Colors.green,
-                                size: 22,
-                              ),
-                          ],
-                        ),
-
-                        const SizedBox(height: 6),
-
-                        Wrap(
-                          spacing: 7,
-                          runSpacing: 5,
-                          children: [
-                            _smallInfo(
-                              Icons.calendar_today_rounded,
-                              formatDate(
-                                appointment.dateTime,
-                              ),
-                            ),
-                            _smallInfo(
-                              Icons.access_time_rounded,
-                              formatTime(
-                                appointment.dateTime,
-                              ),
-                            ),
-                          ],
-                        ),
-
-                        const SizedBox(height: 6),
-
-                        Wrap(
-                          spacing: 7,
-                          runSpacing: 5,
-                          children: [
-                            if (appointment.person
-                                .isNotEmpty)
-                              _smallInfo(
-                                Icons.person_rounded,
-                                appointment.person,
-                              ),
-                            _smallInfo(
-                              Icons.category_rounded,
-                              appointment.type,
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  PopupMenuButton<String>(
-                    onSelected: (value) async {
-                      if (value == 'edit') {
-                        await showAppointmentDialog(
-                          appointment: appointment,
-                        );
-                      } else if (value == 'delete') {
-                        await deleteAppointment(
-                          appointment,
-                        );
-                      } else if (value == 'complete') {
-                        await toggleCompleted(
-                          appointment,
-                        );
-                      }
-                    },
-                    itemBuilder: (context) {
-                      return [
-                        PopupMenuItem(
-                          value: 'complete',
-                          child: Row(
-                            children: [
-                              Icon(
-                                appointment.completed
-                                    ? Icons
-                                        .undo_rounded
-                                    : Icons
-                                        .check_rounded,
-                              ),
-                              const SizedBox(width: 8),
-                              Text(
-                                appointment.completed
-                                    ? 'إلغاء الإكمال'
-                                    : 'تم الإنجاز',
-                              ),
-                            ],
-                          ),
-                        ),
-                        const PopupMenuItem(
-                          value: 'edit',
-                          child: Row(
-                            children: [
-                              Icon(
-                                Icons.edit_rounded,
-                              ),
-                              SizedBox(width: 8),
-                              Text('تعديل'),
-                            ],
-                          ),
-                        ),
-                        const PopupMenuItem(
-                          value: 'delete',
-                          child: Row(
-                            children: [
-                              Icon(
-                                Icons
-                                    .delete_outline_rounded,
-                              ),
-                              SizedBox(width: 8),
-                              Text('حذف'),
-                            ],
-                          ),
-                        ),
-                      ];
-                    },
-                  ),
-                ],
+      child: Padding(
+        padding: const EdgeInsets.all(18),
+        child: Column(
+          children: [
+            Icon(icon, color: primaryGreen),
+            const SizedBox(height: 8),
+            Text(
+              value,
+              style: const TextStyle(
+                fontSize: 22,
+                fontWeight: FontWeight.bold,
               ),
-
-              if (overdue)
-                Container(
-                  width: double.infinity,
-                  margin: const EdgeInsets.only(
-                    top: 12,
-                  ),
-                  padding:
-                      const EdgeInsets.symmetric(
-                    horizontal: 10,
-                    vertical: 7,
-                  ),
-                  decoration: BoxDecoration(
-                    color: Colors.red.withOpacity(.08),
-                    borderRadius:
-                        BorderRadius.circular(10),
-                  ),
-                  child: const Row(
-                    children: [
-                      Icon(
-                        Icons.warning_rounded,
-                        color: Colors.red,
-                        size: 18,
-                      ),
-                      SizedBox(width: 7),
-                      Text(
-                        'هذا الموعد متأخر',
-                        style: TextStyle(
-                          color: Colors.red,
-                          fontWeight:
-                              FontWeight.w600,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-
-              if (appointment.reminderMinutes >=
-                      0 ||
-                  appointment.recurrence !=
-                      'لا يتكرر')
-                Padding(
-                  padding: const EdgeInsets.only(
-                    top: 10,
-                  ),
-                  child: Row(
-                    children: [
-                      if (appointment
-                              .reminderMinutes >=
-                          0)
-                        _smallInfo(
-                          Icons.notifications_rounded,
-                          reminderText(
-                            appointment
-                                .reminderMinutes,
-                          ),
-                        ),
-                      if (appointment
-                              .recurrence !=
-                          'لا يتكرر') ...[
-                        const SizedBox(width: 8),
-                        _smallInfo(
-                          Icons.repeat_rounded,
-                          appointment.recurrence,
-                        ),
-                      ],
-                    ],
-                  ),
-                ),
-            ],
-          ),
+            ),
+            Text(
+              title,
+              style: TextStyle(
+                color: Colors.grey.shade600,
+              ),
+            ),
+          ],
         ),
       ),
     );
   }
 
-  Widget _smallInfo(
-    IconData icon,
-    String text,
-  ) {
-    return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: 8,
-        vertical: 4,
-      ),
-      decoration: BoxDecoration(
-        color: Theme.of(context)
-            .colorScheme
-            .surfaceContainerHighest
-            .withOpacity(.55),
-        borderRadius:
-            BorderRadius.circular(8),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
+  Widget _driverAccount() {
+    return SafeArea(
+      child: ListView(
+        padding: const EdgeInsets.all(18),
         children: [
-          Icon(
-            icon,
-            size: 14,
-          ),
-          const SizedBox(width: 4),
-          Text(
-            text,
-            style: const TextStyle(
-              fontSize: 11,
+          const SizedBox(height: 20),
+          const CircleAvatar(
+            radius: 45,
+            backgroundColor: Colors.blue,
+            child: Icon(
+              Icons.directions_car_rounded,
+              size: 45,
+              color: Colors.white,
             ),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            widget.name,
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              fontSize: 23,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          Text(
+            widget.phone,
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: Colors.grey.shade600,
+            ),
+          ),
+          const SizedBox(height: 25),
+          _accountTile(
+            Icons.directions_car_rounded,
+            'معلومات السيارة',
+            () {},
+          ),
+          _accountTile(
+            Icons.verified_user_rounded,
+            'توثيق السائق',
+            () {},
+          ),
+          _accountTile(
+            Icons.dark_mode_outlined,
+            'الوضع الليلي',
+            () {
+              showDialog(
+                context: context,
+                builder: (context) {
+                  return AlertDialog(
+                    title: const Text('المظهر'),
+                    content: SwitchListTile(
+                      title: const Text('الوضع الليلي'),
+                      value: widget.darkMode,
+                      onChanged: (value) {
+                        widget.onThemeChanged(value);
+                        Navigator.pop(context);
+                      },
+                    ),
+                  );
+                },
+              );
+            },
+          ),
+          _accountTile(
+            Icons.help_outline_rounded,
+            'المساعدة',
+            () {},
+          ),
+          _accountTile(
+            Icons.logout_rounded,
+            'تسجيل الخروج',
+            () {
+              Navigator.pushAndRemoveUntil(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => RoleScreen(
+                    darkMode: widget.darkMode,
+                    onThemeChanged:
+                        widget.onThemeChanged,
+                  ),
+                ),
+                (route) => false,
+              );
+            },
           ),
         ],
       ),
     );
   }
 
-  // ==========================================================
-  // BUILD
-  // ==========================================================
-
-  @override
-  Widget build(BuildContext context) {
-    final next = nextAppointment;
-
-    return Directionality(
-      textDirection: TextDirection.rtl,
-      child: Scaffold(
-        appBar: AppBar(
-          elevation: 0,
-          title: const Column(
-            crossAxisAlignment:
-                CrossAxisAlignment.start,
-            children: [
-              Text(
-                'موعدي',
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 24,
-                ),
-              ),
-              Text(
-                'نظّم وقتك بسهولة',
-                style: TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.normal,
-                ),
-              ),
-            ],
-          ),
-          actions: [
-            IconButton(
-              tooltip: 'التقويم',
-              icon: const Icon(
-                Icons.calendar_month_rounded,
-              ),
-              onPressed: showCalendar,
-            ),
-            IconButton(
-              tooltip: 'الإحصائيات',
-              icon: const Icon(
-                Icons.bar_chart_rounded,
-              ),
-              onPressed: showStatistics,
-            ),
-            IconButton(
-              tooltip: 'الإعدادات',
-              icon: const Icon(
-                Icons.settings_rounded,
-              ),
-              onPressed: showSettings,
-            ),
-          ],
+  Widget _accountTile(
+    IconData icon,
+    String title,
+    VoidCallback onTap,
+  ) {
+    return Card(
+      child: ListTile(
+        leading: Icon(icon),
+        title: Text(title),
+        trailing: const Icon(
+          Icons.chevron_left_rounded,
         ),
-
-        body: RefreshIndicator(
-          onRefresh: () async {
-            await loadData();
-          },
-          child: ListView(
-            padding: const EdgeInsets.only(
-              top: 10,
-              bottom: 100,
-            ),
-            children: [
-              // HEADER
-              Padding(
-                padding:
-                    const EdgeInsets.symmetric(
-                  horizontal: 16,
-                ),
-                child: Container(
-                  padding:
-                      const EdgeInsets.all(20),
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [
-                        Theme.of(context)
-                            .colorScheme
-                            .primary,
-                        Theme.of(context)
-                            .colorScheme
-                            .secondary,
-                      ],
-                    ),
-                    borderRadius:
-                        BorderRadius.circular(25),
-                  ),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment:
-                              CrossAxisAlignment.start,
-                          children: [
-                            const Text(
-                              'مرحبا 👋',
-                              style: TextStyle(
-                                color: Colors.white70,
-                                fontSize: 14,
-                              ),
-                            ),
-                            const SizedBox(height: 5),
-                            const Text(
-                              'وش عندك اليوم؟',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 23,
-                                fontWeight:
-                                    FontWeight.bold,
-                              ),
-                            ),
-                            const SizedBox(height: 6),
-                            Text(
-                              '${formatDate(DateTime.now())} • ${weekday(DateTime.now())}',
-                              style: const TextStyle(
-                                color: Colors.white70,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const Icon(
-                        Icons.event_available_rounded,
-                        color: Colors.white,
-                        size: 65,
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-
-              const SizedBox(height: 15),
-
-              // DASHBOARD
-              Padding(
-                padding:
-                    const EdgeInsets.symmetric(
-                  horizontal: 12,
-                ),
-                child: Row(
-                  children: [
-                    dashboardCard(
-                      title: 'اليوم',
-                      value: todayCount.toString(),
-                      icon: Icons.today_rounded,
-                      color: Colors.blue,
-                      onTap: () {
-                        setState(() {
-                          selectedFilter = 'اليوم';
-                        });
-                      },
-                    ),
-                    const SizedBox(width: 8),
-                    dashboardCard(
-                      title: 'القادمة',
-                      value: appointments
-                          .where(
-                            (a) =>
-                                !a.completed &&
-                                a.dateTime.isAfter(
-                                  DateTime.now(),
-                                ),
-                          )
-                          .length
-                          .toString(),
-                      icon:
-                          Icons.upcoming_rounded,
-                      color: Colors.green,
-                      onTap: () {
-                        setState(() {
-                          selectedFilter = 'القادمة';
-                        });
-                      },
-                    ),
-                    const SizedBox(width: 8),
-                    dashboardCard(
-                      title: 'مكتملة',
-                      value:
-                          completedCount.toString(),
-                      icon:
-                          Icons.check_circle_rounded,
-                      color: Colors.teal,
-                      onTap: () {
-                        setState(() {
-                          selectedFilter =
-                              'المكتملة';
-                        });
-                      },
-                    ),
-                  ],
-                ),
-              ),
-
-              const SizedBox(height: 10),
-
-              // NEXT APPOINTMENT
-              if (next != null)
-                Padding(
-                  padding:
-                      const EdgeInsets.symmetric(
-                    horizontal: 12,
-                  ),
-                  child: Card(
-                    child: Padding(
-                      padding:
-                          const EdgeInsets.all(16),
-                      child: Column(
-                        crossAxisAlignment:
-                            CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              Icon(
-                                Icons
-                                    .notifications_active_rounded,
-                                color:
-                                    Theme.of(context)
-                                        .colorScheme
-                                        .primary,
-                              ),
-                              const SizedBox(width: 8),
-                              const Text(
-                                'أقرب موعد',
-                                style: TextStyle(
-                                  fontSize: 16,
-                                  fontWeight:
-                                      FontWeight.bold,
-                                ),
-                              ),
-                            ],
-                          ),
-
-                          const SizedBox(height: 10),
-
-                          Text(
-                            next.title,
-                            style: const TextStyle(
-                              fontSize: 20,
-                              fontWeight:
-                                  FontWeight.bold,
-                            ),
-                          ),
-
-                          const SizedBox(height: 8),
-
-                          Row(
-                            children: [
-                              const Icon(
-                                Icons
-                                    .calendar_today_rounded,
-                                size: 17,
-                              ),
-                              const SizedBox(width: 5),
-                              Text(
-                                formatDate(
-                                  next.dateTime,
-                                ),
-                              ),
-                              const SizedBox(width: 15),
-                              const Icon(
-                                Icons
-                                    .access_time_rounded,
-                                size: 17,
-                              ),
-                              const SizedBox(width: 5),
-                              Text(
-                                formatTime(
-                                  next.dateTime,
-                                ),
-                              ),
-                            ],
-                          ),
-
-                          if (next.location.isNotEmpty)
-                            Padding(
-                              padding:
-                                  const EdgeInsets.only(
-                                top: 7,
-                              ),
-                              child: Row(
-                                children: [
-                                  const Icon(
-                                    Icons
-                                        .location_on_rounded,
-                                    size: 17,
-                                  ),
-                                  const SizedBox(
-                                    width: 5,
-                                  ),
-                                  Expanded(
-                                    child: Text(
-                                      next.location,
-                                      overflow:
-                                          TextOverflow
-                                              .ellipsis,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-
-              const SizedBox(height: 10),
-
-              // SEARCH
-              Padding(
-                padding:
-                    const EdgeInsets.symmetric(
-                  horizontal: 12,
-                ),
-                child: TextField(
-                  textDirection:
-                      TextDirection.rtl,
-                  onChanged: (value) {
-                    setState(() {
-                      searchText = value;
-                    });
-                  },
-                  decoration: InputDecoration(
-                    hintText:
-                        'ابحث عن موعد، شخص، مكان...',
-                    prefixIcon: const Icon(
-                      Icons.search_rounded,
-                    ),
-                    suffixIcon:
-                        searchText.isNotEmpty
-                            ? IconButton(
-                                icon: const Icon(
-                                  Icons.clear_rounded,
-                                ),
-                                onPressed: () {
-                                  setState(() {
-                                    searchText = '';
-                                  });
-                                },
-                              )
-                            : null,
-                  ),
-                ),
-              ),
-
-              const SizedBox(height: 10),
-
-              // FILTERS
-              SizedBox(
-                height: 48,
-                child: ListView.separated(
-                  padding:
-                      const EdgeInsets.symmetric(
-                    horizontal: 12,
-                  ),
-                  scrollDirection: Axis.horizontal,
-                  itemCount: filters.length,
-                  separatorBuilder:
-                      (_, __) =>
-                          const SizedBox(width: 7),
-                  itemBuilder: (context, index) {
-                    final filter =
-                        filters[index];
-
-                    final selected =
-                        selectedFilter == filter;
-
-                    return ChoiceChip(
-                      label: Text(filter),
-                      selected: selected,
-                      onSelected: (_) {
-                        setState(() {
-                          selectedFilter = filter;
-                        });
-                      },
-                    );
-                  },
-                ),
-              ),
-
-              const SizedBox(height: 5),
-
-              // LIST HEADER
-              Padding(
-                padding:
-                    const EdgeInsets.symmetric(
-                  horizontal: 18,
-                  vertical: 5,
-                ),
-                child: Row(
-                  children: [
-                    const Expanded(
-                      child: Text(
-                        'مواعيدك',
-                        style: TextStyle(
-                          fontSize: 19,
-                          fontWeight:
-                              FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                    Text(
-                      '${filteredAppointments.length} موعد',
-                      style: TextStyle(
-                        color: Colors.grey.shade600,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-
-              // APPOINTMENTS
-              if (filteredAppointments.isEmpty)
-                Padding(
-                  padding:
-                      const EdgeInsets.all(35),
-                  child: Column(
-                    children: [
-                      Icon(
-                        Icons
-                            .event_busy_rounded,
-                        size: 70,
-                        color: Colors.grey.shade400,
-                      ),
-                      const SizedBox(height: 12),
-                      Text(
-                        searchText.isNotEmpty
-                            ? 'ما لقيناش نتائج'
-                            : 'ما عندك حتى موعد',
-                        style: TextStyle(
-                          color:
-                              Colors.grey.shade600,
-                          fontSize: 16,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      TextButton.icon(
-                        onPressed: () {
-                          showAppointmentDialog();
-                        },
-                        icon: const Icon(
-                          Icons.add_rounded,
-                        ),
-                        label: const Text(
-                          'أضف أول موعد',
-                        ),
-                      ),
-                    ],
-                  ),
-                )
-              else
-                ...filteredAppointments.map(
-                  appointmentCard,
-                ),
-            ],
-          ),
-        ),
-
-        floatingActionButton: FloatingActionButton.extended(
-          onPressed: () {
-            showAppointmentDialog();
-          },
-          icon: const Icon(
-            Icons.add_rounded,
-          ),
-          label: const Text(
-            'موعد جديد',
-            style: TextStyle(
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-        ),
+        onTap: onTap,
       ),
     );
   }
