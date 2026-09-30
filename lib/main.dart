@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
-
+import 'package:firebase_auth/firebase_auth.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
@@ -463,70 +463,416 @@ class _LoginScreenState extends State<LoginScreen> {
                 const SizedBox(height: 10),
                 Text(
                   'سجل الدخول للمتابعة',
+class LoginScreen extends StatefulWidget {
+  final UserRole role;
+
+  const LoginScreen({
+    super.key,
+    required this.role,
+  });
+
+  @override
+  State<LoginScreen> createState() => _LoginScreenState();
+}
+
+class _LoginScreenState extends State<LoginScreen> {
+  final phoneController = TextEditingController();
+
+  bool loading = false;
+
+  @override
+  void dispose() {
+    phoneController.dispose();
+    super.dispose();
+  }
+
+  String formatPhoneNumber(String phone) {
+    String value = phone.trim();
+
+    if (value.startsWith('+213')) {
+      return value;
+    }
+
+    if (value.startsWith('0')) {
+      value = value.substring(1);
+    }
+
+    return '+213$value';
+  }
+
+  Future<void> login() async {
+    final phone = phoneController.text.trim();
+
+    if (phone.isEmpty) {
+      showMessage(context, 'أدخل رقم الهاتف');
+      return;
+    }
+
+    if (phone.length < 9) {
+      showMessage(context, 'أدخل رقم هاتف صحيح');
+      return;
+    }
+
+    setState(() {
+      loading = true;
+    });
+
+    final formattedPhone = formatPhoneNumber(phone);
+
+    await FirebaseAuth.instance.verifyPhoneNumber(
+      phoneNumber: formattedPhone,
+
+      verificationCompleted: (PhoneAuthCredential credential) async {
+        try {
+          await FirebaseAuth.instance.signInWithCredential(credential);
+
+          if (!mounted) return;
+
+          setState(() {
+            loading = false;
+          });
+
+          goToHome();
+        } catch (e) {
+          if (!mounted) return;
+
+          setState(() {
+            loading = false;
+          });
+
+          showMessage(context, 'تعذر تسجيل الدخول');
+        }
+      },
+
+      verificationFailed: (FirebaseAuthException e) {
+        if (!mounted) return;
+
+        setState(() {
+          loading = false;
+        });
+
+        showMessage(
+          context,
+          e.message ?? 'فشل إرسال رمز التحقق',
+        );
+      },
+
+      codeSent: (String verificationId, int? resendToken) {
+        if (!mounted) return;
+
+        setState(() {
+          loading = false;
+        });
+
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => VerificationCodeScreen(
+              verificationId: verificationId,
+              role: widget.role,
+            ),
+          ),
+        );
+      },
+
+      codeAutoRetrievalTimeout: (String verificationId) {},
+    );
+  }
+
+  void goToHome() {
+    Navigator.pushAndRemoveUntil(
+      context,
+      MaterialPageRoute(
+        builder: (_) => widget.role == UserRole.passenger
+            ? const PassengerHome()
+            : const DriverHome(),
+      ),
+      (route) => false,
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isDriver = widget.role == UserRole.driver;
+
+    return Directionality(
+      textDirection: TextDirection.rtl,
+      child: Scaffold(
+        appBar: AppBar(
+          title: Text(
+            isDriver ? 'دخول السائق' : 'دخول الراكب',
+          ),
+        ),
+        body: SafeArea(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(22),
+            child: Column(
+              children: [
+                const SizedBox(height: 25),
+
+                Container(
+                  width: 90,
+                  height: 90,
+                  decoration: BoxDecoration(
+                    color: lightGreen,
+                    borderRadius: BorderRadius.circular(25),
+                  ),
+                  child: Icon(
+                    isDriver
+                        ? Icons.drive_eta_rounded
+                        : Icons.person_rounded,
+                    size: 48,
+                    color: primaryGreen,
+                  ),
+                ),
+
+                const SizedBox(height: 25),
+
+                Text(
+                  isDriver
+                      ? 'مرحبا بك أيها السائق'
+                      : 'مرحبا بك',
+                  style: const TextStyle(
+                    fontSize: 27,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+
+                const SizedBox(height: 10),
+
+                Text(
+                  'أدخل رقم هاتفك وسنرسل لك رمز التحقق',
+                  textAlign: TextAlign.center,
                   style: TextStyle(
                     color: Colors.grey.shade600,
                   ),
                 ),
+
                 const SizedBox(height: 35),
+
                 TextField(
                   controller: phoneController,
                   keyboardType: TextInputType.phone,
+                  textDirection: TextDirection.ltr,
                   decoration: const InputDecoration(
                     labelText: 'رقم الهاتف',
+                    hintText: '05 XX XX XX XX',
                     prefixIcon: Icon(Icons.phone_rounded),
                   ),
                 ),
-                const SizedBox(height: 16),
-                TextField(
-                  controller: passwordController,
-                  obscureText: obscurePassword,
-                  decoration: InputDecoration(
-                    labelText: 'كلمة المرور',
-                    prefixIcon: const Icon(Icons.lock_rounded),
-                    suffixIcon: IconButton(
-                      onPressed: () {
-                        setState(() {
-                          obscurePassword = !obscurePassword;
-                        });
-                      },
-                      icon: Icon(
-                        obscurePassword
-                            ? Icons.visibility_rounded
-                            : Icons.visibility_off_rounded,
-                      ),
-                    ),
-                  ),
-                ),
+
                 const SizedBox(height: 25),
+
                 SizedBox(
                   width: double.infinity,
                   height: 55,
                   child: FilledButton(
-                    onPressed: login,
+                    onPressed: loading ? null : login,
                     style: FilledButton.styleFrom(
                       backgroundColor: primaryGreen,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(16),
                       ),
                     ),
-                    child: const Text(
-                      'دخول',
-                      style: TextStyle(
-                        fontSize: 17,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
+                    child: loading
+                        ? const SizedBox(
+                            width: 24,
+                            height: 24,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2.5,
+                              color: Colors.white,
+                            ),
+                          )
+                        : const Text(
+                            'إرسال رمز التحقق',
+                            style: TextStyle(
+                              fontSize: 17,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
                   ),
                 ),
-                const SizedBox(height: 15),
-                TextButton(
-                  onPressed: () {
-                    showMessage(
-                      context,
-                      'إنشاء الحساب سيكون متاحاً في النسخة القادمة',
-                    );
-                  },
-                  child: const Text('إنشاء حساب جديد'),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class VerificationCodeScreen extends StatefulWidget {
+  final String verificationId;
+  final UserRole role;
+
+  const VerificationCodeScreen({
+    super.key,
+    required this.verificationId,
+    required this.role,
+  });
+
+  @override
+  State<VerificationCodeScreen> createState() =>
+      _VerificationCodeScreenState();
+}
+
+class _VerificationCodeScreenState
+    extends State<VerificationCodeScreen> {
+  final codeController = TextEditingController();
+
+  bool loading = false;
+
+  @override
+  void dispose() {
+    codeController.dispose();
+    super.dispose();
+  }
+
+  Future<void> verifyCode() async {
+    final code = codeController.text.trim();
+
+    if (code.length != 6) {
+      showMessage(context, 'أدخل رمز التحقق المكون من 6 أرقام');
+      return;
+    }
+
+    setState(() {
+      loading = true;
+    });
+
+    try {
+      final credential = PhoneAuthProvider.credential(
+        verificationId: widget.verificationId,
+        smsCode: code,
+      );
+
+      await FirebaseAuth.instance.signInWithCredential(credential);
+
+      if (!mounted) return;
+
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(
+          builder: (_) => widget.role == UserRole.passenger
+              ? const PassengerHome()
+              : const DriverHome(),
+        ),
+        (route) => false,
+      );
+    } on FirebaseAuthException catch (e) {
+      if (!mounted) return;
+
+      setState(() {
+        loading = false;
+      });
+
+      showMessage(
+        context,
+        e.message ?? 'رمز التحقق غير صحيح',
+      );
+    } catch (e) {
+      if (!mounted) return;
+
+      setState(() {
+        loading = false;
+      });
+
+      showMessage(context, 'حدث خطأ، حاول مرة أخرى');
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Directionality(
+      textDirection: TextDirection.rtl,
+      child: Scaffold(
+        appBar: AppBar(
+          title: const Text('تأكيد رقم الهاتف'),
+        ),
+        body: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.all(22),
+            child: Column(
+              children: [
+                const SizedBox(height: 35),
+
+                Container(
+                  width: 90,
+                  height: 90,
+                  decoration: BoxDecoration(
+                    color: lightGreen,
+                    borderRadius: BorderRadius.circular(25),
+                  ),
+                  child: const Icon(
+                    Icons.sms_rounded,
+                    size: 48,
+                    color: primaryGreen,
+                  ),
+                ),
+
+                const SizedBox(height: 25),
+
+                const Text(
+                  'أدخل رمز التحقق',
+                  style: TextStyle(
+                    fontSize: 27,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+
+                const SizedBox(height: 10),
+
+                Text(
+                  'تم إرسال رمز من 6 أرقام إلى هاتفك',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: Colors.grey.shade600,
+                  ),
+                ),
+
+                const SizedBox(height: 35),
+
+                TextField(
+                  controller: codeController,
+                  keyboardType: TextInputType.number,
+                  textAlign: TextAlign.center,
+                  maxLength: 6,
+                  decoration: const InputDecoration(
+                    labelText: 'رمز التحقق',
+                    prefixIcon: Icon(Icons.lock_rounded),
+                  ),
+                ),
+
+                const SizedBox(height: 20),
+
+                SizedBox(
+                  width: double.infinity,
+                  height: 55,
+                  child: FilledButton(
+                    onPressed: loading ? null : verifyCode,
+                    style: FilledButton.styleFrom(
+                      backgroundColor: primaryGreen,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                    ),
+                    child: loading
+                        ? const SizedBox(
+                            width: 24,
+                            height: 24,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2.5,
+                              color: Colors.white,
+                            ),
+                          )
+                        : const Text(
+                            'تأكيد الدخول',
+                            style: TextStyle(
+                              fontSize: 17,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                  ),
                 ),
               ],
             ),
