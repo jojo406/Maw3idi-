@@ -77,7 +77,7 @@ class HomePage extends StatelessWidget {
               RoleButton(
                 icon: Icons.person_rounded,
                 title: 'أنا زبون',
-                subtitle: 'اطلب سيارة أو دراجة',
+                subtitle: 'اطلب خدمة التوصيل',
                 onTap: () {
                   Navigator.push(
                     context,
@@ -93,7 +93,7 @@ class HomePage extends StatelessWidget {
               RoleButton(
                 icon: Icons.directions_car_rounded,
                 title: 'سائق سيارة',
-                subtitle: 'استقبل طلبات الزبائن',
+                subtitle: 'استقبل طلبات ألو وصلني',
                 onTap: () {
                   Navigator.push(
                     context,
@@ -111,7 +111,7 @@ class HomePage extends StatelessWidget {
               RoleButton(
                 icon: Icons.two_wheeler_rounded,
                 title: 'سائق دراجة',
-                subtitle: 'استقبل طلبات الزبائن',
+                subtitle: 'استقبل طلبات ألو جيبلي',
                 onTap: () {
                   Navigator.push(
                     context,
@@ -186,9 +186,7 @@ class RoleButton extends StatelessWidget {
                     const SizedBox(height: 4),
                     Text(
                       subtitle,
-                      style: const TextStyle(
-                        color: Colors.grey,
-                      ),
+                      style: const TextStyle(color: Colors.grey),
                     ),
                   ],
                 ),
@@ -231,7 +229,7 @@ class CustomerPage extends StatelessWidget {
             ServiceButton(
               icon: Icons.local_shipping_rounded,
               title: 'ألو وصلني',
-              subtitle: 'اطلب سيارة أو دراجة',
+              subtitle: 'اطلب سيارة',
               onTap: () {
                 Navigator.push(
                   context,
@@ -245,7 +243,7 @@ class CustomerPage extends StatelessWidget {
             ServiceButton(
               icon: Icons.shopping_bag_rounded,
               title: 'ألو جيبلي',
-              subtitle: 'خلي السائق يجيبلك طلبك',
+              subtitle: 'خلي سائق الدراجة يجيبلك طلبك',
               onTap: () {
                 Navigator.push(
                   context,
@@ -342,7 +340,7 @@ class ServiceButton extends StatelessWidget {
 }
 
 // ============================================================
-// LOCATION HELPERS
+// LOCATION
 // ============================================================
 
 Future<LatLng?> getCurrentLocation() async {
@@ -374,24 +372,18 @@ Future<LatLng?> getCurrentLocation() async {
 }
 
 // ============================================================
-// MAP PICKER
+// AUTOMATIC CUSTOMER MAP
 // ============================================================
 
 class LocationMap extends StatefulWidget {
-  final LatLng? pickup;
-  final LatLng? destination;
+  final LatLng? location;
   final LatLng? driverLocation;
-  final Function(LatLng) onMapTap;
-  final bool showDestination;
   final bool showDriver;
 
   const LocationMap({
     super.key,
-    this.pickup,
-    this.destination,
+    this.location,
     this.driverLocation,
-    required this.onMapTap,
-    this.showDestination = true,
     this.showDriver = false,
   });
 
@@ -403,34 +395,46 @@ class _LocationMapState extends State<LocationMap> {
   final MapController mapController = MapController();
 
   LatLng? currentLocation;
+  Timer? timer;
   bool loading = true;
 
   @override
   void initState() {
     super.initState();
     _loadLocation();
+
+    timer = Timer.periodic(
+      const Duration(seconds: 5),
+      (_) => _loadLocation(),
+    );
+  }
+
+  @override
+  void dispose() {
+    timer?.cancel();
+    super.dispose();
   }
 
   Future<void> _loadLocation() async {
     final location = await getCurrentLocation();
 
-    if (!mounted) return;
+    if (!mounted || location == null) return;
 
     setState(() {
       currentLocation = location;
       loading = false;
     });
 
-    if (location != null) {
-      mapController.move(location, 15);
-    }
+    try {
+      mapController.move(location, 16);
+    } catch (_) {}
   }
 
   @override
   Widget build(BuildContext context) {
     final center =
         currentLocation ??
-        widget.pickup ??
+        widget.location ??
         const LatLng(35.6971, -0.6308);
 
     final markers = <Marker>[];
@@ -439,43 +443,33 @@ class _LocationMapState extends State<LocationMap> {
       markers.add(
         Marker(
           point: currentLocation!,
-          width: 50,
-          height: 50,
-          child: const Icon(
-            Icons.my_location,
-            color: Colors.blue,
-            size: 35,
-          ),
-        ),
-      );
-    }
-
-    if (widget.pickup != null) {
-      markers.add(
-        Marker(
-          point: widget.pickup!,
-          width: 55,
-          height: 55,
-          child: const Icon(
-            Icons.location_on,
-            color: Colors.green,
-            size: 42,
-          ),
-        ),
-      );
-    }
-
-    if (widget.showDestination &&
-        widget.destination != null) {
-      markers.add(
-        Marker(
-          point: widget.destination!,
-          width: 55,
-          height: 55,
-          child: const Icon(
-            Icons.flag_rounded,
-            color: Colors.red,
-            size: 38,
+          width: 70,
+          height: 70,
+          child: Column(
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 8,
+                  vertical: 3,
+                ),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Text(
+                  'موقعك',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 11,
+                  ),
+                ),
+              ),
+              const Icon(
+                Icons.location_on,
+                color: Colors.blue,
+                size: 40,
+              ),
+            ],
           ),
         ),
       );
@@ -486,12 +480,12 @@ class _LocationMapState extends State<LocationMap> {
       markers.add(
         Marker(
           point: widget.driverLocation!,
-          width: 60,
-          height: 60,
+          width: 65,
+          height: 65,
           child: const Icon(
             Icons.local_taxi,
             color: Colors.orange,
-            size: 40,
+            size: 42,
           ),
         ),
       );
@@ -505,10 +499,7 @@ class _LocationMapState extends State<LocationMap> {
             mapController: mapController,
             options: MapOptions(
               initialCenter: center,
-              initialZoom: 14,
-              onTap: (_, point) {
-                widget.onMapTap(point);
-              },
+              initialZoom: 15,
             ),
             children: [
               TileLayer(
@@ -520,6 +511,7 @@ class _LocationMapState extends State<LocationMap> {
               MarkerLayer(markers: markers),
             ],
           ),
+
           Positioned(
             right: 10,
             bottom: 10,
@@ -559,6 +551,7 @@ class _LocationMapState extends State<LocationMap> {
               ],
             ),
           ),
+
           if (loading)
             const Positioned.fill(
               child: Center(
@@ -572,7 +565,7 @@ class _LocationMapState extends State<LocationMap> {
 }
 
 // ============================================================
-// WASELNI
+// ألو وصلني - CAR ONLY
 // ============================================================
 
 class WaselniPage extends StatefulWidget {
@@ -583,15 +576,18 @@ class WaselniPage extends StatefulWidget {
 }
 
 class _WaselniPageState extends State<WaselniPage> {
-  LatLng? pickup;
-  LatLng? destination;
-
-  String vehicle = 'car';
   String? requestId;
+  LatLng? customerLocation;
 
   Timer? locationTimer;
 
   final phoneController = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    _loadLocation();
+  }
 
   @override
   void dispose() {
@@ -600,22 +596,21 @@ class _WaselniPageState extends State<WaselniPage> {
     super.dispose();
   }
 
-  void _mapTap(LatLng point) {
+  Future<void> _loadLocation() async {
+    final location = await getCurrentLocation();
+
+    if (!mounted) return;
+
     setState(() {
-      if (pickup == null) {
-        pickup = point;
-      } else if (destination == null) {
-        destination = point;
-      } else {
-        pickup = point;
-        destination = null;
-      }
+      customerLocation = location;
     });
   }
 
   Future<void> _sendRequest() async {
-    if (pickup == null || destination == null) {
-      _message('حدد نقطة الانطلاق والوجهة');
+    if (customerLocation == null) {
+      _message(
+        'ما قدرناش نحدد موقعك. فعّل GPS وحاول من جديد.',
+      );
       return;
     }
 
@@ -629,23 +624,28 @@ class _WaselniPageState extends State<WaselniPage> {
           .collection('requests')
           .add({
         'service': 'alo_waselni',
-        'vehicleType': vehicle,
-        'pickupLat': pickup!.latitude,
-        'pickupLng': pickup!.longitude,
-        'destinationLat': destination!.latitude,
-        'destinationLng': destination!.longitude,
+        'vehicleType': 'car',
+
+        'customerLocationLat':
+            customerLocation!.latitude,
+        'customerLocationLng':
+            customerLocation!.longitude,
+
         'phone': phoneController.text.trim(),
+
         'status': 'pending',
-        'customerLocationLat': pickup!.latitude,
-        'customerLocationLng': pickup!.longitude,
+
         'customerLocationUpdatedAt':
             FieldValue.serverTimestamp(),
-        'createdAt': FieldValue.serverTimestamp(),
+
+        'createdAt':
+            FieldValue.serverTimestamp(),
       });
 
       requestId = doc.id;
 
       await saveRequestId(doc.id);
+
       _startLocationTracking();
 
       if (mounted) {
@@ -687,6 +687,27 @@ class _WaselniPageState extends State<WaselniPage> {
     } catch (_) {}
   }
 
+  Future<void> _cancelRequest() async {
+    if (requestId == null) return;
+
+    try {
+      await FirebaseFirestore.instance
+          .collection('requests')
+          .doc(requestId)
+          .update({
+        'status': 'cancelled',
+      });
+    } catch (_) {}
+
+    locationTimer?.cancel();
+
+    if (mounted) {
+      setState(() {
+        requestId = null;
+      });
+    }
+  }
+
   void _message(String text) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(text)),
@@ -707,71 +728,45 @@ class _WaselniPageState extends State<WaselniPage> {
       body: requestId != null
           ? CustomerTrackingPage(
               requestId: requestId!,
-              onCancel: () async {
-                await FirebaseFirestore.instance
-                    .collection('requests')
-                    .doc(requestId)
-                    .update({
-                  'status': 'cancelled',
-                });
-
-                locationTimer?.cancel();
-
-                if (mounted) {
-                  setState(() {
-                    requestId = null;
-                  });
-                }
-              },
+              onCancel: _cancelRequest,
             )
           : SingleChildScrollView(
               padding: const EdgeInsets.all(16),
               child: Column(
                 children: [
                   SizedBox(
-                    height: 330,
+                    height: 350,
                     child: LocationMap(
-                      pickup: pickup,
-                      destination: destination,
-                      onMapTap: _mapTap,
+                      location: customerLocation,
                     ),
                   ),
-                  const SizedBox(height: 10),
-                  const Text(
-                    'اضغط على الخريطة: أول نقطة للانطلاق، والثانية للوجهة',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(color: Colors.grey),
-                  ),
-                  const SizedBox(height: 14),
 
-                  Row(
-                    children: [
-                      Expanded(
-                        child: VehicleButton(
-                          icon: Icons.directions_car,
-                          title: 'سيارة',
-                          selected: vehicle == 'car',
-                          onTap: () {
-                            setState(() {
-                              vehicle = 'car';
-                            });
-                          },
+                  const SizedBox(height: 12),
+
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(18),
+                    ),
+                    child: const Row(
+                      children: [
+                        Icon(
+                          Icons.my_location,
+                          color: Color(0xFF1565C0),
                         ),
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: VehicleButton(
-                          icon: Icons.two_wheeler,
-                          title: 'دراجة',
-                          selected: vehicle == 'motorcycle',
-                          onTap: () {
-                            setState(() {
-                              vehicle = 'motorcycle';
-                            });
-                          },
+                        SizedBox(width: 10),
+                        Expanded(
+                          child: Text(
+                            'موقعك يتحدد أوتوماتيكياً',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
 
                   const SizedBox(height: 14),
@@ -786,8 +781,8 @@ class _WaselniPageState extends State<WaselniPage> {
                   const SizedBox(height: 18),
 
                   MainButton(
-                    icon: Icons.send,
-                    text: 'اطلب الآن',
+                    icon: Icons.local_taxi,
+                    text: 'اطلب السيارة الآن',
                     onPressed: _sendRequest,
                   ),
                 ],
@@ -798,7 +793,7 @@ class _WaselniPageState extends State<WaselniPage> {
 }
 
 // ============================================================
-// JIBLI
+// ألو جيبلي - MOTORCYCLE ONLY
 // ============================================================
 
 class JibliPage extends StatefulWidget {
@@ -809,14 +804,19 @@ class JibliPage extends StatefulWidget {
 }
 
 class _JibliPageState extends State<JibliPage> {
-  LatLng? pickup;
-  LatLng? destination;
-
   String? requestId;
+  LatLng? customerLocation;
+
   Timer? locationTimer;
 
   final itemController = TextEditingController();
   final phoneController = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    _loadLocation();
+  }
 
   @override
   void dispose() {
@@ -826,22 +826,21 @@ class _JibliPageState extends State<JibliPage> {
     super.dispose();
   }
 
-  void _mapTap(LatLng point) {
+  Future<void> _loadLocation() async {
+    final location = await getCurrentLocation();
+
+    if (!mounted) return;
+
     setState(() {
-      if (pickup == null) {
-        pickup = point;
-      } else if (destination == null) {
-        destination = point;
-      } else {
-        pickup = point;
-        destination = null;
-      }
+      customerLocation = location;
     });
   }
 
   Future<void> _sendRequest() async {
-    if (pickup == null || destination == null) {
-      _message('حدد نقطة الانطلاق والوجهة');
+    if (customerLocation == null) {
+      _message(
+        'ما قدرناش نحدد موقعك. فعّل GPS وحاول من جديد.',
+      );
       return;
     }
 
@@ -860,23 +859,30 @@ class _JibliPageState extends State<JibliPage> {
           .collection('requests')
           .add({
         'service': 'alo_jibli',
+        'vehicleType': 'motorcycle',
+
         'item': itemController.text.trim(),
-        'pickupLat': pickup!.latitude,
-        'pickupLng': pickup!.longitude,
-        'destinationLat': destination!.latitude,
-        'destinationLng': destination!.longitude,
+
+        'customerLocationLat':
+            customerLocation!.latitude,
+        'customerLocationLng':
+            customerLocation!.longitude,
+
         'phone': phoneController.text.trim(),
+
         'status': 'pending',
-        'customerLocationLat': pickup!.latitude,
-        'customerLocationLng': pickup!.longitude,
+
         'customerLocationUpdatedAt':
             FieldValue.serverTimestamp(),
-        'createdAt': FieldValue.serverTimestamp(),
+
+        'createdAt':
+            FieldValue.serverTimestamp(),
       });
 
       requestId = doc.id;
 
       await saveRequestId(doc.id);
+
       _startLocationTracking();
 
       if (mounted) {
@@ -918,6 +924,27 @@ class _JibliPageState extends State<JibliPage> {
     } catch (_) {}
   }
 
+  Future<void> _cancelRequest() async {
+    if (requestId == null) return;
+
+    try {
+      await FirebaseFirestore.instance
+          .collection('requests')
+          .doc(requestId)
+          .update({
+        'status': 'cancelled',
+      });
+    } catch (_) {}
+
+    locationTimer?.cancel();
+
+    if (mounted) {
+      setState(() {
+        requestId = null;
+      });
+    }
+  }
+
   void _message(String text) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(text)),
@@ -938,22 +965,7 @@ class _JibliPageState extends State<JibliPage> {
       body: requestId != null
           ? CustomerTrackingPage(
               requestId: requestId!,
-              onCancel: () async {
-                await FirebaseFirestore.instance
-                    .collection('requests')
-                    .doc(requestId)
-                    .update({
-                  'status': 'cancelled',
-                });
-
-                locationTimer?.cancel();
-
-                if (mounted) {
-                  setState(() {
-                    requestId = null;
-                  });
-                }
-              },
+              onCancel: _cancelRequest,
             )
           : SingleChildScrollView(
               padding: const EdgeInsets.all(16),
@@ -961,35 +973,61 @@ class _JibliPageState extends State<JibliPage> {
                 children: [
                   ModernTextField(
                     controller: itemController,
-                    hint: 'واش حاب السائق يجيبلك؟',
+                    hint: 'واش حاب سائق الدراجة يجيبلك؟',
                     icon: Icons.shopping_bag,
                   ),
+
                   const SizedBox(height: 12),
+
                   ModernTextField(
                     controller: phoneController,
                     hint: 'رقم الهاتف',
                     icon: Icons.phone,
                     keyboardType: TextInputType.phone,
                   ),
+
                   const SizedBox(height: 14),
+
                   SizedBox(
-                    height: 330,
+                    height: 350,
                     child: LocationMap(
-                      pickup: pickup,
-                      destination: destination,
-                      onMapTap: _mapTap,
+                      location: customerLocation,
                     ),
                   ),
-                  const SizedBox(height: 10),
-                  const Text(
-                    'حدد مكان الاستلام ثم مكان التسليم',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(color: Colors.grey),
+
+                  const SizedBox(height: 12),
+
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(18),
+                    ),
+                    child: const Row(
+                      children: [
+                        Icon(
+                          Icons.my_location,
+                          color: Color(0xFF1565C0),
+                        ),
+                        SizedBox(width: 10),
+                        Expanded(
+                          child: Text(
+                            'موقعك يتحدد أوتوماتيكياً',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
+
                   const SizedBox(height: 18),
+
                   MainButton(
-                    icon: Icons.send,
-                    text: 'أرسل الطلب',
+                    icon: Icons.two_wheeler,
+                    text: 'أرسل طلب ألو جيبلي',
                     onPressed: _sendRequest,
                   ),
                 ],
@@ -1016,7 +1054,7 @@ class CustomerTrackingPage extends StatelessWidget {
   String statusTitle(String status) {
     switch (status) {
       case 'pending':
-        return 'جاري البحث عن سائق';
+        return 'جاري البحث عن السائق';
       case 'accepted':
         return 'تم قبول طلبك';
       case 'driver_arriving':
@@ -1074,23 +1112,22 @@ class CustomerTrackingPage extends StatelessWidget {
 
         final status = data['status'] ?? 'pending';
 
+        LatLng? customerLocation;
         LatLng? driverLocation;
+
+        if (data['customerLocationLat'] != null &&
+            data['customerLocationLng'] != null) {
+          customerLocation = LatLng(
+            (data['customerLocationLat'] as num).toDouble(),
+            (data['customerLocationLng'] as num).toDouble(),
+          );
+        }
 
         if (data['driverLocationLat'] != null &&
             data['driverLocationLng'] != null) {
           driverLocation = LatLng(
             (data['driverLocationLat'] as num).toDouble(),
             (data['driverLocationLng'] as num).toDouble(),
-          );
-        }
-
-        LatLng? pickup;
-
-        if (data['pickupLat'] != null &&
-            data['pickupLng'] != null) {
-          pickup = LatLng(
-            (data['pickupLat'] as num).toDouble(),
-            (data['pickupLng'] as num).toDouble(),
           );
         }
 
@@ -1129,15 +1166,13 @@ class CustomerTrackingPage extends StatelessWidget {
 
               const SizedBox(height: 15),
 
-              if (pickup != null)
+              if (customerLocation != null)
                 SizedBox(
                   height: 330,
                   child: LocationMap(
-                    pickup: pickup,
+                    location: customerLocation,
                     driverLocation: driverLocation,
-                    showDestination: false,
                     showDriver: driverLocation != null,
-                    onMapTap: (_) {},
                   ),
                 ),
 
@@ -1240,8 +1275,12 @@ class _DriverPageState extends State<DriverPage> {
       );
     }
 
-    _setDriverOnline();
+    await _setDriverOnline();
     _startDriverLocation();
+
+    if (mounted) {
+      setState(() {});
+    }
   }
 
   Future<void> _setDriverOnline() async {
@@ -1321,12 +1360,18 @@ class _DriverPageState extends State<DriverPage> {
 
   @override
   Widget build(BuildContext context) {
+    final title = widget.vehicleType == 'car'
+        ? 'طلبات ألو وصلني'
+        : 'طلبات ألو جيبلي';
+
     if (!online) {
       return Scaffold(
         appBar: AppBar(
-          title: const Text(
-            'السائق',
-            style: TextStyle(fontWeight: FontWeight.bold),
+          title: Text(
+            title,
+            style: const TextStyle(
+              fontWeight: FontWeight.bold,
+            ),
           ),
           centerTitle: true,
         ),
@@ -1369,9 +1414,7 @@ class _DriverPageState extends State<DriverPage> {
     return Scaffold(
       appBar: AppBar(
         title: Text(
-          widget.vehicleType == 'car'
-              ? 'طلبات السيارة'
-              : 'طلبات الدراجة',
+          title,
           style: const TextStyle(
             fontWeight: FontWeight.bold,
           ),
@@ -1424,45 +1467,64 @@ class _DriverPageState extends State<DriverPage> {
                 doc.data() as Map<String, dynamic>;
 
             final service = data['service'];
+            final status = data['status'];
 
+            // 🚗 السيارة = ألو وصلني فقط
+            if (widget.vehicleType == 'car') {
+              if (service != 'alo_waselni') {
+                return false;
+              }
+            }
+
+            // 🛵 الدراجة = ألو جيبلي فقط
+            if (widget.vehicleType == 'motorcycle') {
+              if (service != 'alo_jibli') {
+                return false;
+              }
+            }
+
+            // الطلب المقبول من هذا السائق يبقى ظاهر له
             if (data['driverId'] == driverId) {
               return true;
             }
 
-            if (data['status'] != 'pending') {
+            // الطلبات الجديدة فقط للسائقين الآخرين
+            if (status != 'pending') {
               return false;
             }
 
-            if (service == 'alo_jibli') {
-              return true;
-            }
-
-            return data['vehicleType'] ==
-                widget.vehicleType;
+            return true;
           }).toList();
 
           if (filtered.isEmpty) {
-            return const Center(
+            return Center(
               child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
+                mainAxisAlignment:
+                    MainAxisAlignment.center,
                 children: [
                   Icon(
-                    Icons.inbox_rounded,
+                    widget.vehicleType == 'car'
+                        ? Icons.local_taxi
+                        : Icons.two_wheeler,
                     size: 70,
                     color: Colors.grey,
                   ),
-                  SizedBox(height: 12),
-                  Text(
+                  const SizedBox(height: 12),
+                  const Text(
                     'ما كاش طلبات حالياً',
                     style: TextStyle(
                       fontSize: 19,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
-                  SizedBox(height: 5),
+                  const SizedBox(height: 5),
                   Text(
-                    'خليك متصل باش توصلك الطلبات',
-                    style: TextStyle(color: Colors.grey),
+                    widget.vehicleType == 'car'
+                        ? 'طلبات ألو وصلني تظهر هنا'
+                        : 'طلبات ألو جيبلي تظهر هنا',
+                    style: const TextStyle(
+                      color: Colors.grey,
+                    ),
                   ),
                 ],
               ),
@@ -1511,6 +1573,7 @@ class _DriverRequestCardState
   @override
   void initState() {
     super.initState();
+
     locationTimer = Timer.periodic(
       const Duration(seconds: 5),
       (_) => _updateLocationIfAccepted(),
@@ -1567,34 +1630,49 @@ class _DriverRequestCardState
     };
 
     if (location != null) {
-      update['driverLocationLat'] = location.latitude;
-      update['driverLocationLng'] = location.longitude;
+      update['driverLocationLat'] =
+          location.latitude;
+      update['driverLocationLng'] =
+          location.longitude;
       update['driverLocationUpdatedAt'] =
           FieldValue.serverTimestamp();
     }
 
-    await FirebaseFirestore.instance
-        .collection('requests')
-        .doc(widget.doc.id)
-        .update(update);
+    try {
+      await FirebaseFirestore.instance
+          .collection('requests')
+          .doc(widget.doc.id)
+          .update(update);
 
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('تم قبول الطلب ✅'),
-        ),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('تم قبول الطلب ✅'),
+          ),
+        );
+      }
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('تعذر قبول الطلب'),
+          ),
+        );
+      }
     }
   }
 
   Future<void> _changeStatus(String status) async {
-    await FirebaseFirestore.instance
-        .collection('requests')
-        .doc(widget.doc.id)
-        .update({
-      'status': status,
-      '${status}At': FieldValue.serverTimestamp(),
-    });
+    try {
+      await FirebaseFirestore.instance
+          .collection('requests')
+          .doc(widget.doc.id)
+          .update({
+        'status': status,
+        '${status}At':
+            FieldValue.serverTimestamp(),
+      });
+    } catch (_) {}
   }
 
   Future<void> _callCustomer() async {
@@ -1603,7 +1681,8 @@ class _DriverRequestCardState
 
     final phone = data['phone'];
 
-    if (phone == null || phone.toString().isEmpty) {
+    if (phone == null ||
+        phone.toString().isEmpty) {
       return;
     }
 
@@ -1621,7 +1700,9 @@ class _DriverRequestCardState
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('رقم الزبون: $phone'),
+            content: Text(
+              'رقم الزبون: $phone',
+            ),
           ),
         );
       }
@@ -1636,15 +1717,18 @@ class _DriverRequestCardState
     final service = data['service'] ?? '';
     final status = data['status'] ?? 'pending';
 
-    final isJibli = service == 'alo_jibli';
+    final isJibli =
+        service == 'alo_jibli';
 
     LatLng? customerLocation;
 
     if (data['customerLocationLat'] != null &&
         data['customerLocationLng'] != null) {
       customerLocation = LatLng(
-        (data['customerLocationLat'] as num).toDouble(),
-        (data['customerLocationLng'] as num).toDouble(),
+        (data['customerLocationLat'] as num)
+            .toDouble(),
+        (data['customerLocationLng'] as num)
+            .toDouble(),
       );
     }
 
@@ -1667,8 +1751,9 @@ class _DriverRequestCardState
                   child: Icon(
                     isJibli
                         ? Icons.shopping_bag
-                        : Icons.local_shipping,
-                    color: const Color(0xFF1565C0),
+                        : Icons.local_taxi,
+                    color:
+                        const Color(0xFF1565C0),
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -1686,6 +1771,7 @@ class _DriverRequestCardState
                           fontWeight: FontWeight.bold,
                         ),
                       ),
+
                       if (isJibli)
                         Text(
                           'الطلب: ${data['item'] ?? ''}',
@@ -1693,6 +1779,7 @@ class _DriverRequestCardState
                             color: Colors.grey,
                           ),
                         ),
+
                       Text(
                         'الهاتف: ${data['phone'] ?? ''}',
                         style: const TextStyle(
@@ -1707,20 +1794,16 @@ class _DriverRequestCardState
 
             const SizedBox(height: 12),
 
-            // خريطة السائق: الزبون فقط
-            SizedBox(
-              height: 250,
-              child: LiveCustomerMap(
-                initialLocation: customerLocation ??
-                    LatLng(
-                      (data['pickupLat'] as num)
-                          .toDouble(),
-                      (data['pickupLng'] as num)
-                          .toDouble(),
-                    ),
-                requestId: widget.doc.id,
+            // الخريطة فيها الزبون فقط
+            if (customerLocation != null)
+              SizedBox(
+                height: 250,
+                child: LiveCustomerMap(
+                  initialLocation:
+                      customerLocation,
+                  requestId: widget.doc.id,
+                ),
               ),
-            ),
 
             const SizedBox(height: 10),
 
@@ -1740,7 +1823,9 @@ class _DriverRequestCardState
                 icon: Icons.directions_car,
                 text: 'أنا في الطريق',
                 onPressed: () =>
-                    _changeStatus('driver_arriving'),
+                    _changeStatus(
+                  'driver_arriving',
+                ),
               ),
               const SizedBox(height: 8),
               MainButton(
@@ -1755,7 +1840,9 @@ class _DriverRequestCardState
                 icon: Icons.location_on,
                 text: 'وصلت للزبون',
                 onPressed: () =>
-                    _changeStatus('driver_arrived'),
+                    _changeStatus(
+                  'driver_arrived',
+                ),
               ),
               const SizedBox(height: 8),
               MainButton(
@@ -1770,7 +1857,9 @@ class _DriverRequestCardState
                 icon: Icons.done_all,
                 text: 'تم إنهاء الطلب',
                 onPressed: () =>
-                    _changeStatus('completed'),
+                    _changeStatus(
+                  'completed',
+                ),
               ),
           ],
         ),
@@ -1780,7 +1869,7 @@ class _DriverRequestCardState
 }
 
 // ============================================================
-// LIVE CUSTOMER MAP FOR DRIVER
+// LIVE CUSTOMER MAP
 // ============================================================
 
 class LiveCustomerMap extends StatefulWidget {
@@ -1800,14 +1889,16 @@ class LiveCustomerMap extends StatefulWidget {
 
 class _LiveCustomerMapState
     extends State<LiveCustomerMap> {
-  final MapController controller = MapController();
+  final MapController controller =
+      MapController();
 
   late LatLng customerLocation;
 
   @override
   void initState() {
     super.initState();
-    customerLocation = widget.initialLocation;
+    customerLocation =
+        widget.initialLocation;
   }
 
   @override
@@ -1826,12 +1917,16 @@ class _LiveCustomerMapState
                 snapshot.data!.data()
                     as Map<String, dynamic>;
 
-            if (data['customerLocationLat'] != null &&
-                data['customerLocationLng'] != null) {
+            if (data['customerLocationLat'] !=
+                    null &&
+                data['customerLocationLng'] !=
+                    null) {
               customerLocation = LatLng(
-                (data['customerLocationLat'] as num)
+                (data['customerLocationLat']
+                        as num)
                     .toDouble(),
-                (data['customerLocationLng'] as num)
+                (data['customerLocationLng']
+                        as num)
                     .toDouble(),
               );
             }
@@ -1842,7 +1937,8 @@ class _LiveCustomerMapState
               FlutterMap(
                 mapController: controller,
                 options: MapOptions(
-                  initialCenter: customerLocation,
+                  initialCenter:
+                      customerLocation,
                   initialZoom: 15,
                 ),
                 children: [
@@ -1855,21 +1951,25 @@ class _LiveCustomerMapState
                   MarkerLayer(
                     markers: [
                       Marker(
-                        point: customerLocation,
+                        point:
+                            customerLocation,
                         width: 75,
                         height: 70,
                         child: Column(
                           children: [
                             Container(
                               padding:
-                                  const EdgeInsets.symmetric(
+                                  const EdgeInsets
+                                      .symmetric(
                                 horizontal: 7,
                                 vertical: 3,
                               ),
-                              decoration: BoxDecoration(
+                              decoration:
+                                  BoxDecoration(
                                 color: Colors.white,
                                 borderRadius:
-                                    BorderRadius.circular(8),
+                                    BorderRadius
+                                        .circular(8),
                               ),
                               child: const Text(
                                 'الزبون',
@@ -1892,6 +1992,7 @@ class _LiveCustomerMapState
                   ),
                 ],
               ),
+
               Positioned(
                 right: 10,
                 bottom: 10,
@@ -1918,7 +2019,8 @@ class _LiveCustomerMapState
 // ============================================================
 
 Future<void> saveRequestId(String id) async {
-  final prefs = await SharedPreferences.getInstance();
+  final prefs =
+      await SharedPreferences.getInstance();
 
   final list =
       prefs.getStringList('my_requests') ?? [];
@@ -1927,7 +2029,10 @@ Future<void> saveRequestId(String id) async {
     list.insert(0, id);
   }
 
-  await prefs.setStringList('my_requests', list);
+  await prefs.setStringList(
+    'my_requests',
+    list,
+  );
 }
 
 class HistoryPage extends StatelessWidget {
@@ -1939,13 +2044,17 @@ class HistoryPage extends StatelessWidget {
       appBar: AppBar(
         title: const Text(
           'طلباتي السابقة',
-          style: TextStyle(fontWeight: FontWeight.bold),
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+          ),
         ),
         centerTitle: true,
       ),
-      backgroundColor: const Color(0xFFF5F7FA),
+      backgroundColor:
+          const Color(0xFFF5F7FA),
       body: FutureBuilder<SharedPreferences>(
-        future: SharedPreferences.getInstance(),
+        future:
+            SharedPreferences.getInstance(),
         builder: (context, snapshot) {
           if (!snapshot.hasData) {
             return const Center(
@@ -1953,13 +2062,17 @@ class HistoryPage extends StatelessWidget {
             );
           }
 
-          final ids =
-              snapshot.data!.getStringList('my_requests') ??
-                  [];
+          final ids = snapshot.data!
+                  .getStringList(
+                    'my_requests',
+                  ) ??
+              [];
 
           if (ids.isEmpty) {
             return const Center(
-              child: Text('ما عندكش طلبات سابقة'),
+              child: Text(
+                'ما عندكش طلبات سابقة',
+              ),
             );
           }
 
@@ -1967,12 +2080,19 @@ class HistoryPage extends StatelessWidget {
             padding: const EdgeInsets.all(14),
             itemCount: ids.length,
             itemBuilder: (context, index) {
-              return FutureBuilder<DocumentSnapshot>(
-                future: FirebaseFirestore.instance
-                    .collection('requests')
-                    .doc(ids[index])
-                    .get(),
-                builder: (context, snap) {
+              return FutureBuilder<
+                  DocumentSnapshot>(
+                future:
+                    FirebaseFirestore.instance
+                        .collection(
+                          'requests',
+                        )
+                        .doc(ids[index])
+                        .get(),
+                builder: (
+                  context,
+                  snap,
+                ) {
                   if (!snap.hasData ||
                       !snap.data!.exists) {
                     return const SizedBox();
@@ -2008,11 +2128,14 @@ class HistoryCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final service = data['service'] ?? '';
-    final status = data['status'] ?? '';
+    final service =
+        data['service'] ?? '';
+    final status =
+        data['status'] ?? '';
 
     return Card(
-      margin: const EdgeInsets.only(bottom: 12),
+      margin:
+          const EdgeInsets.only(bottom: 12),
       child: Padding(
         padding: const EdgeInsets.all(15),
         child: Column(
@@ -2029,11 +2152,17 @@ class HistoryCard extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 7),
-            Text('الحالة: $status'),
+            Text(
+              'الحالة: $status',
+            ),
             if (data['phone'] != null)
-              Text('الهاتف: ${data['phone']}'),
+              Text(
+                'الهاتف: ${data['phone']}',
+              ),
             if (status == 'completed')
-              RatingWidget(requestId: requestId),
+              RatingWidget(
+                requestId: requestId,
+              ),
           ],
         ),
       ),
@@ -2066,17 +2195,22 @@ class _RatingWidgetState
   Future<void> _saveRating() async {
     if (rating == 0) return;
 
-    await FirebaseFirestore.instance
-        .collection('requests')
-        .doc(widget.requestId)
-        .update({
-      'rating': rating,
-      'ratedAt': FieldValue.serverTimestamp(),
-    });
+    try {
+      await FirebaseFirestore.instance
+          .collection('requests')
+          .doc(widget.requestId)
+          .update({
+        'rating': rating,
+        'ratedAt':
+            FieldValue.serverTimestamp(),
+      });
 
-    setState(() {
-      saved = true;
-    });
+      if (mounted) {
+        setState(() {
+          saved = true;
+        });
+      }
+    } catch (_) {}
   }
 
   @override
@@ -2104,7 +2238,8 @@ class _RatingWidgetState
         ),
         const SizedBox(height: 6),
         Row(
-          mainAxisAlignment: MainAxisAlignment.center,
+          mainAxisAlignment:
+              MainAxisAlignment.center,
           children: List.generate(
             5,
             (index) => IconButton(
@@ -2124,7 +2259,9 @@ class _RatingWidgetState
         ),
         TextButton(
           onPressed: _saveRating,
-          child: const Text('إرسال التقييم'),
+          child: const Text(
+            'إرسال التقييم',
+          ),
         ),
       ],
     );
@@ -2132,7 +2269,7 @@ class _RatingWidgetState
 }
 
 // ============================================================
-// STATUS CHIP
+// STATUS
 // ============================================================
 
 class StatusChip extends StatelessWidget {
@@ -2166,13 +2303,15 @@ class StatusChip extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.symmetric(
+      padding:
+          const EdgeInsets.symmetric(
         vertical: 11,
         horizontal: 14,
       ),
       decoration: BoxDecoration(
         color: const Color(0xFFE3F2FD),
-        borderRadius: BorderRadius.circular(14),
+        borderRadius:
+            BorderRadius.circular(14),
       ),
       child: Text(
         text,
@@ -2211,10 +2350,13 @@ class MainButton extends StatelessWidget {
       child: ElevatedButton.icon(
         style: ElevatedButton.styleFrom(
           backgroundColor:
-              color ?? const Color(0xFF1565C0),
+              color ??
+              const Color(0xFF1565C0),
           foregroundColor: Colors.white,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(17),
+          shape:
+              RoundedRectangleBorder(
+            borderRadius:
+                BorderRadius.circular(17),
           ),
         ),
         onPressed: onPressed,
@@ -2231,7 +2373,8 @@ class MainButton extends StatelessWidget {
   }
 }
 
-class ModernTextField extends StatelessWidget {
+class ModernTextField
+    extends StatelessWidget {
   final TextEditingController controller;
   final String hint;
   final IconData icon;
@@ -2255,75 +2398,20 @@ class ModernTextField extends StatelessWidget {
         prefixIcon: Icon(icon),
         filled: true,
         fillColor: Colors.white,
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(18),
-          borderSide: BorderSide.none,
+        border:
+            OutlineInputBorder(
+          borderRadius:
+              BorderRadius.circular(18),
+          borderSide:
+              BorderSide.none,
         ),
       ),
     );
   }
 }
 
-class VehicleButton extends StatelessWidget {
-  final IconData icon;
-  final String title;
-  final bool selected;
-  final VoidCallback onTap;
-
-  const VehicleButton({
-    super.key,
-    required this.icon,
-    required this.title,
-    required this.selected,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      borderRadius: BorderRadius.circular(18),
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.all(15),
-        decoration: BoxDecoration(
-          color: selected
-              ? const Color(0xFFE3F2FD)
-              : Colors.white,
-          borderRadius: BorderRadius.circular(18),
-          border: Border.all(
-            color: selected
-                ? const Color(0xFF1565C0)
-                : Colors.transparent,
-            width: 2,
-          ),
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              icon,
-              color: selected
-                  ? const Color(0xFF1565C0)
-                  : Colors.grey,
-            ),
-            const SizedBox(width: 7),
-            Text(
-              title,
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                color: selected
-                    ? const Color(0xFF1565C0)
-                    : Colors.grey,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class MapControlButton extends StatelessWidget {
+class MapControlButton
+    extends StatelessWidget {
   final IconData icon;
   final VoidCallback onTap;
 
@@ -2338,9 +2426,11 @@ class MapControlButton extends StatelessWidget {
     return Material(
       color: Colors.white,
       elevation: 3,
-      borderRadius: BorderRadius.circular(12),
+      borderRadius:
+          BorderRadius.circular(12),
       child: InkWell(
-        borderRadius: BorderRadius.circular(12),
+        borderRadius:
+            BorderRadius.circular(12),
         onTap: onTap,
         child: SizedBox(
           width: 44,
