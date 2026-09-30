@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "342451108056",
+    "project_id": "allo-wasalni",
+    "storage_bucket": "allo-wasalni.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:342451108056:android:ca07cd3092b989881d3fad",
+        "android_client_info": {
+          "package_name": "com.example.maw3idi"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyD5oUgcbGzHTtfHvT27okzp8S3dBYGfMHU"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
