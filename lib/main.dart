@@ -11,17 +11,18 @@ final FlutterLocalNotificationsPlugin notificationsPlugin =
 Future<void> initializeNotifications() async {
   tz.initializeTimeZones();
 
-  final currentTimeZone = await FlutterTimezone.getLocalTimezone();
+  final currentTimeZone =
+      await FlutterTimezone.getLocalTimezone();
 
   tz.setLocalLocation(
     tz.getLocation(currentTimeZone.identifier),
   );
 
-  const androidSettings = AndroidInitializationSettings(
-    '@mipmap/ic_launcher',
-  );
+  const androidSettings =
+      AndroidInitializationSettings('@mipmap/ic_launcher');
 
-  const initializationSettings = InitializationSettings(
+  const initializationSettings =
+      InitializationSettings(
     android: androidSettings,
   );
 
@@ -29,9 +30,10 @@ Future<void> initializeNotifications() async {
     settings: initializationSettings,
   );
 
-  final androidPlugin = notificationsPlugin
-      .resolvePlatformSpecificImplementation<
-          AndroidFlutterLocalNotificationsPlugin>();
+  final androidPlugin =
+      notificationsPlugin
+          .resolvePlatformSpecificImplementation<
+              AndroidFlutterLocalNotificationsPlugin>();
 
   await androidPlugin?.requestNotificationsPermission();
 }
@@ -45,7 +47,7 @@ void main() async {
 }
 
 // ============================================================
-// MODEL
+// APPOINTMENT
 // ============================================================
 
 class Appointment {
@@ -96,24 +98,46 @@ class Appointment {
     final parts = value.split('|');
 
     return Appointment(
-      id: parts.isNotEmpty ? parts[0] : DateTime.now().toString(),
+      id: parts.isNotEmpty
+          ? parts[0]
+          : DateTime.now().toString(),
       title: parts.length > 1 ? parts[1] : '',
       date: parts.length > 2
-          ? DateTime.tryParse(parts[2]) ?? DateTime.now()
+          ? DateTime.tryParse(parts[2]) ??
+              DateTime.now()
           : DateTime.now(),
       time: TimeOfDay(
-        hour: parts.length > 3 ? int.tryParse(parts[3]) ?? 0 : 0,
-        minute: parts.length > 4 ? int.tryParse(parts[4]) ?? 0 : 0,
+        hour: parts.length > 3
+            ? int.tryParse(parts[3]) ?? 0
+            : 0,
+        minute: parts.length > 4
+            ? int.tryParse(parts[4]) ?? 0
+            : 0,
       ),
-      type: parts.length > 5 ? parts[5] : 'عام',
-      person: parts.length > 6 ? parts[6] : '',
-      phone: parts.length > 7 ? parts[7] : '',
-      location: parts.length > 8 ? parts[8] : '',
-      notes: parts.length > 9 ? parts[9] : '',
+      type: parts.length > 5
+          ? parts[5]
+          : 'عام',
+      person: parts.length > 6
+          ? parts[6]
+          : '',
+      phone: parts.length > 7
+          ? parts[7]
+          : '',
+      location: parts.length > 8
+          ? parts[8]
+          : '',
+      notes: parts.length > 9
+          ? parts[9]
+          : '',
       reminderMinutes:
-          parts.length > 10 ? int.tryParse(parts[10]) ?? -1 : -1,
+          parts.length > 10
+              ? int.tryParse(parts[10]) ?? -1
+              : -1,
       completed:
-          parts.length > 11 ? parts[11].toLowerCase() == 'true' : false,
+          parts.length > 11
+              ? parts[11].toLowerCase() ==
+                  'true'
+              : false,
     );
   }
 }
@@ -126,10 +150,12 @@ class Maw3idiApp extends StatefulWidget {
   const Maw3idiApp({super.key});
 
   @override
-  State<Maw3idiApp> createState() => _Maw3idiAppState();
+  State<Maw3idiApp> createState() =>
+      _Maw3idiAppState();
 }
 
-class _Maw3idiAppState extends State<Maw3idiApp> {
+class _Maw3idiAppState
+    extends State<Maw3idiApp> {
   bool darkMode = false;
 
   @override
@@ -137,7 +163,9 @@ class _Maw3idiAppState extends State<Maw3idiApp> {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       title: 'موعدي',
-      themeMode: darkMode ? ThemeMode.dark : ThemeMode.light,
+      themeMode: darkMode
+          ? ThemeMode.dark
+          : ThemeMode.light,
       theme: ThemeData(
         useMaterial3: true,
         colorSchemeSeed: Colors.indigo,
@@ -160,7 +188,7 @@ class _Maw3idiAppState extends State<Maw3idiApp> {
 }
 
 // ============================================================
-// HOME PAGE
+// HOME
 // ============================================================
 
 class HomePage extends StatefulWidget {
@@ -172,10 +200,12 @@ class HomePage extends StatefulWidget {
   });
 
   @override
-  State<HomePage> createState() => _HomePageState();
+  State<HomePage> createState() =>
+      _HomePageState();
 }
 
-class _HomePageState extends State<HomePage> {
+class _HomePageState
+    extends State<HomePage> {
   List<Appointment> appointments = [];
 
   String searchText = '';
@@ -202,31 +232,42 @@ class _HomePageState extends State<HomePage> {
   // ==========================================================
 
   Future<void> loadAppointments() async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs =
+        await SharedPreferences.getInstance();
 
-    final saved = prefs.getStringList('appointments') ?? [];
+    final saved =
+        prefs.getStringList('appointments') ??
+            [];
 
     setState(() {
       appointments = saved
-          .map((item) => Appointment.deserialize(item))
+          .map(
+            (item) =>
+                Appointment.deserialize(item),
+          )
           .toList();
     });
   }
 
   Future<void> saveAppointments() async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs =
+        await SharedPreferences.getInstance();
 
     await prefs.setStringList(
       'appointments',
-      appointments.map((e) => e.serialize()).toList(),
+      appointments
+          .map((item) => item.serialize())
+          .toList(),
     );
   }
 
   // ==========================================================
-  // DATE / TIME
+  // DATE
   // ==========================================================
 
-  DateTime appointmentDateTime(Appointment appointment) {
+  DateTime appointmentDateTime(
+    Appointment appointment,
+  ) {
     return DateTime(
       appointment.date.year,
       appointment.date.month,
@@ -240,9 +281,11 @@ class _HomePageState extends State<HomePage> {
   // NOTIFICATIONS
   // ==========================================================
 
-  Future<void> scheduleNotification(Appointment appointment) async {
+  Future<void> scheduleNotification(
+    Appointment appointment,
+  ) async {
     await notificationsPlugin.cancel(
-      appointment.id.hashCode.abs(),
+      id: appointment.id.hashCode.abs(),
     );
 
     if (appointment.reminderMinutes < 0) {
@@ -252,24 +295,35 @@ class _HomePageState extends State<HomePage> {
     final appointmentDateTimeValue =
         appointmentDateTime(appointment);
 
-    final scheduledDate = tz.TZDateTime.from(
+    final scheduledDate =
+        tz.TZDateTime.from(
       appointmentDateTimeValue,
       tz.local,
     ).subtract(
-      Duration(minutes: appointment.reminderMinutes),
+      Duration(
+        minutes:
+            appointment.reminderMinutes,
+      ),
     );
 
-    if (scheduledDate.isBefore(tz.TZDateTime.now(tz.local))) {
+    if (scheduledDate.isBefore(
+      tz.TZDateTime.now(tz.local),
+    )) {
       return;
     }
 
-    const notificationDetails = NotificationDetails(
-      android: AndroidNotificationDetails(
+    const notificationDetails =
+        NotificationDetails(
+      android:
+          AndroidNotificationDetails(
         'maw3idi_reminders',
         'تذكيرات موعدي',
-        channelDescription: 'تنبيهات المواعيد',
-        importance: Importance.high,
-        priority: Priority.high,
+        channelDescription:
+            'تنبيهات المواعيد',
+        importance:
+            Importance.high,
+        priority:
+            Priority.high,
       ),
     );
 
@@ -278,15 +332,19 @@ class _HomePageState extends State<HomePage> {
       title: 'تذكير بموعدك 🔔',
       body: appointment.title,
       scheduledDate: scheduledDate,
-      notificationDetails: notificationDetails,
+      notificationDetails:
+          notificationDetails,
       androidScheduleMode:
-          AndroidScheduleMode.inexactAllowWhileIdle,
+          AndroidScheduleMode
+              .inexactAllowWhileIdle,
     );
   }
 
-  Future<void> cancelNotification(Appointment appointment) async {
+  Future<void> cancelNotification(
+    Appointment appointment,
+  ) async {
     await notificationsPlugin.cancel(
-      appointment.id.hashCode.abs(),
+      id: appointment.id.hashCode.abs(),
     );
   }
 
@@ -297,46 +355,55 @@ class _HomePageState extends State<HomePage> {
   Future<void> showAppointmentDialog({
     Appointment? appointment,
   }) async {
-    final titleController = TextEditingController(
+    final titleController =
+        TextEditingController(
       text: appointment?.title ?? '',
     );
 
-    final personController = TextEditingController(
+    final personController =
+        TextEditingController(
       text: appointment?.person ?? '',
     );
 
-    final phoneController = TextEditingController(
+    final phoneController =
+        TextEditingController(
       text: appointment?.phone ?? '',
     );
 
-    final locationController = TextEditingController(
+    final locationController =
+        TextEditingController(
       text: appointment?.location ?? '',
     );
 
-    final notesController = TextEditingController(
+    final notesController =
+        TextEditingController(
       text: appointment?.notes ?? '',
     );
 
     DateTime selectedDate =
-        appointment?.date ?? DateTime.now();
+        appointment?.date ??
+            DateTime.now();
 
     TimeOfDay selectedTime =
         appointment?.time ??
             TimeOfDay.now();
 
     String selectedType =
-        appointment?.type ?? appointmentTypes.first;
+        appointment?.type ??
+            appointmentTypes.first;
 
     int selectedReminder =
         appointment?.reminderMinutes ?? 15;
 
-    final formKey = GlobalKey<FormState>();
+    final formKey =
+        GlobalKey<FormState>();
 
     final result = await showDialog<bool>(
       context: context,
       builder: (context) {
         return StatefulBuilder(
-          builder: (context, setDialogState) {
+          builder:
+              (context, setDialogState) {
             return AlertDialog(
               title: Text(
                 appointment == null
@@ -345,167 +412,259 @@ class _HomePageState extends State<HomePage> {
               ),
               content: SizedBox(
                 width: double.maxFinite,
-                child: SingleChildScrollView(
+                child:
+                    SingleChildScrollView(
                   child: Form(
                     key: formKey,
                     child: Column(
                       children: [
                         TextFormField(
-                          controller: titleController,
-                          decoration: const InputDecoration(
-                            labelText: 'عنوان الموعد',
+                          controller:
+                              titleController,
+                          decoration:
+                              const InputDecoration(
+                            labelText:
+                                'عنوان الموعد',
                             prefixIcon:
-                                Icon(Icons.event),
+                                Icon(
+                              Icons.event,
+                            ),
                           ),
-                          validator: (value) {
-                            if (value == null ||
-                                value.trim().isEmpty) {
+                          validator:
+                              (value) {
+                            if (value ==
+                                    null ||
+                                value
+                                    .trim()
+                                    .isEmpty) {
                               return 'اكتب عنوان الموعد';
                             }
                             return null;
                           },
                         ),
 
-                        const SizedBox(height: 12),
+                        const SizedBox(
+                          height: 12,
+                        ),
 
-                        DropdownButtonFormField<String>(
-                          initialValue: selectedType,
+                        DropdownButtonFormField<
+                            String>(
+                          initialValue:
+                              selectedType,
                           decoration:
                               const InputDecoration(
-                            labelText: 'نوع الموعد',
+                            labelText:
+                                'نوع الموعد',
                             prefixIcon:
-                                Icon(Icons.category),
+                                Icon(
+                              Icons.category,
+                            ),
                           ),
-                          items: appointmentTypes
-                              .map(
-                                (type) =>
-                                    DropdownMenuItem(
-                                  value: type,
-                                  child: Text(type),
-                                ),
-                              )
-                              .toList(),
-                          onChanged: (value) {
-                            if (value != null) {
-                              setDialogState(() {
-                                selectedType = value;
-                              });
+                          items:
+                              appointmentTypes
+                                  .map(
+                            (type) =>
+                                DropdownMenuItem(
+                              value: type,
+                              child:
+                                  Text(type),
+                            ),
+                          ).toList(),
+                          onChanged:
+                              (value) {
+                            if (value !=
+                                null) {
+                              setDialogState(
+                                () {
+                                  selectedType =
+                                      value;
+                                },
+                              );
                             }
                           },
                         ),
 
-                        const SizedBox(height: 12),
+                        const SizedBox(
+                          height: 12,
+                        ),
 
                         ListTile(
                           leading:
-                              const Icon(Icons.calendar_month),
-                          title: const Text('التاريخ'),
-                          subtitle: Text(
+                              const Icon(
+                            Icons.calendar_month,
+                          ),
+                          title:
+                              const Text(
+                            'التاريخ',
+                          ),
+                          subtitle:
+                              Text(
                             '${selectedDate.day}/'
                             '${selectedDate.month}/'
                             '${selectedDate.year}',
                           ),
-                          onTap: () async {
+                          onTap:
+                              () async {
                             final picked =
                                 await showDatePicker(
-                              context: context,
-                              initialDate: selectedDate,
-                              firstDate: DateTime(2020),
-                              lastDate: DateTime(2100),
+                              context:
+                                  context,
+                              initialDate:
+                                  selectedDate,
+                              firstDate:
+                                  DateTime(
+                                2020,
+                              ),
+                              lastDate:
+                                  DateTime(
+                                2100,
+                              ),
                             );
 
-                            if (picked != null) {
-                              setDialogState(() {
-                                selectedDate = picked;
-                              });
+                            if (picked !=
+                                null) {
+                              setDialogState(
+                                () {
+                                  selectedDate =
+                                      picked;
+                                },
+                              );
                             }
                           },
                         ),
 
                         ListTile(
                           leading:
-                              const Icon(Icons.access_time),
-                          title: const Text('الساعة'),
+                              const Icon(
+                            Icons.access_time,
+                          ),
+                          title:
+                              const Text(
+                            'الساعة',
+                          ),
                           subtitle:
-                              Text(selectedTime.format(context)),
-                          onTap: () async {
+                              Text(
+                            selectedTime
+                                .format(
+                              context,
+                            ),
+                          ),
+                          onTap:
+                              () async {
                             final picked =
                                 await showTimePicker(
-                              context: context,
-                              initialTime: selectedTime,
+                              context:
+                                  context,
+                              initialTime:
+                                  selectedTime,
                             );
 
-                            if (picked != null) {
-                              setDialogState(() {
-                                selectedTime = picked;
-                              });
+                            if (picked !=
+                                null) {
+                              setDialogState(
+                                () {
+                                  selectedTime =
+                                      picked;
+                                },
+                              );
                             }
                           },
                         ),
 
                         TextFormField(
-                          controller: personController,
+                          controller:
+                              personController,
                           decoration:
                               const InputDecoration(
-                            labelText: 'الشخص',
+                            labelText:
+                                'الشخص',
                             prefixIcon:
-                                Icon(Icons.person),
+                                Icon(
+                              Icons.person,
+                            ),
                           ),
                         ),
 
-                        const SizedBox(height: 12),
+                        const SizedBox(
+                          height: 12,
+                        ),
 
                         TextFormField(
-                          controller: phoneController,
+                          controller:
+                              phoneController,
                           keyboardType:
                               TextInputType.phone,
                           decoration:
                               const InputDecoration(
-                            labelText: 'رقم الهاتف',
+                            labelText:
+                                'رقم الهاتف',
                             prefixIcon:
-                                Icon(Icons.phone),
+                                Icon(
+                              Icons.phone,
+                            ),
                           ),
                         ),
 
-                        const SizedBox(height: 12),
+                        const SizedBox(
+                          height: 12,
+                        ),
 
                         TextFormField(
-                          controller: locationController,
+                          controller:
+                              locationController,
                           decoration:
                               const InputDecoration(
-                            labelText: 'المكان',
+                            labelText:
+                                'المكان',
                             prefixIcon:
-                                Icon(Icons.location_on),
+                                Icon(
+                              Icons.location_on,
+                            ),
                           ),
                         ),
 
-                        const SizedBox(height: 12),
+                        const SizedBox(
+                          height: 12,
+                        ),
 
                         TextFormField(
-                          controller: notesController,
+                          controller:
+                              notesController,
                           maxLines: 3,
                           decoration:
                               const InputDecoration(
-                            labelText: 'ملاحظات',
+                            labelText:
+                                'ملاحظات',
                             prefixIcon:
-                                Icon(Icons.notes),
+                                Icon(
+                              Icons.notes,
+                            ),
                           ),
                         ),
 
-                        const SizedBox(height: 12),
+                        const SizedBox(
+                          height: 12,
+                        ),
 
-                        DropdownButtonFormField<int>(
-                          initialValue: selectedReminder,
+                        DropdownButtonFormField<
+                            int>(
+                          initialValue:
+                              selectedReminder,
                           decoration:
                               const InputDecoration(
-                            labelText: 'التذكير',
+                            labelText:
+                                'التذكير',
                             prefixIcon:
-                                Icon(Icons.notifications),
+                                Icon(
+                              Icons.notifications,
+                            ),
                           ),
                           items: const [
                             DropdownMenuItem(
                               value: -1,
-                              child: Text('بدون تذكير'),
+                              child: Text(
+                                'بدون تذكير',
+                              ),
                             ),
                             DropdownMenuItem(
                               value: 0,
@@ -544,11 +703,16 @@ class _HomePageState extends State<HomePage> {
                               ),
                             ),
                           ],
-                          onChanged: (value) {
-                            if (value != null) {
-                              setDialogState(() {
-                                selectedReminder = value;
-                              });
+                          onChanged:
+                              (value) {
+                            if (value !=
+                                null) {
+                              setDialogState(
+                                () {
+                                  selectedReminder =
+                                      value;
+                                },
+                              );
                             }
                           },
                         ),
@@ -560,14 +724,23 @@ class _HomePageState extends State<HomePage> {
               actions: [
                 TextButton(
                   onPressed: () {
-                    Navigator.pop(context, false);
+                    Navigator.pop(
+                      context,
+                      false,
+                    );
                   },
-                  child: const Text('إلغاء'),
+                  child:
+                      const Text('إلغاء'),
                 ),
                 ElevatedButton(
                   onPressed: () {
-                    if (formKey.currentState!.validate()) {
-                      Navigator.pop(context, true);
+                    if (formKey
+                        .currentState!
+                        .validate()) {
+                      Navigator.pop(
+                        context,
+                        true,
+                      );
                     }
                   },
                   child: Text(
@@ -585,42 +758,61 @@ class _HomePageState extends State<HomePage> {
 
     if (result != true) return;
 
-    final newAppointment = Appointment(
+    final newAppointment =
+        Appointment(
       id: appointment?.id ??
-          DateTime.now().microsecondsSinceEpoch.toString(),
-      title: titleController.text.trim(),
+          DateTime.now()
+              .microsecondsSinceEpoch
+              .toString(),
+      title:
+          titleController.text.trim(),
       date: selectedDate,
       time: selectedTime,
       type: selectedType,
-      person: personController.text.trim(),
-      phone: phoneController.text.trim(),
-      location: locationController.text.trim(),
-      notes: notesController.text.trim(),
-      reminderMinutes: selectedReminder,
-      completed: appointment?.completed ?? false,
+      person:
+          personController.text.trim(),
+      phone:
+          phoneController.text.trim(),
+      location:
+          locationController.text.trim(),
+      notes:
+          notesController.text.trim(),
+      reminderMinutes:
+          selectedReminder,
+      completed:
+          appointment?.completed ??
+              false,
     );
 
     setState(() {
       if (appointment == null) {
-        appointments.add(newAppointment);
+        appointments.add(
+          newAppointment,
+        );
       } else {
         final index =
             appointments.indexWhere(
-          (item) => item.id == appointment.id,
+          (item) =>
+              item.id ==
+              appointment.id,
         );
 
         if (index != -1) {
-          appointments[index] = newAppointment;
+          appointments[index] =
+              newAppointment;
         }
       }
     });
 
     await saveAppointments();
-    await scheduleNotification(newAppointment);
+    await scheduleNotification(
+      newAppointment,
+    );
 
     if (!mounted) return;
 
-    ScaffoldMessenger.of(context).showSnackBar(
+    ScaffoldMessenger.of(context)
+        .showSnackBar(
       SnackBar(
         content: Text(
           appointment == null
@@ -638,47 +830,65 @@ class _HomePageState extends State<HomePage> {
   Future<void> deleteAppointment(
     Appointment appointment,
   ) async {
-    final confirmed = await showDialog<bool>(
+    final confirmed =
+        await showDialog<bool>(
       context: context,
       builder: (context) {
         return AlertDialog(
-          title: const Text('حذف الموعد'),
+          title:
+              const Text('حذف الموعد'),
           content: Text(
             'هل تريد حذف "${appointment.title}"؟',
           ),
           actions: [
             TextButton(
               onPressed: () {
-                Navigator.pop(context, false);
+                Navigator.pop(
+                  context,
+                  false,
+                );
               },
-              child: const Text('إلغاء'),
+              child:
+                  const Text('إلغاء'),
             ),
             ElevatedButton(
               onPressed: () {
-                Navigator.pop(context, true);
+                Navigator.pop(
+                  context,
+                  true,
+                );
               },
-              child: const Text('حذف'),
+              child:
+                  const Text('حذف'),
             ),
           ],
         );
       },
     );
 
-    if (confirmed != true) return;
+    if (confirmed != true) {
+      return;
+    }
 
-    await cancelNotification(appointment);
+    await cancelNotification(
+      appointment,
+    );
 
     setState(() {
-      appointments.remove(appointment);
+      appointments.remove(
+        appointment,
+      );
     });
 
     await saveAppointments();
 
     if (!mounted) return;
 
-    ScaffoldMessenger.of(context).showSnackBar(
+    ScaffoldMessenger.of(context)
+        .showSnackBar(
       const SnackBar(
-        content: Text('تم حذف الموعد'),
+        content:
+            Text('تم حذف الموعد'),
       ),
     );
   }
@@ -698,20 +908,27 @@ class _HomePageState extends State<HomePage> {
     await saveAppointments();
 
     if (appointment.completed) {
-      await cancelNotification(appointment);
+      await cancelNotification(
+        appointment,
+      );
     } else {
-      await scheduleNotification(appointment);
+      await scheduleNotification(
+        appointment,
+      );
     }
   }
 
   // ==========================================================
-  // FILTER / SEARCH
+  // FILTER
   // ==========================================================
 
-  List<Appointment> get filteredAppointments {
-    final query = searchText.toLowerCase();
+  List<Appointment>
+      get filteredAppointments {
+    final query =
+        searchText.toLowerCase();
 
-    final result = appointments.where(
+    final result =
+        appointments.where(
       (appointment) {
         final matchesSearch =
             appointment.title
@@ -728,22 +945,22 @@ class _HomePageState extends State<HomePage> {
                     .contains(query);
 
         final matchesFilter =
-            selectedFilter == 'الكل' ||
-                appointment.type == selectedFilter;
+            selectedFilter ==
+                    'الكل' ||
+                appointment.type ==
+                    selectedFilter;
 
-        return matchesSearch && matchesFilter;
+        return matchesSearch &&
+            matchesFilter;
       },
     ).toList();
 
     result.sort(
       (a, b) {
-        final aDate =
-            appointmentDateTime(a);
-
-        final bDate =
-            appointmentDateTime(b);
-
-        return aDate.compareTo(bDate);
+        return appointmentDateTime(a)
+            .compareTo(
+          appointmentDateTime(b),
+        );
       },
     );
 
@@ -755,20 +972,27 @@ class _HomePageState extends State<HomePage> {
   // ==========================================================
 
   int get todayCount {
-    final now = DateTime.now();
+    final now =
+        DateTime.now();
 
     return appointments.where(
       (appointment) {
-        return appointment.date.year == now.year &&
-            appointment.date.month == now.month &&
-            appointment.date.day == now.day;
+        return appointment.date.year ==
+                now.year &&
+            appointment.date.month ==
+                now.month &&
+            appointment.date.day ==
+                now.day;
       },
     ).length;
   }
 
   int get completedCount {
     return appointments
-        .where((appointment) => appointment.completed)
+        .where(
+          (appointment) =>
+              appointment.completed,
+        )
         .length;
   }
 
@@ -776,19 +1000,25 @@ class _HomePageState extends State<HomePage> {
     return appointments
         .where(
           (appointment) =>
-              appointment.reminderMinutes >= 0,
+              appointment
+                  .reminderMinutes >=
+              0,
         )
         .length;
   }
 
-  Appointment? get nextAppointment {
-    final now = DateTime.now();
+  Appointment?
+      get nextAppointment {
+    final now =
+        DateTime.now();
 
-    final upcoming = appointments.where(
+    final upcoming =
+        appointments.where(
       (appointment) {
         return !appointment.completed &&
-            appointmentDateTime(appointment)
-                .isAfter(now);
+            appointmentDateTime(
+              appointment,
+            ).isAfter(now);
       },
     ).toList();
 
@@ -796,11 +1026,13 @@ class _HomePageState extends State<HomePage> {
       (a, b) =>
           appointmentDateTime(a)
               .compareTo(
-                appointmentDateTime(b),
-              ),
+            appointmentDateTime(b),
+          ),
     );
 
-    if (upcoming.isEmpty) return null;
+    if (upcoming.isEmpty) {
+      return null;
+    }
 
     return upcoming.first;
   }
@@ -814,14 +1046,19 @@ class _HomePageState extends State<HomePage> {
       context: context,
       builder: (context) {
         return AlertDialog(
-          title: const Text('إحصائيات موعدي'),
+          title:
+              const Text(
+            'إحصائيات موعدي',
+          ),
           content: Column(
-            mainAxisSize: MainAxisSize.min,
+            mainAxisSize:
+                MainAxisSize.min,
             children: [
               _statRow(
                 Icons.event,
                 'كل المواعيد',
-                appointments.length.toString(),
+                appointments.length
+                    .toString(),
               ),
               _statRow(
                 Icons.today,
@@ -831,21 +1068,27 @@ class _HomePageState extends State<HomePage> {
               _statRow(
                 Icons.check_circle,
                 'المكتملة',
-                completedCount.toString(),
+                completedCount
+                    .toString(),
               ),
               _statRow(
-                Icons.notifications_active,
+                Icons
+                    .notifications_active,
                 'التنبيهات',
-                reminderCount.toString(),
+                reminderCount
+                    .toString(),
               ),
             ],
           ),
           actions: [
             TextButton(
               onPressed: () {
-                Navigator.pop(context);
+                Navigator.pop(
+                  context,
+                );
               },
-              child: const Text('إغلاق'),
+              child:
+                  const Text('إغلاق'),
             ),
           ],
         );
@@ -863,9 +1106,11 @@ class _HomePageState extends State<HomePage> {
       title: Text(title),
       trailing: Text(
         value,
-        style: const TextStyle(
+        style:
+            const TextStyle(
           fontSize: 20,
-          fontWeight: FontWeight.bold,
+          fontWeight:
+              FontWeight.bold,
         ),
       ),
     );
@@ -876,69 +1121,107 @@ class _HomePageState extends State<HomePage> {
   // ==========================================================
 
   Future<void> showCalendar() async {
-    DateTime selectedDate = DateTime.now();
+    DateTime selectedDate =
+        DateTime.now();
 
     await showDialog(
       context: context,
       builder: (context) {
         return StatefulBuilder(
-          builder: (context, setDialogState) {
+          builder:
+              (context, setDialogState) {
             final dayAppointments =
                 appointments.where(
               (appointment) {
-                return appointment.date.year ==
+                return appointment.date
+                            .year ==
                         selectedDate.year &&
-                    appointment.date.month ==
+                    appointment.date
+                            .month ==
                         selectedDate.month &&
-                    appointment.date.day ==
+                    appointment.date
+                            .day ==
                         selectedDate.day;
               },
             ).toList();
 
             return AlertDialog(
-              title: const Text('📅 التقويم'),
+              title:
+                  const Text(
+                '📅 التقويم',
+              ),
               content: SizedBox(
-                width: double.maxFinite,
-                child: SingleChildScrollView(
+                width:
+                    double.maxFinite,
+                child:
+                    SingleChildScrollView(
                   child: Column(
-                    mainAxisSize: MainAxisSize.min,
+                    mainAxisSize:
+                        MainAxisSize.min,
                     children: [
                       CalendarDatePicker(
-                        initialDate: selectedDate,
-                        firstDate: DateTime(2020),
-                        lastDate: DateTime(2100),
-                        onDateChanged: (date) {
-                          setDialogState(() {
-                            selectedDate = date;
-                          });
+                        initialDate:
+                            selectedDate,
+                        firstDate:
+                            DateTime(
+                          2020,
+                        ),
+                        lastDate:
+                            DateTime(
+                          2100,
+                        ),
+                        onDateChanged:
+                            (date) {
+                          setDialogState(
+                            () {
+                              selectedDate =
+                                  date;
+                            },
+                          );
                         },
                       ),
                       const Divider(),
-                      if (dayAppointments.isEmpty)
+                      if (dayAppointments
+                          .isEmpty)
                         const Padding(
-                          padding: EdgeInsets.all(16),
-                          child: Text(
+                          padding:
+                              EdgeInsets.all(
+                            16,
+                          ),
+                          child:
+                              Text(
                             'ماكانش مواعيد في هذا اليوم',
                           ),
                         )
                       else
-                        ...dayAppointments.map(
-                          (appointment) => ListTile(
-                            leading: Icon(
-                              appointment.completed
-                                  ? Icons.check_circle
+                        ...dayAppointments
+                            .map(
+                          (appointment) =>
+                              ListTile(
+                            leading:
+                                Icon(
+                              appointment
+                                      .completed
+                                  ? Icons
+                                      .check_circle
                                   : Icons.event,
                             ),
-                            title: Text(
-                              appointment.title,
+                            title:
+                                Text(
+                              appointment
+                                  .title,
                             ),
-                            subtitle: Text(
+                            subtitle:
+                                Text(
                               '${appointment.time.hour.toString().padLeft(2, '0')}:'
                               '${appointment.time.minute.toString().padLeft(2, '0')}'
                               ' • ${appointment.type}',
                             ),
-                            onTap: () {
-                              Navigator.pop(context);
+                            onTap:
+                                () {
+                              Navigator.pop(
+                                context,
+                              );
 
                               showAppointmentDetails(
                                 appointment,
@@ -953,9 +1236,12 @@ class _HomePageState extends State<HomePage> {
               actions: [
                 TextButton(
                   onPressed: () {
-                    Navigator.pop(context);
+                    Navigator.pop(
+                      context,
+                    );
                   },
-                  child: const Text('إغلاق'),
+                  child:
+                      const Text('إغلاق'),
                 ),
               ],
             );
@@ -969,7 +1255,8 @@ class _HomePageState extends State<HomePage> {
   // DETAILS
   // ==========================================================
 
-  Future<void> showAppointmentDetails(
+  Future<void>
+      showAppointmentDetails(
     Appointment appointment,
   ) async {
     await showModalBottomSheet(
@@ -979,20 +1266,30 @@ class _HomePageState extends State<HomePage> {
       builder: (context) {
         return SafeArea(
           child: Padding(
-            padding: const EdgeInsets.all(20),
-            child: SingleChildScrollView(
+            padding:
+                const EdgeInsets.all(
+              20,
+            ),
+            child:
+                SingleChildScrollView(
               child: Column(
                 crossAxisAlignment:
-                    CrossAxisAlignment.start,
+                    CrossAxisAlignment
+                        .start,
                 children: [
                   Text(
                     appointment.title,
-                    style: const TextStyle(
+                    style:
+                        const TextStyle(
                       fontSize: 25,
-                      fontWeight: FontWeight.bold,
+                      fontWeight:
+                          FontWeight.bold,
                     ),
                   ),
-                  const SizedBox(height: 18),
+
+                  const SizedBox(
+                    height: 18,
+                  ),
 
                   _detailRow(
                     Icons.category,
@@ -1011,31 +1308,38 @@ class _HomePageState extends State<HomePage> {
                   _detailRow(
                     Icons.access_time,
                     'الوقت',
-                    appointment.time.format(context),
+                    appointment.time
+                        .format(
+                      context,
+                    ),
                   ),
 
-                  if (appointment.person.isNotEmpty)
+                  if (appointment.person
+                      .isNotEmpty)
                     _detailRow(
                       Icons.person,
                       'الشخص',
                       appointment.person,
                     ),
 
-                  if (appointment.phone.isNotEmpty)
+                  if (appointment.phone
+                      .isNotEmpty)
                     _detailRow(
                       Icons.phone,
                       'الهاتف',
                       appointment.phone,
                     ),
 
-                  if (appointment.location.isNotEmpty)
+                  if (appointment.location
+                      .isNotEmpty)
                     _detailRow(
                       Icons.location_on,
                       'المكان',
                       appointment.location,
                     ),
 
-                  if (appointment.notes.isNotEmpty)
+                  if (appointment.notes
+                      .isNotEmpty)
                     _detailRow(
                       Icons.notes,
                       'ملاحظات',
@@ -1046,7 +1350,8 @@ class _HomePageState extends State<HomePage> {
                     Icons.notifications,
                     'التذكير',
                     reminderText(
-                      appointment.reminderMinutes,
+                      appointment
+                          .reminderMinutes,
                     ),
                   ),
 
@@ -1058,40 +1363,63 @@ class _HomePageState extends State<HomePage> {
                         : 'غير مكتمل',
                   ),
 
-                  const SizedBox(height: 15),
+                  const SizedBox(
+                    height: 15,
+                  ),
 
                   Row(
                     children: [
                       Expanded(
-                        child: OutlinedButton.icon(
-                          onPressed: () {
-                            Navigator.pop(context);
+                        child:
+                            OutlinedButton
+                                .icon(
+                          onPressed:
+                              () {
+                            Navigator.pop(
+                              context,
+                            );
 
                             showAppointmentDialog(
-                              appointment: appointment,
+                              appointment:
+                                  appointment,
                             );
                           },
-                          icon: const Icon(Icons.edit),
-                          label: const Text('تعديل'),
+                          icon:
+                              const Icon(
+                            Icons.edit,
+                          ),
+                          label:
+                              const Text(
+                            'تعديل',
+                          ),
                         ),
                       ),
-                      const SizedBox(width: 10),
+                      const SizedBox(
+                        width: 10,
+                      ),
                       Expanded(
-                        child: ElevatedButton.icon(
-                          onPressed: () {
-                            Navigator.pop(context);
+                        child:
+                            ElevatedButton
+                                .icon(
+                          onPressed:
+                              () {
+                            Navigator.pop(
+                              context,
+                            );
 
                             toggleCompleted(
                               appointment,
                             );
                           },
                           icon: Icon(
-                            appointment.completed
+                            appointment
+                                    .completed
                                 ? Icons.undo
                                 : Icons.check,
                           ),
                           label: Text(
-                            appointment.completed
+                            appointment
+                                    .completed
                                 ? 'غير مكتمل'
                                 : 'مكتمل',
                           ),
@@ -1114,26 +1442,41 @@ class _HomePageState extends State<HomePage> {
     String value,
   ) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
+      padding:
+          const EdgeInsets.only(
+        bottom: 12,
+      ),
       child: Row(
         crossAxisAlignment:
             CrossAxisAlignment.start,
         children: [
-          Icon(icon, size: 22),
-          const SizedBox(width: 12),
+          Icon(
+            icon,
+            size: 22,
+          ),
+          const SizedBox(
+            width: 12,
+          ),
           Expanded(
             child: RichText(
               text: TextSpan(
-                style: DefaultTextStyle.of(context)
-                    .style,
+                style:
+                    DefaultTextStyle
+                        .of(context)
+                        .style,
                 children: [
                   TextSpan(
-                    text: '$title: ',
-                    style: const TextStyle(
-                      fontWeight: FontWeight.bold,
+                    text:
+                        '$title: ',
+                    style:
+                        const TextStyle(
+                      fontWeight:
+                          FontWeight.bold,
                     ),
                   ),
-                  TextSpan(text: value),
+                  TextSpan(
+                    text: value,
+                  ),
                 ],
               ),
             ),
@@ -1143,7 +1486,9 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  String reminderText(int minutes) {
+  String reminderText(
+    int minutes,
+  ) {
     switch (minutes) {
       case -1:
         return 'بدون تذكير';
@@ -1171,10 +1516,12 @@ class _HomePageState extends State<HomePage> {
   Widget appointmentCard(
     Appointment appointment,
   ) {
-    final isCompleted = appointment.completed;
+    final isCompleted =
+        appointment.completed;
 
     return Card(
-      margin: const EdgeInsets.fromLTRB(
+      margin:
+          const EdgeInsets.fromLTRB(
         12,
         5,
         12,
@@ -1191,9 +1538,11 @@ class _HomePageState extends State<HomePage> {
         title: Text(
           appointment.title,
           style: TextStyle(
-            fontWeight: FontWeight.bold,
+            fontWeight:
+                FontWeight.bold,
             decoration: isCompleted
-                ? TextDecoration.lineThrough
+                ? TextDecoration
+                    .lineThrough
                 : null,
           ),
         ),
@@ -1204,11 +1553,13 @@ class _HomePageState extends State<HomePage> {
           ' • '
           '${appointment.time.format(context)}',
         ),
-        trailing: PopupMenuButton<String>(
+        trailing:
+            PopupMenuButton<String>(
           onSelected: (value) {
             if (value == 'edit') {
               showAppointmentDialog(
-                appointment: appointment,
+                appointment:
+                    appointment,
               );
             }
 
@@ -1224,14 +1575,17 @@ class _HomePageState extends State<HomePage> {
               );
             }
           },
-          itemBuilder: (context) {
+          itemBuilder:
+              (context) {
             return [
-              PopupMenuItem(
+              const PopupMenuItem(
                 value: 'edit',
                 child: Row(
-                  children: const [
+                  children: [
                     Icon(Icons.edit),
-                    SizedBox(width: 8),
+                    SizedBox(
+                      width: 8,
+                    ),
                     Text('تعديل'),
                   ],
                 ),
@@ -1245,7 +1599,9 @@ class _HomePageState extends State<HomePage> {
                           ? Icons.undo
                           : Icons.check,
                     ),
-                    const SizedBox(width: 8),
+                    const SizedBox(
+                      width: 8,
+                    ),
                     Text(
                       isCompleted
                           ? 'غير مكتمل'
@@ -1258,8 +1614,12 @@ class _HomePageState extends State<HomePage> {
                 value: 'delete',
                 child: Row(
                   children: [
-                    Icon(Icons.delete),
-                    SizedBox(width: 8),
+                    Icon(
+                      Icons.delete,
+                    ),
+                    SizedBox(
+                      width: 8,
+                    ),
                     Text('حذف'),
                   ],
                 ),
@@ -1269,7 +1629,8 @@ class _HomePageState extends State<HomePage> {
         ),
         children: [
           Padding(
-            padding: const EdgeInsets.fromLTRB(
+            padding:
+                const EdgeInsets.fromLTRB(
               16,
               0,
               16,
@@ -1277,38 +1638,44 @@ class _HomePageState extends State<HomePage> {
             ),
             child: Column(
               crossAxisAlignment:
-                  CrossAxisAlignment.start,
+                  CrossAxisAlignment
+                      .start,
               children: [
                 Text(
                   appointment.type,
                   style: TextStyle(
-                    color: Theme.of(context)
-                        .colorScheme
-                        .primary,
+                    color:
+                        Theme.of(context)
+                            .colorScheme
+                            .primary,
                     fontWeight:
                         FontWeight.bold,
                   ),
                 ),
 
-                if (appointment.person.isNotEmpty)
+                if (appointment.person
+                    .isNotEmpty)
                   _smallInfo(
                     Icons.person,
                     appointment.person,
                   ),
 
-                if (appointment.phone.isNotEmpty)
+                if (appointment.phone
+                    .isNotEmpty)
                   _smallInfo(
                     Icons.phone,
                     appointment.phone,
                   ),
 
-                if (appointment.location.isNotEmpty)
+                if (appointment.location
+                    .isNotEmpty)
                   _smallInfo(
                     Icons.location_on,
                     appointment.location,
                   ),
 
-                if (appointment.notes.isNotEmpty)
+                if (appointment.notes
+                    .isNotEmpty)
                   _smallInfo(
                     Icons.notes,
                     appointment.notes,
@@ -1317,28 +1684,44 @@ class _HomePageState extends State<HomePage> {
                 _smallInfo(
                   Icons.notifications,
                   reminderText(
-                    appointment.reminderMinutes,
+                    appointment
+                        .reminderMinutes,
                   ),
                 ),
 
-                const SizedBox(height: 8),
+                const SizedBox(
+                  height: 8,
+                ),
 
                 Row(
                   children: [
                     Expanded(
-                      child: OutlinedButton.icon(
+                      child:
+                          OutlinedButton
+                              .icon(
                         onPressed: () {
                           showAppointmentDialog(
-                            appointment: appointment,
+                            appointment:
+                                appointment,
                           );
                         },
-                        icon: const Icon(Icons.edit),
-                        label: const Text('تعديل'),
+                        icon:
+                            const Icon(
+                          Icons.edit,
+                        ),
+                        label:
+                            const Text(
+                          'تعديل',
+                        ),
                       ),
                     ),
-                    const SizedBox(width: 8),
+                    const SizedBox(
+                      width: 8,
+                    ),
                     Expanded(
-                      child: ElevatedButton.icon(
+                      child:
+                          ElevatedButton
+                              .icon(
                         onPressed: () {
                           toggleCompleted(
                             appointment,
@@ -1371,7 +1754,8 @@ class _HomePageState extends State<HomePage> {
     String text,
   ) {
     return Padding(
-      padding: const EdgeInsets.only(
+      padding:
+          const EdgeInsets.only(
         top: 8,
       ),
       child: Row(
@@ -1380,7 +1764,9 @@ class _HomePageState extends State<HomePage> {
             icon,
             size: 18,
           ),
-          const SizedBox(width: 8),
+          const SizedBox(
+            width: 8,
+          ),
           Expanded(
             child: Text(text),
           ),
@@ -1395,78 +1781,102 @@ class _HomePageState extends State<HomePage> {
 
   @override
   Widget build(BuildContext context) {
-    final next = nextAppointment;
+    final next =
+        nextAppointment;
 
     return Scaffold(
       appBar: AppBar(
         title: const Text(
           'موعدي',
           style: TextStyle(
-            fontWeight: FontWeight.bold,
+            fontWeight:
+                FontWeight.bold,
           ),
         ),
         actions: [
           IconButton(
-            tooltip: 'الإحصائيات',
-            icon: const Icon(Icons.bar_chart),
-            onPressed: showStatistics,
+            tooltip:
+                'الإحصائيات',
+            icon: const Icon(
+              Icons.bar_chart,
+            ),
+            onPressed:
+                showStatistics,
           ),
 
           IconButton(
             tooltip: 'التقويم',
-            icon: const Icon(Icons.calendar_month),
-            onPressed: showCalendar,
+            icon: const Icon(
+              Icons.calendar_month,
+            ),
+            onPressed:
+                showCalendar,
           ),
 
           IconButton(
-            tooltip: 'الوضع الليلي',
+            tooltip:
+                'الوضع الليلي',
             icon: Icon(
-              Theme.of(context).brightness ==
+              Theme.of(context)
+                          .brightness ==
                       Brightness.dark
                   ? Icons.light_mode
                   : Icons.dark_mode,
             ),
-            onPressed: widget.onThemeChanged,
+            onPressed:
+                widget.onThemeChanged,
           ),
         ],
       ),
 
-      body: RefreshIndicator(
-        onRefresh: loadAppointments,
+      body:
+          RefreshIndicator(
+        onRefresh:
+            loadAppointments,
         child: ListView(
-          padding: const EdgeInsets.only(
+          padding:
+              const EdgeInsets.only(
             bottom: 100,
           ),
           children: [
-            // ==================================================
-            // DASHBOARD
-            // ==================================================
-
             Padding(
-              padding: const EdgeInsets.all(12),
+              padding:
+                  const EdgeInsets.all(
+                12,
+              ),
               child: Row(
                 children: [
                   Expanded(
-                    child: _dashboardCard(
+                    child:
+                        _dashboardCard(
                       Icons.event,
-                      appointments.length
+                      appointments
+                          .length
                           .toString(),
                       'كل المواعيد',
                     ),
                   ),
-                  const SizedBox(width: 8),
+                  const SizedBox(
+                    width: 8,
+                  ),
                   Expanded(
-                    child: _dashboardCard(
+                    child:
+                        _dashboardCard(
                       Icons.today,
-                      todayCount.toString(),
+                      todayCount
+                          .toString(),
                       'اليوم',
                     ),
                   ),
-                  const SizedBox(width: 8),
+                  const SizedBox(
+                    width: 8,
+                  ),
                   Expanded(
-                    child: _dashboardCard(
+                    child:
+                        _dashboardCard(
                       Icons.check_circle,
-                      completedCount.toString(),
+                      completedCount
+                          .toString(),
                       'مكتملة',
                     ),
                   ),
@@ -1474,50 +1884,64 @@ class _HomePageState extends State<HomePage> {
               ),
             ),
 
-            // ==================================================
-            // NEXT APPOINTMENT
-            // ==================================================
-
             if (next != null)
               Card(
-                margin: const EdgeInsets.fromLTRB(
+                margin:
+                    const EdgeInsets
+                        .fromLTRB(
                   12,
                   0,
                   12,
                   12,
                 ),
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
+                child:
+                    Padding(
+                  padding:
+                      const EdgeInsets.all(
+                    16,
+                  ),
                   child: Column(
                     crossAxisAlignment:
-                        CrossAxisAlignment.start,
+                        CrossAxisAlignment
+                            .start,
                     children: [
                       const Row(
                         children: [
                           Icon(
-                            Icons.notifications_active,
+                            Icons
+                                .notifications_active,
                           ),
-                          SizedBox(width: 8),
+                          SizedBox(
+                            width: 8,
+                          ),
                           Text(
                             'أقرب موعد',
-                            style: TextStyle(
+                            style:
+                                TextStyle(
                               fontSize: 18,
                               fontWeight:
-                                  FontWeight.bold,
+                                  FontWeight
+                                      .bold,
                             ),
                           ),
                         ],
                       ),
-                      const SizedBox(height: 12),
+                      const SizedBox(
+                        height: 12,
+                      ),
                       Text(
                         next.title,
-                        style: const TextStyle(
+                        style:
+                            const TextStyle(
                           fontSize: 22,
                           fontWeight:
-                              FontWeight.bold,
+                              FontWeight
+                                  .bold,
                         ),
                       ),
-                      const SizedBox(height: 6),
+                      const SizedBox(
+                        height: 6,
+                      ),
                       Text(
                         '${next.date.day}/'
                         '${next.date.month}/'
@@ -1525,15 +1949,21 @@ class _HomePageState extends State<HomePage> {
                         ' • '
                         '${next.time.format(context)}',
                       ),
-                      const SizedBox(height: 6),
+                      const SizedBox(
+                        height: 6,
+                      ),
                       Text(
                         next.type,
-                        style: TextStyle(
-                          color: Theme.of(context)
+                        style:
+                            TextStyle(
+                          color: Theme.of(
+                            context,
+                          )
                               .colorScheme
                               .primary,
                           fontWeight:
-                              FontWeight.bold,
+                              FontWeight
+                                  .bold,
                         ),
                       ),
                     ],
@@ -1541,46 +1971,53 @@ class _HomePageState extends State<HomePage> {
                 ),
               ),
 
-            // ==================================================
-            // SEARCH
-            // ==================================================
-
             Padding(
-              padding: const EdgeInsets.fromLTRB(
+              padding:
+                  const EdgeInsets
+                      .fromLTRB(
                 12,
                 4,
                 12,
                 8,
               ),
-              child: TextField(
-                decoration: InputDecoration(
-                  hintText: 'ابحث عن موعد...',
+              child:
+                  TextField(
+                decoration:
+                    InputDecoration(
+                  hintText:
+                      'ابحث عن موعد...',
                   prefixIcon:
-                      const Icon(Icons.search),
-                  border: OutlineInputBorder(
+                      const Icon(
+                    Icons.search,
+                  ),
+                  border:
+                      OutlineInputBorder(
                     borderRadius:
-                        BorderRadius.circular(16),
+                        BorderRadius
+                            .circular(
+                      16,
+                    ),
                   ),
                 ),
-                onChanged: (value) {
+                onChanged:
+                    (value) {
                   setState(() {
-                    searchText = value;
+                    searchText =
+                        value;
                   });
                 },
               ),
             ),
 
-            // ==================================================
-            // FILTERS
-            // ==================================================
-
             SizedBox(
               height: 52,
-              child: ListView(
+              child:
+                  ListView(
                 scrollDirection:
                     Axis.horizontal,
                 padding:
-                    const EdgeInsets.symmetric(
+                    const EdgeInsets
+                        .symmetric(
                   horizontal: 12,
                 ),
                 children: [
@@ -1589,17 +2026,25 @@ class _HomePageState extends State<HomePage> {
                 ].map(
                   (filter) {
                     final selected =
-                        selectedFilter == filter;
+                        selectedFilter ==
+                            filter;
 
                     return Padding(
                       padding:
-                          const EdgeInsets.only(
+                          const EdgeInsets
+                              .only(
                         right: 8,
                       ),
-                      child: ChoiceChip(
-                        label: Text(filter),
-                        selected: selected,
-                        onSelected: (_) {
+                      child:
+                          ChoiceChip(
+                        label:
+                            Text(
+                          filter,
+                        ),
+                        selected:
+                            selected,
+                        onSelected:
+                            (_) {
                           setState(() {
                             selectedFilter =
                                 filter;
@@ -1612,29 +2057,36 @@ class _HomePageState extends State<HomePage> {
               ),
             ),
 
-            const SizedBox(height: 8),
+            const SizedBox(
+              height: 8,
+            ),
 
-            // ==================================================
-            // APPOINTMENTS
-            // ==================================================
-
-            if (filteredAppointments.isEmpty)
+            if (filteredAppointments
+                .isEmpty)
               const Padding(
-                padding: EdgeInsets.all(40),
+                padding:
+                    EdgeInsets.all(
+                  40,
+                ),
                 child: Column(
                   children: [
                     Icon(
                       Icons.event_busy,
                       size: 60,
                     ),
-                    SizedBox(height: 12),
+                    SizedBox(
+                      height: 12,
+                    ),
                     Text(
                       'لا توجد مواعيد',
-                      style: TextStyle(
+                      style:
+                          TextStyle(
                         fontSize: 18,
                       ),
                     ),
-                    SizedBox(height: 6),
+                    SizedBox(
+                      height: 6,
+                    ),
                     Text(
                       'اضغط + لإضافة أول موعد',
                     ),
@@ -1642,7 +2094,8 @@ class _HomePageState extends State<HomePage> {
                 ),
               )
             else
-              ...filteredAppointments.map(
+              ...filteredAppointments
+                  .map(
                 appointmentCard,
               ),
           ],
@@ -1650,12 +2103,16 @@ class _HomePageState extends State<HomePage> {
       ),
 
       floatingActionButton:
-          FloatingActionButton.extended(
+          FloatingActionButton
+              .extended(
         onPressed: () {
           showAppointmentDialog();
         },
-        icon: const Icon(Icons.add),
-        label: const Text(
+        icon: const Icon(
+          Icons.add,
+        ),
+        label:
+            const Text(
           'إضافة موعد',
         ),
       ),
@@ -1669,25 +2126,33 @@ class _HomePageState extends State<HomePage> {
   ) {
     return Card(
       child: Padding(
-        padding: const EdgeInsets.symmetric(
+        padding:
+            const EdgeInsets
+                .symmetric(
           vertical: 14,
           horizontal: 6,
         ),
         child: Column(
           children: [
             Icon(icon),
-            const SizedBox(height: 5),
+            const SizedBox(
+              height: 5,
+            ),
             Text(
               value,
-              style: const TextStyle(
+              style:
+                  const TextStyle(
                 fontSize: 21,
-                fontWeight: FontWeight.bold,
+                fontWeight:
+                    FontWeight.bold,
               ),
             ),
             Text(
               label,
-              textAlign: TextAlign.center,
-              style: const TextStyle(
+              textAlign:
+                  TextAlign.center,
+              style:
+                  const TextStyle(
                 fontSize: 11,
               ),
             ),
