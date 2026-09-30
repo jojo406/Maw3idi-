@@ -1,4 +1,7 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_timezone/flutter_timezone.dart';
@@ -11,18 +14,17 @@ final FlutterLocalNotificationsPlugin notificationsPlugin =
 Future<void> initializeNotifications() async {
   tz.initializeTimeZones();
 
-  final currentTimeZone =
-      await FlutterTimezone.getLocalTimezone();
+  final currentTimeZone = await FlutterTimezone.getLocalTimezone();
 
   tz.setLocalLocation(
     tz.getLocation(currentTimeZone.identifier),
   );
 
-  const androidSettings =
-      AndroidInitializationSettings('@mipmap/ic_launcher');
+  const androidSettings = AndroidInitializationSettings(
+    '@mipmap/ic_launcher',
+  );
 
-  const initializationSettings =
-      InitializationSettings(
+  const initializationSettings = InitializationSettings(
     android: androidSettings,
   );
 
@@ -30,10 +32,9 @@ Future<void> initializeNotifications() async {
     settings: initializationSettings,
   );
 
-  final androidPlugin =
-      notificationsPlugin
-          .resolvePlatformSpecificImplementation<
-              AndroidFlutterLocalNotificationsPlugin>();
+  final androidPlugin = notificationsPlugin
+      .resolvePlatformSpecificImplementation<
+          AndroidFlutterLocalNotificationsPlugin>();
 
   await androidPlugin?.requestNotificationsPermission();
 }
@@ -47,97 +48,71 @@ void main() async {
 }
 
 // ============================================================
-// APPOINTMENT
+// MODEL
 // ============================================================
 
 class Appointment {
   String id;
   String title;
-  DateTime date;
-  TimeOfDay time;
+  DateTime dateTime;
   String type;
   String person;
   String phone;
   String location;
   String notes;
   int reminderMinutes;
+  String recurrence;
   bool completed;
 
   Appointment({
     required this.id,
     required this.title,
-    required this.date,
-    required this.time,
-    required this.type,
-    required this.person,
-    required this.phone,
-    required this.location,
-    required this.notes,
-    required this.reminderMinutes,
-    required this.completed,
+    required this.dateTime,
+    this.type = 'عام',
+    this.person = '',
+    this.phone = '',
+    this.location = '',
+    this.notes = '',
+    this.reminderMinutes = 15,
+    this.recurrence = 'لا يتكرر',
+    this.completed = false,
   });
 
-  String serialize() {
-    return [
-      id,
-      title,
-      date.toIso8601String(),
-      time.hour,
-      time.minute,
-      type,
-      person,
-      phone,
-      location,
-      notes,
-      reminderMinutes,
-      completed,
-    ].join('|');
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'title': title,
+      'dateTime': dateTime.toIso8601String(),
+      'type': type,
+      'person': person,
+      'phone': phone,
+      'location': location,
+      'notes': notes,
+      'reminderMinutes': reminderMinutes,
+      'recurrence': recurrence,
+      'completed': completed,
+    };
   }
 
-  static Appointment deserialize(String value) {
-    final parts = value.split('|');
-
+  factory Appointment.fromJson(Map<String, dynamic> json) {
     return Appointment(
-      id: parts.isNotEmpty
-          ? parts[0]
-          : DateTime.now().toString(),
-      title: parts.length > 1 ? parts[1] : '',
-      date: parts.length > 2
-          ? DateTime.tryParse(parts[2]) ??
-              DateTime.now()
-          : DateTime.now(),
-      time: TimeOfDay(
-        hour: parts.length > 3
-            ? int.tryParse(parts[3]) ?? 0
-            : 0,
-        minute: parts.length > 4
-            ? int.tryParse(parts[4]) ?? 0
-            : 0,
-      ),
-      type: parts.length > 5
-          ? parts[5]
-          : 'عام',
-      person: parts.length > 6
-          ? parts[6]
-          : '',
-      phone: parts.length > 7
-          ? parts[7]
-          : '',
-      location: parts.length > 8
-          ? parts[8]
-          : '',
-      notes: parts.length > 9
-          ? parts[9]
-          : '',
-      reminderMinutes:
-          parts.length > 10
-              ? int.tryParse(parts[10]) ?? -1
-              : -1,
-      completed:
-          parts.length > 11
-              ? parts[11].toLowerCase() ==
-                  'true'
-              : false,
+      id: json['id']?.toString() ?? DateTime.now().microsecondsSinceEpoch.toString(),
+      title: json['title']?.toString() ?? 'موعد',
+      dateTime: DateTime.tryParse(
+            json['dateTime']?.toString() ?? '',
+          ) ??
+          DateTime.now(),
+      type: json['type']?.toString() ?? 'عام',
+      person: json['person']?.toString() ?? '',
+      phone: json['phone']?.toString() ?? '',
+      location: json['location']?.toString() ?? '',
+      notes: json['notes']?.toString() ?? '',
+      reminderMinutes: int.tryParse(
+            json['reminderMinutes']?.toString() ?? '15',
+          ) ??
+          15,
+      recurrence: json['recurrence']?.toString() ?? 'لا يتكرر',
+      completed: json['completed'] == true,
     );
   }
 }
@@ -150,130 +125,187 @@ class Maw3idiApp extends StatefulWidget {
   const Maw3idiApp({super.key});
 
   @override
-  State<Maw3idiApp> createState() =>
-      _Maw3idiAppState();
+  State<Maw3idiApp> createState() => _Maw3idiAppState();
 }
 
-class _Maw3idiAppState
-    extends State<Maw3idiApp> {
+class _Maw3idiAppState extends State<Maw3idiApp> {
   bool darkMode = false;
+
+  @override
+  void initState() {
+    super.initState();
+    loadTheme();
+  }
+
+  Future<void> loadTheme() async {
+    final prefs = await SharedPreferences.getInstance();
+
+    setState(() {
+      darkMode = prefs.getBool('darkMode') ?? false;
+    });
+  }
+
+  Future<void> changeTheme(bool value) async {
+    final prefs = await SharedPreferences.getInstance();
+
+    await prefs.setBool('darkMode', value);
+
+    setState(() {
+      darkMode = value;
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       title: 'موعدي',
-      themeMode: darkMode
-          ? ThemeMode.dark
-          : ThemeMode.light,
+      themeMode: darkMode ? ThemeMode.dark : ThemeMode.light,
       theme: ThemeData(
         useMaterial3: true,
+        fontFamily: 'Arial',
         colorSchemeSeed: Colors.indigo,
         brightness: Brightness.light,
+        scaffoldBackgroundColor: const Color(0xfff5f7fb),
+        cardTheme: CardThemeData(
+          elevation: 0,
+          margin: const EdgeInsets.symmetric(
+            horizontal: 12,
+            vertical: 6,
+          ),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+        ),
+        inputDecorationTheme: InputDecorationTheme(
+          filled: true,
+          fillColor: Colors.white,
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(15),
+            borderSide: BorderSide.none,
+          ),
+        ),
       ),
       darkTheme: ThemeData(
         useMaterial3: true,
+        fontFamily: 'Arial',
         colorSchemeSeed: Colors.indigo,
         brightness: Brightness.dark,
+        cardTheme: CardThemeData(
+          elevation: 0,
+          margin: const EdgeInsets.symmetric(
+            horizontal: 12,
+            vertical: 6,
+          ),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+        ),
       ),
       home: HomePage(
-        onThemeChanged: () {
-          setState(() {
-            darkMode = !darkMode;
-          });
-        },
+        darkMode: darkMode,
+        onThemeChanged: changeTheme,
       ),
     );
   }
 }
 
 // ============================================================
-// HOME
+// HOME PAGE
 // ============================================================
 
 class HomePage extends StatefulWidget {
-  final VoidCallback onThemeChanged;
+  final bool darkMode;
+  final Future<void> Function(bool) onThemeChanged;
 
   const HomePage({
     super.key,
+    required this.darkMode,
     required this.onThemeChanged,
   });
 
   @override
-  State<HomePage> createState() =>
-      _HomePageState();
+  State<HomePage> createState() => _HomePageState();
 }
 
-class _HomePageState
-    extends State<HomePage> {
+class _HomePageState extends State<HomePage> {
   List<Appointment> appointments = [];
 
   String searchText = '';
   String selectedFilter = 'الكل';
 
+  int defaultReminder = 15;
+
   final List<String> appointmentTypes = [
+    'عام',
     'طبيب',
-    'مستشفى',
     'عمل',
     'دراسة',
-    'إدارة',
+    'اجتماع',
     'عائلي',
-    'عام',
+    'إداري',
+    'سفر',
+    'أخرى',
+  ];
+
+  final List<String> filters = [
+    'الكل',
+    'اليوم',
+    'القادمة',
+    'المكتملة',
+    'المتأخرة',
   ];
 
   @override
   void initState() {
     super.initState();
-    loadAppointments();
+    loadData();
   }
 
   // ==========================================================
   // STORAGE
   // ==========================================================
 
-  Future<void> loadAppointments() async {
-    final prefs =
-        await SharedPreferences.getInstance();
+  Future<void> loadData() async {
+    final prefs = await SharedPreferences.getInstance();
 
-    final saved =
-        prefs.getStringList('appointments') ??
-            [];
+    final data = prefs.getString('appointments');
 
-    setState(() {
-      appointments = saved
-          .map(
-            (item) =>
-                Appointment.deserialize(item),
-          )
-          .toList();
-    });
+    if (data != null && data.isNotEmpty) {
+      try {
+        final List decoded = jsonDecode(data);
+
+        appointments = decoded
+            .map(
+              (e) => Appointment.fromJson(
+                Map<String, dynamic>.from(e),
+              ),
+            )
+            .toList();
+      } catch (_) {
+        appointments = [];
+      }
+    }
+
+    defaultReminder = prefs.getInt('defaultReminder') ?? 15;
+
+    await refreshNotifications();
+
+    if (mounted) {
+      setState(() {});
+    }
   }
 
-  Future<void> saveAppointments() async {
-    final prefs =
-        await SharedPreferences.getInstance();
+  Future<void> saveData() async {
+    final prefs = await SharedPreferences.getInstance();
 
-    await prefs.setStringList(
+    final data = appointments
+        .map((appointment) => appointment.toJson())
+        .toList();
+
+    await prefs.setString(
       'appointments',
-      appointments
-          .map((item) => item.serialize())
-          .toList(),
-    );
-  }
-
-  // ==========================================================
-  // DATE
-  // ==========================================================
-
-  DateTime appointmentDateTime(
-    Appointment appointment,
-  ) {
-    return DateTime(
-      appointment.date.year,
-      appointment.date.month,
-      appointment.date.day,
-      appointment.time.hour,
-      appointment.time.minute,
+      jsonEncode(data),
     );
   }
 
@@ -281,640 +313,207 @@ class _HomePageState
   // NOTIFICATIONS
   // ==========================================================
 
-  Future<void> scheduleNotification(
-    Appointment appointment,
-  ) async {
-    await notificationsPlugin.cancel(
-      id: appointment.id.hashCode.abs(),
-    );
-
-    if (appointment.reminderMinutes < 0) {
-      return;
-    }
-
-    final appointmentDateTimeValue =
-        appointmentDateTime(appointment);
-
-    final scheduledDate =
-        tz.TZDateTime.from(
-      appointmentDateTimeValue,
-      tz.local,
-    ).subtract(
-      Duration(
-        minutes:
-            appointment.reminderMinutes,
-      ),
-    );
-
-    if (scheduledDate.isBefore(
-      tz.TZDateTime.now(tz.local),
-    )) {
-      return;
-    }
-
-    const notificationDetails =
-        NotificationDetails(
-      android:
-          AndroidNotificationDetails(
-        'maw3idi_reminders',
-        'تذكيرات موعدي',
-        channelDescription:
-            'تنبيهات المواعيد',
-        importance:
-            Importance.high,
-        priority:
-            Priority.high,
-      ),
-    );
-
-    await notificationsPlugin.zonedSchedule(
-      id: appointment.id.hashCode.abs(),
-      title: 'تذكير بموعدك 🔔',
-      body: appointment.title,
-      scheduledDate: scheduledDate,
-      notificationDetails:
-          notificationDetails,
-      androidScheduleMode:
-          AndroidScheduleMode
-              .inexactAllowWhileIdle,
-    );
+  int notificationId(Appointment appointment) {
+    return appointment.id.hashCode.abs();
   }
 
   Future<void> cancelNotification(
     Appointment appointment,
   ) async {
     await notificationsPlugin.cancel(
-      id: appointment.id.hashCode.abs(),
+      id: notificationId(appointment),
     );
   }
 
-  // ==========================================================
-  // ADD / EDIT
-  // ==========================================================
+  DateTime nextOccurrence(Appointment appointment) {
+    DateTime current = appointment.dateTime;
+    final now = DateTime.now();
 
-  Future<void> showAppointmentDialog({
-    Appointment? appointment,
-  }) async {
-    final titleController =
-        TextEditingController(
-      text: appointment?.title ?? '',
-    );
-
-    final personController =
-        TextEditingController(
-      text: appointment?.person ?? '',
-    );
-
-    final phoneController =
-        TextEditingController(
-      text: appointment?.phone ?? '',
-    );
-
-    final locationController =
-        TextEditingController(
-      text: appointment?.location ?? '',
-    );
-
-    final notesController =
-        TextEditingController(
-      text: appointment?.notes ?? '',
-    );
-
-    DateTime selectedDate =
-        appointment?.date ??
-            DateTime.now();
-
-    TimeOfDay selectedTime =
-        appointment?.time ??
-            TimeOfDay.now();
-
-    String selectedType =
-        appointment?.type ??
-            appointmentTypes.first;
-
-    int selectedReminder =
-        appointment?.reminderMinutes ?? 15;
-
-    final formKey =
-        GlobalKey<FormState>();
-
-    final result = await showDialog<bool>(
-      context: context,
-      builder: (context) {
-        return StatefulBuilder(
-          builder:
-              (context, setDialogState) {
-            return AlertDialog(
-              title: Text(
-                appointment == null
-                    ? 'إضافة موعد'
-                    : 'تعديل الموعد',
-              ),
-              content: SizedBox(
-                width: double.maxFinite,
-                child:
-                    SingleChildScrollView(
-                  child: Form(
-                    key: formKey,
-                    child: Column(
-                      children: [
-                        TextFormField(
-                          controller:
-                              titleController,
-                          decoration:
-                              const InputDecoration(
-                            labelText:
-                                'عنوان الموعد',
-                            prefixIcon:
-                                Icon(
-                              Icons.event,
-                            ),
-                          ),
-                          validator:
-                              (value) {
-                            if (value ==
-                                    null ||
-                                value
-                                    .trim()
-                                    .isEmpty) {
-                              return 'اكتب عنوان الموعد';
-                            }
-                            return null;
-                          },
-                        ),
-
-                        const SizedBox(
-                          height: 12,
-                        ),
-
-                        DropdownButtonFormField<
-                            String>(
-                          initialValue:
-                              selectedType,
-                          decoration:
-                              const InputDecoration(
-                            labelText:
-                                'نوع الموعد',
-                            prefixIcon:
-                                Icon(
-                              Icons.category,
-                            ),
-                          ),
-                          items:
-                              appointmentTypes
-                                  .map(
-                            (type) =>
-                                DropdownMenuItem(
-                              value: type,
-                              child:
-                                  Text(type),
-                            ),
-                          ).toList(),
-                          onChanged:
-                              (value) {
-                            if (value !=
-                                null) {
-                              setDialogState(
-                                () {
-                                  selectedType =
-                                      value;
-                                },
-                              );
-                            }
-                          },
-                        ),
-
-                        const SizedBox(
-                          height: 12,
-                        ),
-
-                        ListTile(
-                          leading:
-                              const Icon(
-                            Icons.calendar_month,
-                          ),
-                          title:
-                              const Text(
-                            'التاريخ',
-                          ),
-                          subtitle:
-                              Text(
-                            '${selectedDate.day}/'
-                            '${selectedDate.month}/'
-                            '${selectedDate.year}',
-                          ),
-                          onTap:
-                              () async {
-                            final picked =
-                                await showDatePicker(
-                              context:
-                                  context,
-                              initialDate:
-                                  selectedDate,
-                              firstDate:
-                                  DateTime(
-                                2020,
-                              ),
-                              lastDate:
-                                  DateTime(
-                                2100,
-                              ),
-                            );
-
-                            if (picked !=
-                                null) {
-                              setDialogState(
-                                () {
-                                  selectedDate =
-                                      picked;
-                                },
-                              );
-                            }
-                          },
-                        ),
-
-                        ListTile(
-                          leading:
-                              const Icon(
-                            Icons.access_time,
-                          ),
-                          title:
-                              const Text(
-                            'الساعة',
-                          ),
-                          subtitle:
-                              Text(
-                            selectedTime
-                                .format(
-                              context,
-                            ),
-                          ),
-                          onTap:
-                              () async {
-                            final picked =
-                                await showTimePicker(
-                              context:
-                                  context,
-                              initialTime:
-                                  selectedTime,
-                            );
-
-                            if (picked !=
-                                null) {
-                              setDialogState(
-                                () {
-                                  selectedTime =
-                                      picked;
-                                },
-                              );
-                            }
-                          },
-                        ),
-
-                        TextFormField(
-                          controller:
-                              personController,
-                          decoration:
-                              const InputDecoration(
-                            labelText:
-                                'الشخص',
-                            prefixIcon:
-                                Icon(
-                              Icons.person,
-                            ),
-                          ),
-                        ),
-
-                        const SizedBox(
-                          height: 12,
-                        ),
-
-                        TextFormField(
-                          controller:
-                              phoneController,
-                          keyboardType:
-                              TextInputType.phone,
-                          decoration:
-                              const InputDecoration(
-                            labelText:
-                                'رقم الهاتف',
-                            prefixIcon:
-                                Icon(
-                              Icons.phone,
-                            ),
-                          ),
-                        ),
-
-                        const SizedBox(
-                          height: 12,
-                        ),
-
-                        TextFormField(
-                          controller:
-                              locationController,
-                          decoration:
-                              const InputDecoration(
-                            labelText:
-                                'المكان',
-                            prefixIcon:
-                                Icon(
-                              Icons.location_on,
-                            ),
-                          ),
-                        ),
-
-                        const SizedBox(
-                          height: 12,
-                        ),
-
-                        TextFormField(
-                          controller:
-                              notesController,
-                          maxLines: 3,
-                          decoration:
-                              const InputDecoration(
-                            labelText:
-                                'ملاحظات',
-                            prefixIcon:
-                                Icon(
-                              Icons.notes,
-                            ),
-                          ),
-                        ),
-
-                        const SizedBox(
-                          height: 12,
-                        ),
-
-                        DropdownButtonFormField<
-                            int>(
-                          initialValue:
-                              selectedReminder,
-                          decoration:
-                              const InputDecoration(
-                            labelText:
-                                'التذكير',
-                            prefixIcon:
-                                Icon(
-                              Icons.notifications,
-                            ),
-                          ),
-                          items: const [
-                            DropdownMenuItem(
-                              value: -1,
-                              child: Text(
-                                'بدون تذكير',
-                              ),
-                            ),
-                            DropdownMenuItem(
-                              value: 0,
-                              child: Text(
-                                'وقت الموعد',
-                              ),
-                            ),
-                            DropdownMenuItem(
-                              value: 5,
-                              child: Text(
-                                'قبل 5 دقائق',
-                              ),
-                            ),
-                            DropdownMenuItem(
-                              value: 15,
-                              child: Text(
-                                'قبل 15 دقيقة',
-                              ),
-                            ),
-                            DropdownMenuItem(
-                              value: 30,
-                              child: Text(
-                                'قبل 30 دقيقة',
-                              ),
-                            ),
-                            DropdownMenuItem(
-                              value: 60,
-                              child: Text(
-                                'قبل ساعة',
-                              ),
-                            ),
-                            DropdownMenuItem(
-                              value: 1440,
-                              child: Text(
-                                'قبل يوم',
-                              ),
-                            ),
-                          ],
-                          onChanged:
-                              (value) {
-                            if (value !=
-                                null) {
-                              setDialogState(
-                                () {
-                                  selectedReminder =
-                                      value;
-                                },
-                              );
-                            }
-                          },
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () {
-                    Navigator.pop(
-                      context,
-                      false,
-                    );
-                  },
-                  child:
-                      const Text('إلغاء'),
-                ),
-                ElevatedButton(
-                  onPressed: () {
-                    if (formKey
-                        .currentState!
-                        .validate()) {
-                      Navigator.pop(
-                        context,
-                        true,
-                      );
-                    }
-                  },
-                  child: Text(
-                    appointment == null
-                        ? 'إضافة'
-                        : 'حفظ',
-                  ),
-                ),
-              ],
-            );
-          },
-        );
-      },
-    );
-
-    if (result != true) return;
-
-    final newAppointment =
-        Appointment(
-      id: appointment?.id ??
-          DateTime.now()
-              .microsecondsSinceEpoch
-              .toString(),
-      title:
-          titleController.text.trim(),
-      date: selectedDate,
-      time: selectedTime,
-      type: selectedType,
-      person:
-          personController.text.trim(),
-      phone:
-          phoneController.text.trim(),
-      location:
-          locationController.text.trim(),
-      notes:
-          notesController.text.trim(),
-      reminderMinutes:
-          selectedReminder,
-      completed:
-          appointment?.completed ??
-              false,
-    );
-
-    setState(() {
-      if (appointment == null) {
-        appointments.add(
-          newAppointment,
-        );
-      } else {
-        final index =
-            appointments.indexWhere(
-          (item) =>
-              item.id ==
-              appointment.id,
-        );
-
-        if (index != -1) {
-          appointments[index] =
-              newAppointment;
-        }
+    if (appointment.recurrence == 'يومياً') {
+      while (!current.isAfter(now)) {
+        current = current.add(const Duration(days: 1));
       }
-    });
+    } else if (appointment.recurrence == 'أسبوعياً') {
+      while (!current.isAfter(now)) {
+        current = current.add(const Duration(days: 7));
+      }
+    } else if (appointment.recurrence == 'شهرياً') {
+      while (!current.isAfter(now)) {
+        int month = current.month + 1;
+        int year = current.year;
 
-    await saveAppointments();
-    await scheduleNotification(
-      newAppointment,
-    );
+        if (month > 12) {
+          month = 1;
+          year++;
+        }
 
-    if (!mounted) return;
+        int lastDay = DateTime(year, month + 1, 0).day;
 
-    ScaffoldMessenger.of(context)
-        .showSnackBar(
-      SnackBar(
-        content: Text(
-          appointment == null
-              ? 'تمت إضافة الموعد ✅'
-              : 'تم تعديل الموعد ✅',
-        ),
-      ),
-    );
+        current = DateTime(
+          year,
+          month,
+          current.day > lastDay ? lastDay : current.day,
+          current.hour,
+          current.minute,
+        );
+      }
+    }
+
+    return current;
   }
 
-  // ==========================================================
-  // DELETE
-  // ==========================================================
-
-  Future<void> deleteAppointment(
+  Future<void> scheduleNotification(
     Appointment appointment,
   ) async {
-    final confirmed =
-        await showDialog<bool>(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          title:
-              const Text('حذف الموعد'),
-          content: Text(
-            'هل تريد حذف "${appointment.title}"؟',
-          ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.pop(
-                  context,
-                  false,
-                );
-              },
-              child:
-                  const Text('إلغاء'),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                Navigator.pop(
-                  context,
-                  true,
-                );
-              },
-              child:
-                  const Text('حذف'),
-            ),
-          ],
-        );
-      },
+    await cancelNotification(appointment);
+
+    if (appointment.completed) return;
+
+    if (appointment.reminderMinutes < 0) return;
+
+    DateTime date = appointment.dateTime;
+
+    if (appointment.recurrence != 'لا يتكرر') {
+      date = nextOccurrence(appointment);
+    }
+
+    final scheduledDate = date.subtract(
+      Duration(
+        minutes: appointment.reminderMinutes,
+      ),
     );
 
-    if (confirmed != true) {
+    if (scheduledDate.isBefore(DateTime.now())) {
       return;
     }
 
-    await cancelNotification(
-      appointment,
+    final tzDate = tz.TZDateTime.from(
+      scheduledDate,
+      tz.local,
     );
 
-    setState(() {
-      appointments.remove(
-        appointment,
-      );
-    });
-
-    await saveAppointments();
-
-    if (!mounted) return;
-
-    ScaffoldMessenger.of(context)
-        .showSnackBar(
-      const SnackBar(
-        content:
-            Text('تم حذف الموعد'),
+    const notificationDetails = NotificationDetails(
+      android: AndroidNotificationDetails(
+        'maw3idi_reminders',
+        'تذكيرات موعدي',
+        channelDescription: 'تذكيرات المواعيد',
+        importance: Importance.high,
+        priority: Priority.high,
       ),
+    );
+
+    await notificationsPlugin.zonedSchedule(
+      id: notificationId(appointment),
+      title: 'تذكير بموعدك 🔔',
+      body: appointment.title,
+      scheduledDate: tzDate,
+      notificationDetails: notificationDetails,
+      androidScheduleMode:
+          AndroidScheduleMode.inexactAllowWhileIdle,
     );
   }
 
+  Future<void> refreshNotifications() async {
+    for (final appointment in appointments) {
+      await scheduleNotification(appointment);
+    }
+  }
+
   // ==========================================================
-  // COMPLETE
+  // HELPERS
   // ==========================================================
 
-  Future<void> toggleCompleted(
-    Appointment appointment,
-  ) async {
-    setState(() {
-      appointment.completed =
-          !appointment.completed;
-    });
+  bool sameDay(DateTime a, DateTime b) {
+    return a.year == b.year &&
+        a.month == b.month &&
+        a.day == b.day;
+  }
 
-    await saveAppointments();
+  bool isToday(Appointment a) {
+    return sameDay(a.dateTime, DateTime.now());
+  }
 
-    if (appointment.completed) {
-      await cancelNotification(
-        appointment,
-      );
-    } else {
-      await scheduleNotification(
-        appointment,
-      );
+  bool isOverdue(Appointment a) {
+    return a.dateTime.isBefore(DateTime.now()) &&
+        !a.completed;
+  }
+
+  String formatDate(DateTime date) {
+    return '${date.day.toString().padLeft(2, '0')}/'
+        '${date.month.toString().padLeft(2, '0')}/'
+        '${date.year}';
+  }
+
+  String formatTime(DateTime date) {
+    return '${date.hour.toString().padLeft(2, '0')}:'
+        '${date.minute.toString().padLeft(2, '0')}';
+  }
+
+  String weekday(DateTime date) {
+    const days = [
+      'الاثنين',
+      'الثلاثاء',
+      'الأربعاء',
+      'الخميس',
+      'الجمعة',
+      'السبت',
+      'الأحد',
+    ];
+
+    return days[date.weekday - 1];
+  }
+
+  String reminderText(int minutes) {
+    if (minutes < 0) return 'بدون تذكير';
+    if (minutes == 0) return 'وقت الموعد';
+    if (minutes == 60) return 'قبل ساعة';
+    if (minutes == 1440) return 'قبل يوم';
+    return 'قبل $minutes دقيقة';
+  }
+
+  String recurrenceText(String value) {
+    return value;
+  }
+
+  IconData typeIcon(String type) {
+    switch (type) {
+      case 'طبيب':
+        return Icons.medical_services_rounded;
+      case 'عمل':
+        return Icons.work_rounded;
+      case 'دراسة':
+        return Icons.school_rounded;
+      case 'اجتماع':
+        return Icons.groups_rounded;
+      case 'عائلي':
+        return Icons.family_restroom_rounded;
+      case 'إداري':
+        return Icons.account_balance_rounded;
+      case 'سفر':
+        return Icons.flight_rounded;
+      default:
+        return Icons.event_rounded;
+    }
+  }
+
+  Color typeColor(String type) {
+    switch (type) {
+      case 'طبيب':
+        return Colors.red;
+      case 'عمل':
+        return Colors.blue;
+      case 'دراسة':
+        return Colors.orange;
+      case 'اجتماع':
+        return Colors.purple;
+      case 'عائلي':
+        return Colors.pink;
+      case 'إداري':
+        return Colors.teal;
+      case 'سفر':
+        return Colors.indigo;
+      default:
+        return Colors.green;
     }
   }
 
@@ -922,46 +521,39 @@ class _HomePageState
   // FILTER
   // ==========================================================
 
-  List<Appointment>
-      get filteredAppointments {
-    final query =
-        searchText.toLowerCase();
+  List<Appointment> get filteredAppointments {
+    List<Appointment> result = List.from(appointments);
 
-    final result =
-        appointments.where(
-      (appointment) {
-        final matchesSearch =
-            appointment.title
-                    .toLowerCase()
-                    .contains(query) ||
-                appointment.person
-                    .toLowerCase()
-                    .contains(query) ||
-                appointment.location
-                    .toLowerCase()
-                    .contains(query) ||
-                appointment.type
-                    .toLowerCase()
-                    .contains(query);
+    if (searchText.trim().isNotEmpty) {
+      final query = searchText.toLowerCase();
 
-        final matchesFilter =
-            selectedFilter ==
-                    'الكل' ||
-                appointment.type ==
-                    selectedFilter;
+      result = result.where((appointment) {
+        return appointment.title.toLowerCase().contains(query) ||
+            appointment.person.toLowerCase().contains(query) ||
+            appointment.location.toLowerCase().contains(query) ||
+            appointment.type.toLowerCase().contains(query) ||
+            appointment.notes.toLowerCase().contains(query);
+      }).toList();
+    }
 
-        return matchesSearch &&
-            matchesFilter;
-      },
-    ).toList();
+    if (selectedFilter == 'اليوم') {
+      result = result.where(isToday).toList();
+    } else if (selectedFilter == 'القادمة') {
+      result = result
+          .where(
+            (a) =>
+                a.dateTime.isAfter(DateTime.now()) &&
+                !a.completed,
+          )
+          .toList();
+    } else if (selectedFilter == 'المكتملة') {
+      result = result.where((a) => a.completed).toList();
+    } else if (selectedFilter == 'المتأخرة') {
+      result = result.where(isOverdue).toList();
+    }
 
     result.sort(
-      (a, b) {
-        return appointmentDateTime(a)
-            .compareTo(
-          appointmentDateTime(b),
-        );
-      },
+      (a, b) => a.dateTime.compareTo(b.dateTime),
     );
 
     return result;
@@ -972,460 +564,763 @@ class _HomePageState
   // ==========================================================
 
   int get todayCount {
-    final now =
-        DateTime.now();
-
-    return appointments.where(
-      (appointment) {
-        return appointment.date.year ==
-                now.year &&
-            appointment.date.month ==
-                now.month &&
-            appointment.date.day ==
-                now.day;
-      },
-    ).length;
+    return appointments.where(isToday).length;
   }
 
   int get completedCount {
-    return appointments
-        .where(
-          (appointment) =>
-              appointment.completed,
-        )
-        .length;
+    return appointments.where((a) => a.completed).length;
   }
 
   int get reminderCount {
     return appointments
         .where(
-          (appointment) =>
-              appointment
-                  .reminderMinutes >=
-              0,
+          (a) =>
+              !a.completed &&
+              a.reminderMinutes >= 0,
         )
         .length;
   }
 
-  Appointment?
-      get nextAppointment {
-    final now =
-        DateTime.now();
+  int get overdueCount {
+    return appointments.where(isOverdue).length;
+  }
 
-    final upcoming =
-        appointments.where(
-      (appointment) {
-        return !appointment.completed &&
-            appointmentDateTime(
-              appointment,
-            ).isAfter(now);
-      },
-    ).toList();
+  Appointment? get nextAppointment {
+    final list = appointments
+        .where(
+          (a) =>
+              !a.completed &&
+              a.dateTime.isAfter(DateTime.now()),
+        )
+        .toList();
 
-    upcoming.sort(
-      (a, b) =>
-          appointmentDateTime(a)
-              .compareTo(
-            appointmentDateTime(b),
-          ),
+    list.sort(
+      (a, b) => a.dateTime.compareTo(b.dateTime),
     );
 
-    if (upcoming.isEmpty) {
-      return null;
-    }
-
-    return upcoming.first;
+    return list.isEmpty ? null : list.first;
   }
 
   // ==========================================================
-  // STATISTICS DIALOG
+  // ADD / EDIT
   // ==========================================================
 
-  Future<void> showStatistics() async {
-    await showDialog(
+  Future<void> showAppointmentDialog({
+    Appointment? appointment,
+  }) async {
+    final titleController = TextEditingController(
+      text: appointment?.title ?? '',
+    );
+
+    final personController = TextEditingController(
+      text: appointment?.person ?? '',
+    );
+
+    final phoneController = TextEditingController(
+      text: appointment?.phone ?? '',
+    );
+
+    final locationController = TextEditingController(
+      text: appointment?.location ?? '',
+    );
+
+    final notesController = TextEditingController(
+      text: appointment?.notes ?? '',
+    );
+
+    DateTime selectedDate =
+        appointment?.dateTime ?? DateTime.now();
+
+    TimeOfDay selectedTime = TimeOfDay(
+      hour: appointment?.dateTime.hour ??
+          TimeOfDay.now().hour,
+      minute: appointment?.dateTime.minute ??
+          TimeOfDay.now().minute,
+    );
+
+    String selectedType =
+        appointment?.type ?? 'عام';
+
+    int selectedReminder =
+        appointment?.reminderMinutes ?? defaultReminder;
+
+    String selectedRecurrence =
+        appointment?.recurrence ?? 'لا يتكرر';
+
+    final formKey = GlobalKey<FormState>();
+
+    await showModalBottomSheet(
       context: context,
-      builder: (context) {
-        return AlertDialog(
-          title:
-              const Text(
-            'إحصائيات موعدي',
-          ),
-          content: Column(
-            mainAxisSize:
-                MainAxisSize.min,
-            children: [
-              _statRow(
-                Icons.event,
-                'كل المواعيد',
-                appointments.length
-                    .toString(),
-              ),
-              _statRow(
-                Icons.today,
-                'مواعيد اليوم',
-                todayCount.toString(),
-              ),
-              _statRow(
-                Icons.check_circle,
-                'المكتملة',
-                completedCount
-                    .toString(),
-              ),
-              _statRow(
-                Icons
-                    .notifications_active,
-                'التنبيهات',
-                reminderCount
-                    .toString(),
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.pop(
-                  context,
-                );
-              },
-              child:
-                  const Text('إغلاق'),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
-  Widget _statRow(
-    IconData icon,
-    String title,
-    String value,
-  ) {
-    return ListTile(
-      leading: Icon(icon),
-      title: Text(title),
-      trailing: Text(
-        value,
-        style:
-            const TextStyle(
-          fontSize: 20,
-          fontWeight:
-              FontWeight.bold,
+      isScrollControlled: true,
+      backgroundColor: Theme.of(context)
+          .scaffoldBackgroundColor,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(
+          top: Radius.circular(28),
         ),
       ),
-    );
-  }
-
-  // ==========================================================
-  // CALENDAR
-  // ==========================================================
-
-  Future<void> showCalendar() async {
-    DateTime selectedDate =
-        DateTime.now();
-
-    await showDialog(
-      context: context,
-      builder: (context) {
+      builder: (sheetContext) {
         return StatefulBuilder(
-          builder:
-              (context, setDialogState) {
-            final dayAppointments =
-                appointments.where(
-              (appointment) {
-                return appointment.date
-                            .year ==
-                        selectedDate.year &&
-                    appointment.date
-                            .month ==
-                        selectedDate.month &&
-                    appointment.date
-                            .day ==
-                        selectedDate.day;
-              },
-            ).toList();
-
-            return AlertDialog(
-              title:
-                  const Text(
-                '📅 التقويم',
+          builder: (context, setModalState) {
+            return Padding(
+              padding: EdgeInsets.only(
+                left: 18,
+                right: 18,
+                top: 20,
+                bottom: MediaQuery.of(context)
+                        .viewInsets
+                        .bottom +
+                    20,
               ),
-              content: SizedBox(
-                width:
-                    double.maxFinite,
-                child:
-                    SingleChildScrollView(
+              child: SingleChildScrollView(
+                child: Form(
+                  key: formKey,
                   child: Column(
-                    mainAxisSize:
-                        MainAxisSize.min,
+                    crossAxisAlignment:
+                        CrossAxisAlignment.stretch,
                     children: [
-                      CalendarDatePicker(
-                        initialDate:
-                            selectedDate,
-                        firstDate:
-                            DateTime(
-                          2020,
+                      Center(
+                        child: Container(
+                          width: 45,
+                          height: 5,
+                          decoration: BoxDecoration(
+                            color: Colors.grey.shade400,
+                            borderRadius:
+                                BorderRadius.circular(10),
+                          ),
                         ),
-                        lastDate:
-                            DateTime(
-                          2100,
+                      ),
+                      const SizedBox(height: 18),
+
+                      Text(
+                        appointment == null
+                            ? 'إضافة موعد جديد'
+                            : 'تعديل الموعد',
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(
+                          fontSize: 23,
+                          fontWeight: FontWeight.bold,
                         ),
-                        onDateChanged:
-                            (date) {
-                          setDialogState(
-                            () {
-                              selectedDate =
-                                  date;
-                            },
+                      ),
+
+                      const SizedBox(height: 20),
+
+                      TextFormField(
+                        controller: titleController,
+                        textDirection: TextDirection.rtl,
+                        decoration:
+                            const InputDecoration(
+                          labelText: 'عنوان الموعد *',
+                          prefixIcon:
+                              Icon(Icons.title_rounded),
+                        ),
+                        validator: (value) {
+                          if (value == null ||
+                              value.trim().isEmpty) {
+                            return 'أدخل عنوان الموعد';
+                          }
+                          return null;
+                        },
+                      ),
+
+                      const SizedBox(height: 12),
+
+                      DropdownButtonFormField<String>(
+                        initialValue: selectedType,
+                        decoration:
+                            const InputDecoration(
+                          labelText: 'نوع الموعد',
+                          prefixIcon:
+                              Icon(Icons.category_rounded),
+                        ),
+                        items: appointmentTypes
+                            .map(
+                              (type) =>
+                                  DropdownMenuItem(
+                                value: type,
+                                child: Text(type),
+                              ),
+                            )
+                            .toList(),
+                        onChanged: (value) {
+                          if (value == null) return;
+                          setModalState(() {
+                            selectedType = value;
+                          });
+                        },
+                      ),
+
+                      const SizedBox(height: 12),
+
+                      Row(
+                        children: [
+                          Expanded(
+                            child: OutlinedButton.icon(
+                              icon: const Icon(
+                                Icons.calendar_month_rounded,
+                              ),
+                              label: Text(
+                                formatDate(selectedDate),
+                              ),
+                              onPressed: () async {
+                                final picked =
+                                    await showDatePicker(
+                                  context: context,
+                                  initialDate: selectedDate,
+                                  firstDate:
+                                      DateTime(2020),
+                                  lastDate:
+                                      DateTime(2100),
+                                );
+
+                                if (picked != null) {
+                                  setModalState(() {
+                                    selectedDate = DateTime(
+                                      picked.year,
+                                      picked.month,
+                                      picked.day,
+                                    );
+                                  });
+                                }
+                              },
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: OutlinedButton.icon(
+                              icon: const Icon(
+                                Icons.access_time_rounded,
+                              ),
+                              label: Text(
+                                selectedTime.format(context),
+                              ),
+                              onPressed: () async {
+                                final picked =
+                                    await showTimePicker(
+                                  context: context,
+                                  initialTime: selectedTime,
+                                );
+
+                                if (picked != null) {
+                                  setModalState(() {
+                                    selectedTime = picked;
+                                  });
+                                }
+                              },
+                            ),
+                          ),
+                        ],
+                      ),
+
+                      const SizedBox(height: 12),
+
+                      TextFormField(
+                        controller: personController,
+                        textDirection: TextDirection.rtl,
+                        decoration:
+                            const InputDecoration(
+                          labelText: 'الشخص / الجهة',
+                          prefixIcon:
+                              Icon(Icons.person_rounded),
+                        ),
+                      ),
+
+                      const SizedBox(height: 12),
+
+                      TextFormField(
+                        controller: phoneController,
+                        keyboardType: TextInputType.phone,
+                        decoration:
+                            const InputDecoration(
+                          labelText: 'رقم الهاتف',
+                          prefixIcon:
+                              Icon(Icons.phone_rounded),
+                        ),
+                      ),
+
+                      const SizedBox(height: 12),
+
+                      TextFormField(
+                        controller: locationController,
+                        textDirection: TextDirection.rtl,
+                        decoration:
+                            const InputDecoration(
+                          labelText: 'المكان',
+                          prefixIcon:
+                              Icon(Icons.location_on_rounded),
+                        ),
+                      ),
+
+                      const SizedBox(height: 12),
+
+                      TextFormField(
+                        controller: notesController,
+                        maxLines: 3,
+                        textDirection: TextDirection.rtl,
+                        decoration:
+                            const InputDecoration(
+                          labelText: 'ملاحظات',
+                          alignLabelWithHint: true,
+                          prefixIcon:
+                              Icon(Icons.notes_rounded),
+                        ),
+                      ),
+
+                      const SizedBox(height: 12),
+
+                      DropdownButtonFormField<int>(
+                        initialValue: selectedReminder,
+                        decoration:
+                            const InputDecoration(
+                          labelText: 'التذكير',
+                          prefixIcon:
+                              Icon(Icons.notifications_active_rounded),
+                        ),
+                        items: const [
+                          DropdownMenuItem(
+                            value: -1,
+                            child: Text('بدون تذكير'),
+                          ),
+                          DropdownMenuItem(
+                            value: 0,
+                            child: Text('وقت الموعد'),
+                          ),
+                          DropdownMenuItem(
+                            value: 5,
+                            child: Text('قبل 5 دقائق'),
+                          ),
+                          DropdownMenuItem(
+                            value: 15,
+                            child: Text('قبل 15 دقيقة'),
+                          ),
+                          DropdownMenuItem(
+                            value: 30,
+                            child: Text('قبل 30 دقيقة'),
+                          ),
+                          DropdownMenuItem(
+                            value: 60,
+                            child: Text('قبل ساعة'),
+                          ),
+                          DropdownMenuItem(
+                            value: 1440,
+                            child: Text('قبل يوم'),
+                          ),
+                        ],
+                        onChanged: (value) {
+                          if (value == null) return;
+                          setModalState(() {
+                            selectedReminder = value;
+                          });
+                        },
+                      ),
+
+                      const SizedBox(height: 12),
+
+                      DropdownButtonFormField<String>(
+                        initialValue: selectedRecurrence,
+                        decoration:
+                            const InputDecoration(
+                          labelText: 'التكرار',
+                          prefixIcon:
+                              Icon(Icons.repeat_rounded),
+                        ),
+                        items: const [
+                          DropdownMenuItem(
+                            value: 'لا يتكرر',
+                            child: Text('لا يتكرر'),
+                          ),
+                          DropdownMenuItem(
+                            value: 'يومياً',
+                            child: Text('يومياً'),
+                          ),
+                          DropdownMenuItem(
+                            value: 'أسبوعياً',
+                            child: Text('أسبوعياً'),
+                          ),
+                          DropdownMenuItem(
+                            value: 'شهرياً',
+                            child: Text('شهرياً'),
+                          ),
+                        ],
+                        onChanged: (value) {
+                          if (value == null) return;
+                          setModalState(() {
+                            selectedRecurrence = value;
+                          });
+                        },
+                      ),
+
+                      const SizedBox(height: 22),
+
+                      FilledButton.icon(
+                        icon: const Icon(
+                          Icons.save_rounded,
+                        ),
+                        label: Text(
+                          appointment == null
+                              ? 'حفظ الموعد'
+                              : 'حفظ التعديلات',
+                        ),
+                        style: FilledButton.styleFrom(
+                          minimumSize:
+                              const Size.fromHeight(55),
+                          shape: RoundedRectangleBorder(
+                            borderRadius:
+                                BorderRadius.circular(16),
+                          ),
+                        ),
+                        onPressed: () async {
+                          if (!formKey.currentState!
+                              .validate()) {
+                            return;
+                          }
+
+                          final dateTime = DateTime(
+                            selectedDate.year,
+                            selectedDate.month,
+                            selectedDate.day,
+                            selectedTime.hour,
+                            selectedTime.minute,
+                          );
+
+                          if (appointment == null) {
+                            final newAppointment =
+                                Appointment(
+                              id: DateTime.now()
+                                  .microsecondsSinceEpoch
+                                  .toString(),
+                              title:
+                                  titleController.text.trim(),
+                              dateTime: dateTime,
+                              type: selectedType,
+                              person:
+                                  personController.text.trim(),
+                              phone:
+                                  phoneController.text.trim(),
+                              location:
+                                  locationController.text.trim(),
+                              notes:
+                                  notesController.text.trim(),
+                              reminderMinutes:
+                                  selectedReminder,
+                              recurrence:
+                                  selectedRecurrence,
+                            );
+
+                            appointments
+                                .add(newAppointment);
+
+                            await saveData();
+
+                            await scheduleNotification(
+                              newAppointment,
+                            );
+                          } else {
+                            await cancelNotification(
+                              appointment,
+                            );
+
+                            appointment.title =
+                                titleController.text.trim();
+
+                            appointment.dateTime = dateTime;
+                            appointment.type =
+                                selectedType;
+
+                            appointment.person =
+                                personController.text.trim();
+
+                            appointment.phone =
+                                phoneController.text.trim();
+
+                            appointment.location =
+                                locationController.text.trim();
+
+                            appointment.notes =
+                                notesController.text.trim();
+
+                            appointment.reminderMinutes =
+                                selectedReminder;
+
+                            appointment.recurrence =
+                                selectedRecurrence;
+
+                            await saveData();
+
+                            await scheduleNotification(
+                              appointment,
+                            );
+                          }
+
+                          if (mounted) {
+                            setState(() {});
+                          }
+
+                          Navigator.pop(sheetContext);
+
+                          ScaffoldMessenger.of(context)
+                              .showSnackBar(
+                            SnackBar(
+                              content: Text(
+                                appointment == null
+                                    ? 'تمت إضافة الموعد بنجاح ✅'
+                                    : 'تم تعديل الموعد بنجاح ✅',
+                              ),
+                            ),
                           );
                         },
                       ),
-                      const Divider(),
-                      if (dayAppointments
-                          .isEmpty)
-                        const Padding(
-                          padding:
-                              EdgeInsets.all(
-                            16,
-                          ),
-                          child:
-                              Text(
-                            'ماكانش مواعيد في هذا اليوم',
-                          ),
-                        )
-                      else
-                        ...dayAppointments
-                            .map(
-                          (appointment) =>
-                              ListTile(
-                            leading:
-                                Icon(
-                              appointment
-                                      .completed
-                                  ? Icons
-                                      .check_circle
-                                  : Icons.event,
-                            ),
-                            title:
-                                Text(
-                              appointment
-                                  .title,
-                            ),
-                            subtitle:
-                                Text(
-                              '${appointment.time.hour.toString().padLeft(2, '0')}:'
-                              '${appointment.time.minute.toString().padLeft(2, '0')}'
-                              ' • ${appointment.type}',
-                            ),
-                            onTap:
-                                () {
-                              Navigator.pop(
-                                context,
-                              );
-
-                              showAppointmentDetails(
-                                appointment,
-                              );
-                            },
-                          ),
-                        ),
                     ],
                   ),
                 ),
               ),
-              actions: [
-                TextButton(
-                  onPressed: () {
-                    Navigator.pop(
-                      context,
-                    );
-                  },
-                  child:
-                      const Text('إغلاق'),
-                ),
-              ],
             );
           },
         );
       },
     );
+
+    titleController.dispose();
+    personController.dispose();
+    phoneController.dispose();
+    locationController.dispose();
+    notesController.dispose();
+  }
+
+  // ==========================================================
+  // DELETE
+  // ==========================================================
+
+  Future<void> deleteAppointment(
+    Appointment appointment,
+  ) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('حذف الموعد'),
+          content: const Text(
+            'هل أنت متأكد أنك تريد حذف هذا الموعد؟',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () =>
+                  Navigator.pop(context, false),
+              child: const Text('إلغاء'),
+            ),
+            FilledButton(
+              onPressed: () =>
+                  Navigator.pop(context, true),
+              child: const Text('حذف'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (confirm != true) return;
+
+    await cancelNotification(appointment);
+
+    appointments.removeWhere(
+      (a) => a.id == appointment.id,
+    );
+
+    await saveData();
+
+    setState(() {});
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('تم حذف الموعد'),
+        ),
+      );
+    }
+  }
+
+  // ==========================================================
+  // COMPLETE
+  // ==========================================================
+
+  Future<void> toggleCompleted(
+    Appointment appointment,
+  ) async {
+    appointment.completed =
+        !appointment.completed;
+
+    if (appointment.completed) {
+      await cancelNotification(appointment);
+    } else {
+      await scheduleNotification(appointment);
+    }
+
+    await saveData();
+
+    setState(() {});
   }
 
   // ==========================================================
   // DETAILS
   // ==========================================================
 
-  Future<void>
-      showAppointmentDetails(
+  void showAppointmentDetails(
     Appointment appointment,
-  ) async {
-    await showModalBottomSheet(
+  ) {
+    showModalBottomSheet(
       context: context,
-      showDragHandle: true,
       isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(
+          top: Radius.circular(28),
+        ),
+      ),
       builder: (context) {
         return SafeArea(
           child: Padding(
-            padding:
-                const EdgeInsets.all(
-              20,
-            ),
-            child:
-                SingleChildScrollView(
+            padding: const EdgeInsets.all(22),
+            child: SingleChildScrollView(
               child: Column(
                 crossAxisAlignment:
-                    CrossAxisAlignment
-                        .start,
+                    CrossAxisAlignment.stretch,
                 children: [
-                  Text(
-                    appointment.title,
-                    style:
-                        const TextStyle(
-                      fontSize: 25,
-                      fontWeight:
-                          FontWeight.bold,
+                  Center(
+                    child: Container(
+                      width: 45,
+                      height: 5,
+                      decoration: BoxDecoration(
+                        color: Colors.grey,
+                        borderRadius:
+                            BorderRadius.circular(10),
+                      ),
                     ),
                   ),
 
-                  const SizedBox(
-                    height: 18,
+                  const SizedBox(height: 20),
+
+                  CircleAvatar(
+                    radius: 34,
+                    backgroundColor:
+                        typeColor(appointment.type)
+                            .withOpacity(.15),
+                    child: Icon(
+                      typeIcon(appointment.type),
+                      size: 34,
+                      color: typeColor(
+                        appointment.type,
+                      ),
+                    ),
+                  ),
+
+                  const SizedBox(height: 14),
+
+                  Text(
+                    appointment.title,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      fontSize: 25,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+
+                  const SizedBox(height: 20),
+
+                  _detailRow(
+                    Icons.calendar_month_rounded,
+                    'التاريخ',
+                    formatDate(
+                      appointment.dateTime,
+                    ),
                   ),
 
                   _detailRow(
-                    Icons.category,
+                    Icons.access_time_rounded,
+                    'الوقت',
+                    formatTime(
+                      appointment.dateTime,
+                    ),
+                  ),
+
+                  _detailRow(
+                    Icons.category_rounded,
                     'النوع',
                     appointment.type,
                   ),
 
-                  _detailRow(
-                    Icons.calendar_month,
-                    'التاريخ',
-                    '${appointment.date.day}/'
-                    '${appointment.date.month}/'
-                    '${appointment.date.year}',
-                  ),
-
-                  _detailRow(
-                    Icons.access_time,
-                    'الوقت',
-                    appointment.time
-                        .format(
-                      context,
-                    ),
-                  ),
-
-                  if (appointment.person
-                      .isNotEmpty)
+                  if (appointment.person.isNotEmpty)
                     _detailRow(
-                      Icons.person,
-                      'الشخص',
+                      Icons.person_rounded,
+                      'الشخص / الجهة',
                       appointment.person,
                     ),
 
-                  if (appointment.phone
-                      .isNotEmpty)
+                  if (appointment.phone.isNotEmpty)
                     _detailRow(
-                      Icons.phone,
+                      Icons.phone_rounded,
                       'الهاتف',
                       appointment.phone,
                     ),
 
-                  if (appointment.location
-                      .isNotEmpty)
+                  if (appointment.location.isNotEmpty)
                     _detailRow(
-                      Icons.location_on,
+                      Icons.location_on_rounded,
                       'المكان',
                       appointment.location,
                     ),
 
-                  if (appointment.notes
-                      .isNotEmpty)
+                  _detailRow(
+                    Icons.notifications_rounded,
+                    'التذكير',
+                    reminderText(
+                      appointment.reminderMinutes,
+                    ),
+                  ),
+
+                  _detailRow(
+                    Icons.repeat_rounded,
+                    'التكرار',
+                    appointment.recurrence,
+                  ),
+
+                  if (appointment.notes.isNotEmpty)
                     _detailRow(
-                      Icons.notes,
-                      'ملاحظات',
+                      Icons.notes_rounded,
+                      'الملاحظات',
                       appointment.notes,
                     ),
 
-                  _detailRow(
-                    Icons.notifications,
-                    'التذكير',
-                    reminderText(
-                      appointment
-                          .reminderMinutes,
+                  const SizedBox(height: 15),
+
+                  FilledButton.icon(
+                    icon: const Icon(
+                      Icons.edit_rounded,
                     ),
+                    label: const Text(
+                      'تعديل الموعد',
+                    ),
+                    onPressed: () {
+                      Navigator.pop(context);
+                      showAppointmentDialog(
+                        appointment: appointment,
+                      );
+                    },
                   ),
 
-                  _detailRow(
-                    Icons.check_circle,
-                    'الحالة',
-                    appointment.completed
-                        ? 'مكتمل'
-                        : 'غير مكتمل',
-                  ),
+                  const SizedBox(height: 8),
 
-                  const SizedBox(
-                    height: 15,
-                  ),
-
-                  Row(
-                    children: [
-                      Expanded(
-                        child:
-                            OutlinedButton
-                                .icon(
-                          onPressed:
-                              () {
-                            Navigator.pop(
-                              context,
-                            );
-
-                            showAppointmentDialog(
-                              appointment:
-                                  appointment,
-                            );
-                          },
-                          icon:
-                              const Icon(
-                            Icons.edit,
-                          ),
-                          label:
-                              const Text(
-                            'تعديل',
-                          ),
-                        ),
-                      ),
-                      const SizedBox(
-                        width: 10,
-                      ),
-                      Expanded(
-                        child:
-                            ElevatedButton
-                                .icon(
-                          onPressed:
-                              () {
-                            Navigator.pop(
-                              context,
-                            );
-
-                            toggleCompleted(
-                              appointment,
-                            );
-                          },
-                          icon: Icon(
-                            appointment
-                                    .completed
-                                ? Icons.undo
-                                : Icons.check,
-                          ),
-                          label: Text(
-                            appointment
-                                    .completed
-                                ? 'غير مكتمل'
-                                : 'مكتمل',
-                          ),
-                        ),
-                      ),
-                    ],
+                  OutlinedButton.icon(
+                    icon: const Icon(
+                      Icons.delete_outline_rounded,
+                    ),
+                    label: const Text(
+                      'حذف الموعد',
+                    ),
+                    onPressed: () {
+                      Navigator.pop(context);
+                      deleteAppointment(
+                        appointment,
+                      );
+                    },
                   ),
                 ],
               ),
@@ -1442,9 +1337,8 @@ class _HomePageState
     String value,
   ) {
     return Padding(
-      padding:
-          const EdgeInsets.only(
-        bottom: 12,
+      padding: const EdgeInsets.symmetric(
+        vertical: 7,
       ),
       child: Row(
         crossAxisAlignment:
@@ -1453,293 +1347,30 @@ class _HomePageState
           Icon(
             icon,
             size: 22,
+            color: Theme.of(context)
+                .colorScheme
+                .primary,
           ),
-          const SizedBox(
-            width: 12,
-          ),
+          const SizedBox(width: 12),
           Expanded(
-            child: RichText(
-              text: TextSpan(
-                style:
-                    DefaultTextStyle
-                        .of(context)
-                        .style,
-                children: [
-                  TextSpan(
-                    text:
-                        '$title: ',
-                    style:
-                        const TextStyle(
-                      fontWeight:
-                          FontWeight.bold,
-                    ),
-                  ),
-                  TextSpan(
-                    text: value,
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  String reminderText(
-    int minutes,
-  ) {
-    switch (minutes) {
-      case -1:
-        return 'بدون تذكير';
-      case 0:
-        return 'وقت الموعد';
-      case 5:
-        return 'قبل 5 دقائق';
-      case 15:
-        return 'قبل 15 دقيقة';
-      case 30:
-        return 'قبل 30 دقيقة';
-      case 60:
-        return 'قبل ساعة';
-      case 1440:
-        return 'قبل يوم';
-      default:
-        return 'مخصص';
-    }
-  }
-
-  // ==========================================================
-  // APPOINTMENT CARD
-  // ==========================================================
-
-  Widget appointmentCard(
-    Appointment appointment,
-  ) {
-    final isCompleted =
-        appointment.completed;
-
-    return Card(
-      margin:
-          const EdgeInsets.fromLTRB(
-        12,
-        5,
-        12,
-        5,
-      ),
-      child: ExpansionTile(
-        leading: CircleAvatar(
-          child: Icon(
-            isCompleted
-                ? Icons.check
-                : Icons.event,
-          ),
-        ),
-        title: Text(
-          appointment.title,
-          style: TextStyle(
-            fontWeight:
-                FontWeight.bold,
-            decoration: isCompleted
-                ? TextDecoration
-                    .lineThrough
-                : null,
-          ),
-        ),
-        subtitle: Text(
-          '${appointment.date.day}/'
-          '${appointment.date.month}/'
-          '${appointment.date.year}'
-          ' • '
-          '${appointment.time.format(context)}',
-        ),
-        trailing:
-            PopupMenuButton<String>(
-          onSelected: (value) {
-            if (value == 'edit') {
-              showAppointmentDialog(
-                appointment:
-                    appointment,
-              );
-            }
-
-            if (value == 'delete') {
-              deleteAppointment(
-                appointment,
-              );
-            }
-
-            if (value == 'complete') {
-              toggleCompleted(
-                appointment,
-              );
-            }
-          },
-          itemBuilder:
-              (context) {
-            return [
-              const PopupMenuItem(
-                value: 'edit',
-                child: Row(
-                  children: [
-                    Icon(Icons.edit),
-                    SizedBox(
-                      width: 8,
-                    ),
-                    Text('تعديل'),
-                  ],
-                ),
-              ),
-              PopupMenuItem(
-                value: 'complete',
-                child: Row(
-                  children: [
-                    Icon(
-                      isCompleted
-                          ? Icons.undo
-                          : Icons.check,
-                    ),
-                    const SizedBox(
-                      width: 8,
-                    ),
-                    Text(
-                      isCompleted
-                          ? 'غير مكتمل'
-                          : 'مكتمل',
-                    ),
-                  ],
-                ),
-              ),
-              const PopupMenuItem(
-                value: 'delete',
-                child: Row(
-                  children: [
-                    Icon(
-                      Icons.delete,
-                    ),
-                    SizedBox(
-                      width: 8,
-                    ),
-                    Text('حذف'),
-                  ],
-                ),
-              ),
-            ];
-          },
-        ),
-        children: [
-          Padding(
-            padding:
-                const EdgeInsets.fromLTRB(
-              16,
-              0,
-              16,
-              16,
-            ),
             child: Column(
               crossAxisAlignment:
-                  CrossAxisAlignment
-                      .start,
+                  CrossAxisAlignment.start,
               children: [
                 Text(
-                  appointment.type,
+                  title,
                   style: TextStyle(
-                    color:
-                        Theme.of(context)
-                            .colorScheme
-                            .primary,
-                    fontWeight:
-                        FontWeight.bold,
+                    color: Colors.grey.shade600,
+                    fontSize: 12,
                   ),
                 ),
-
-                if (appointment.person
-                    .isNotEmpty)
-                  _smallInfo(
-                    Icons.person,
-                    appointment.person,
+                const SizedBox(height: 2),
+                Text(
+                  value,
+                  style: const TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
                   ),
-
-                if (appointment.phone
-                    .isNotEmpty)
-                  _smallInfo(
-                    Icons.phone,
-                    appointment.phone,
-                  ),
-
-                if (appointment.location
-                    .isNotEmpty)
-                  _smallInfo(
-                    Icons.location_on,
-                    appointment.location,
-                  ),
-
-                if (appointment.notes
-                    .isNotEmpty)
-                  _smallInfo(
-                    Icons.notes,
-                    appointment.notes,
-                  ),
-
-                _smallInfo(
-                  Icons.notifications,
-                  reminderText(
-                    appointment
-                        .reminderMinutes,
-                  ),
-                ),
-
-                const SizedBox(
-                  height: 8,
-                ),
-
-                Row(
-                  children: [
-                    Expanded(
-                      child:
-                          OutlinedButton
-                              .icon(
-                        onPressed: () {
-                          showAppointmentDialog(
-                            appointment:
-                                appointment,
-                          );
-                        },
-                        icon:
-                            const Icon(
-                          Icons.edit,
-                        ),
-                        label:
-                            const Text(
-                          'تعديل',
-                        ),
-                      ),
-                    ),
-                    const SizedBox(
-                      width: 8,
-                    ),
-                    Expanded(
-                      child:
-                          ElevatedButton
-                              .icon(
-                        onPressed: () {
-                          toggleCompleted(
-                            appointment,
-                          );
-                        },
-                        icon: Icon(
-                          isCompleted
-                              ? Icons.undo
-                              : Icons.check,
-                        ),
-                        label: Text(
-                          isCompleted
-                              ? 'إلغاء الإكمال'
-                              : 'تم الموعد',
-                        ),
-                      ),
-                    ),
-                  ],
                 ),
               ],
             ),
@@ -1749,26 +1380,1001 @@ class _HomePageState
     );
   }
 
+  // ==========================================================
+  // CALENDAR
+  // ==========================================================
+
+  void showCalendar() {
+    DateTime selected =
+        DateTime.now();
+
+    showDialog(
+      context: context,
+      builder: (dialogContext) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            final monthAppointments =
+                appointments.where(
+              (a) =>
+                  a.dateTime.year == selected.year &&
+                  a.dateTime.month == selected.month,
+            ).toList();
+
+            return AlertDialog(
+              title: Row(
+                children: [
+                  const Icon(
+                    Icons.calendar_month_rounded,
+                  ),
+                  const SizedBox(width: 8),
+                  const Expanded(
+                    child: Text('تقويم المواعيد'),
+                  ),
+                ],
+              ),
+              content: SizedBox(
+                width: 420,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    CalendarDatePicker(
+                      initialDate: selected,
+                      firstDate: DateTime(2020),
+                      lastDate: DateTime(2100),
+                      onDateChanged: (date) {
+                        setDialogState(() {
+                          selected = date;
+                        });
+                      },
+                    ),
+
+                    const Divider(),
+
+                    Align(
+                      alignment:
+                          Alignment.centerRight,
+                      child: Text(
+                        'مواعيد هذا الشهر: ${monthAppointments.length}',
+                        style: const TextStyle(
+                          fontWeight:
+                              FontWeight.bold,
+                        ),
+                      ),
+                    ),
+
+                    const SizedBox(height: 10),
+
+                    if (monthAppointments.isEmpty)
+                      const Padding(
+                        padding:
+                            EdgeInsets.all(15),
+                        child: Text(
+                          'لا توجد مواعيد هذا الشهر',
+                        ),
+                      )
+                    else
+                      SizedBox(
+                        height: 170,
+                        child: ListView.builder(
+                          itemCount:
+                              monthAppointments.length,
+                          itemBuilder:
+                              (context, index) {
+                            final a =
+                                monthAppointments[
+                                    index];
+
+                            return ListTile(
+                              dense: true,
+                              leading: CircleAvatar(
+                                backgroundColor:
+                                    typeColor(
+                                      a.type,
+                                    ).withOpacity(.15),
+                                child: Icon(
+                                  typeIcon(
+                                    a.type,
+                                  ),
+                                  color:
+                                      typeColor(
+                                    a.type,
+                                  ),
+                                  size: 20,
+                                ),
+                              ),
+                              title: Text(
+                                a.title,
+                                maxLines: 1,
+                                overflow:
+                                    TextOverflow
+                                        .ellipsis,
+                              ),
+                              subtitle: Text(
+                                '${formatDate(a.dateTime)} - ${formatTime(a.dateTime)}',
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () =>
+                      Navigator.pop(dialogContext),
+                  child: const Text('إغلاق'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  // ==========================================================
+  // STATISTICS
+  // ==========================================================
+
+  void showStatistics() {
+    final total = appointments.length;
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Row(
+            children: [
+              Icon(Icons.bar_chart_rounded),
+              SizedBox(width: 8),
+              Text('إحصائيات موعدي'),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _statRow(
+                'كل المواعيد',
+                total,
+                Icons.event_rounded,
+              ),
+              _statRow(
+                'مواعيد اليوم',
+                todayCount,
+                Icons.today_rounded,
+              ),
+              _statRow(
+                'القادمة',
+                appointments
+                    .where(
+                      (a) =>
+                          !a.completed &&
+                          a.dateTime
+                              .isAfter(DateTime.now()),
+                    )
+                    .length,
+                Icons.upcoming_rounded,
+              ),
+              _statRow(
+                'المكتملة',
+                completedCount,
+                Icons.check_circle_rounded,
+              ),
+              _statRow(
+                'المتأخرة',
+                overdueCount,
+                Icons.warning_rounded,
+              ),
+              _statRow(
+                'بتذكير',
+                reminderCount,
+                Icons.notifications_rounded,
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () =>
+                  Navigator.pop(context),
+              child: const Text('إغلاق'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _statRow(
+    String title,
+    int value,
+    IconData icon,
+  ) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(
+        vertical: 7,
+      ),
+      child: Row(
+        children: [
+          Icon(icon, size: 22),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(title),
+          ),
+          Text(
+            value.toString(),
+            style: const TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ==========================================================
+  // SETTINGS
+  // ==========================================================
+
+  Future<void> showSettings() async {
+    int reminder = defaultReminder;
+
+    await showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(
+          top: Radius.circular(28),
+        ),
+      ),
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            return SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Text(
+                      'الإعدادات',
+                      style: TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+
+                    const SizedBox(height: 20),
+
+                    SwitchListTile(
+                      secondary: const Icon(
+                        Icons.dark_mode_rounded,
+                      ),
+                      title: const Text(
+                        'الوضع الليلي',
+                      ),
+                      value: widget.darkMode,
+                      onChanged: (value) async {
+                        await widget.onThemeChanged(
+                          value,
+                        );
+
+                        if (mounted) {
+                          setState(() {});
+                        }
+
+                        setModalState(() {});
+                      },
+                    ),
+
+                    ListTile(
+                      leading: const Icon(
+                        Icons.notifications_active_rounded,
+                      ),
+                      title: const Text(
+                        'التذكير الافتراضي',
+                      ),
+                      subtitle: Text(
+                        reminderText(reminder),
+                      ),
+                      onTap: () async {
+                        final value =
+                            await showDialog<int>(
+                          context: context,
+                          builder: (context) {
+                            return SimpleDialog(
+                              title: const Text(
+                                'التذكير الافتراضي',
+                              ),
+                              children: const [
+                                SimpleDialogOption(
+                                  child:
+                                      Text('بدون تذكير'),
+                                  value: -1,
+                                ),
+                                SimpleDialogOption(
+                                  child:
+                                      Text('وقت الموعد'),
+                                  value: 0,
+                                ),
+                                SimpleDialogOption(
+                                  child:
+                                      Text('قبل 5 دقائق'),
+                                  value: 5,
+                                ),
+                                SimpleDialogOption(
+                                  child:
+                                      Text('قبل 15 دقيقة'),
+                                  value: 15,
+                                ),
+                                SimpleDialogOption(
+                                  child:
+                                      Text('قبل 30 دقيقة'),
+                                  value: 30,
+                                ),
+                                SimpleDialogOption(
+                                  child:
+                                      Text('قبل ساعة'),
+                                  value: 60,
+                                ),
+                                SimpleDialogOption(
+                                  child:
+                                      Text('قبل يوم'),
+                                  value: 1440,
+                                ),
+                              ],
+                            );
+                          },
+                        );
+
+                        if (value != null) {
+                          final prefs =
+                              await SharedPreferences
+                                  .getInstance();
+
+                          await prefs.setInt(
+                            'defaultReminder',
+                            value,
+                          );
+
+                          setState(() {
+                            defaultReminder = value;
+                          });
+
+                          setModalState(() {
+                            reminder = value;
+                          });
+                        }
+                      },
+                    ),
+
+                    ListTile(
+                      leading: const Icon(
+                        Icons.delete_sweep_rounded,
+                      ),
+                      title: const Text(
+                        'حذف المواعيد المكتملة',
+                      ),
+                      onTap: () async {
+                        Navigator.pop(context);
+                        await clearCompleted();
+                      },
+                    ),
+
+                    ListTile(
+                      leading: const Icon(
+                        Icons.notifications_rounded,
+                      ),
+                      title: const Text(
+                        'تحديث التذكيرات',
+                      ),
+                      onTap: () async {
+                        await refreshNotifications();
+
+                        if (mounted) {
+                          Navigator.pop(context);
+
+                          ScaffoldMessenger.of(
+                            this.context,
+                          ).showSnackBar(
+                            const SnackBar(
+                              content: Text(
+                                'تم تحديث التذكيرات ✅',
+                              ),
+                            ),
+                          );
+                        }
+                      },
+                    ),
+
+                    ListTile(
+                      leading: const Icon(
+                        Icons.backup_rounded,
+                      ),
+                      title: const Text(
+                        'نسخ احتياطي',
+                      ),
+                      subtitle: const Text(
+                        'نسخ المواعيد إلى الحافظة',
+                      ),
+                      onTap: () async {
+                        await backupToClipboard();
+
+                        if (mounted) {
+                          Navigator.pop(context);
+
+                          ScaffoldMessenger.of(
+                            this.context,
+                          ).showSnackBar(
+                            const SnackBar(
+                              content: Text(
+                                'تم نسخ النسخة الاحتياطية ✅',
+                              ),
+                            ),
+                          );
+                        }
+                      },
+                    ),
+
+                    ListTile(
+                      leading: const Icon(
+                        Icons.restore_rounded,
+                      ),
+                      title: const Text(
+                        'استرجاع نسخة احتياطية',
+                      ),
+                      subtitle: const Text(
+                        'استرجاع المواعيد من الحافظة',
+                      ),
+                      onTap: () async {
+                        Navigator.pop(context);
+                        await restoreFromClipboard();
+                      },
+                    ),
+
+                    const SizedBox(height: 8),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  // ==========================================================
+  // BACKUP
+  // ==========================================================
+
+  Future<void> backupToClipboard() async {
+    final data = appointments
+        .map((a) => a.toJson())
+        .toList();
+
+    await Clipboard.setData(
+      ClipboardData(
+        text: jsonEncode(data),
+      ),
+    );
+  }
+
+  Future<void> restoreFromClipboard() async {
+    final data =
+        await Clipboard.getData('text/plain');
+
+    if (data == null ||
+        data.text == null ||
+        data.text!.trim().isEmpty) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'ماكانش نسخة احتياطية في الحافظة',
+            ),
+          ),
+        );
+      }
+      return;
+    }
+
+    try {
+      final decoded =
+          jsonDecode(data.text!);
+
+      if (decoded is! List) {
+        throw Exception();
+      }
+
+      final restored = decoded
+          .map(
+            (e) => Appointment.fromJson(
+              Map<String, dynamic>.from(e),
+            ),
+          )
+          .toList();
+
+      final confirm =
+          await showDialog<bool>(
+        context: context,
+        builder: (context) {
+          return AlertDialog(
+            title: const Text(
+              'استرجاع النسخة الاحتياطية',
+            ),
+            content: Text(
+              'تم العثور على ${restored.length} موعد.\n'
+              'هل تريد استبدال المواعيد الحالية؟',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () =>
+                    Navigator.pop(context, false),
+                child: const Text('إلغاء'),
+              ),
+              FilledButton(
+                onPressed: () =>
+                    Navigator.pop(context, true),
+                child: const Text('استرجاع'),
+              ),
+            ],
+          );
+        },
+      );
+
+      if (confirm != true) return;
+
+      for (final appointment in appointments) {
+        await cancelNotification(appointment);
+      }
+
+      appointments = restored;
+
+      await saveData();
+      await refreshNotifications();
+
+      setState(() {});
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'تم استرجاع المواعيد بنجاح ✅',
+            ),
+          ),
+        );
+      }
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'النسخة الاحتياطية غير صالحة ❌',
+            ),
+          ),
+        );
+      }
+    }
+  }
+
+  // ==========================================================
+  // CLEAR COMPLETED
+  // ==========================================================
+
+  Future<void> clearCompleted() async {
+    final completed =
+        appointments.where((a) => a.completed).toList();
+
+    if (completed.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'ماكان حتى موعد مكتمل',
+          ),
+        ),
+      );
+      return;
+    }
+
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text(
+            'حذف المواعيد المكتملة',
+          ),
+          content: Text(
+            'سيتم حذف ${completed.length} موعد مكتمل.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () =>
+                  Navigator.pop(context, false),
+              child: const Text('إلغاء'),
+            ),
+            FilledButton(
+              onPressed: () =>
+                  Navigator.pop(context, true),
+              child: const Text('حذف'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (confirm != true) return;
+
+    for (final appointment in completed) {
+      await cancelNotification(appointment);
+    }
+
+    appointments.removeWhere(
+      (a) => a.completed,
+    );
+
+    await saveData();
+
+    setState(() {});
+  }
+
+  // ==========================================================
+  // UI COMPONENTS
+  // ==========================================================
+
+  Widget dashboardCard({
+    required String title,
+    required String value,
+    required IconData icon,
+    required Color color,
+    VoidCallback? onTap,
+  }) {
+    return Expanded(
+      child: InkWell(
+        borderRadius: BorderRadius.circular(20),
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.all(15),
+          decoration: BoxDecoration(
+            color: color.withOpacity(.10),
+            borderRadius:
+                BorderRadius.circular(20),
+            border: Border.all(
+              color: color.withOpacity(.15),
+            ),
+          ),
+          child: Column(
+            crossAxisAlignment:
+                CrossAxisAlignment.start,
+            children: [
+              CircleAvatar(
+                radius: 19,
+                backgroundColor:
+                    color.withOpacity(.15),
+                child: Icon(
+                  icon,
+                  color: color,
+                  size: 21,
+                ),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                value,
+                style: TextStyle(
+                  fontSize: 25,
+                  fontWeight: FontWeight.bold,
+                  color: color,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                title,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: color.withOpacity(.85),
+                  fontSize: 12,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget appointmentCard(
+    Appointment appointment,
+  ) {
+    final color = typeColor(
+      appointment.type,
+    );
+
+    final overdue = isOverdue(appointment);
+
+    return Card(
+      child: InkWell(
+        borderRadius:
+            BorderRadius.circular(20),
+        onTap: () {
+          showAppointmentDetails(
+            appointment,
+          );
+        },
+        child: Padding(
+          padding: const EdgeInsets.all(15),
+          child: Column(
+            children: [
+              Row(
+                crossAxisAlignment:
+                    CrossAxisAlignment.start,
+                children: [
+                  CircleAvatar(
+                    radius: 25,
+                    backgroundColor:
+                        color.withOpacity(.13),
+                    child: Icon(
+                      typeIcon(
+                        appointment.type,
+                      ),
+                      color: color,
+                    ),
+                  ),
+
+                  const SizedBox(width: 12),
+
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment:
+                          CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                appointment.title,
+                                maxLines: 2,
+                                overflow:
+                                    TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  fontSize: 17,
+                                  fontWeight:
+                                      FontWeight.bold,
+                                  decoration:
+                                      appointment
+                                              .completed
+                                          ? TextDecoration
+                                              .lineThrough
+                                          : null,
+                                ),
+                              ),
+                            ),
+                            if (appointment.completed)
+                              const Icon(
+                                Icons
+                                    .check_circle_rounded,
+                                color: Colors.green,
+                                size: 22,
+                              ),
+                          ],
+                        ),
+
+                        const SizedBox(height: 6),
+
+                        Wrap(
+                          spacing: 7,
+                          runSpacing: 5,
+                          children: [
+                            _smallInfo(
+                              Icons.calendar_today_rounded,
+                              formatDate(
+                                appointment.dateTime,
+                              ),
+                            ),
+                            _smallInfo(
+                              Icons.access_time_rounded,
+                              formatTime(
+                                appointment.dateTime,
+                              ),
+                            ),
+                          ],
+                        ),
+
+                        const SizedBox(height: 6),
+
+                        Wrap(
+                          spacing: 7,
+                          runSpacing: 5,
+                          children: [
+                            if (appointment.person
+                                .isNotEmpty)
+                              _smallInfo(
+                                Icons.person_rounded,
+                                appointment.person,
+                              ),
+                            _smallInfo(
+                              Icons.category_rounded,
+                              appointment.type,
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  PopupMenuButton<String>(
+                    onSelected: (value) async {
+                      if (value == 'edit') {
+                        await showAppointmentDialog(
+                          appointment: appointment,
+                        );
+                      } else if (value == 'delete') {
+                        await deleteAppointment(
+                          appointment,
+                        );
+                      } else if (value == 'complete') {
+                        await toggleCompleted(
+                          appointment,
+                        );
+                      }
+                    },
+                    itemBuilder: (context) {
+                      return [
+                        PopupMenuItem(
+                          value: 'complete',
+                          child: Row(
+                            children: [
+                              Icon(
+                                appointment.completed
+                                    ? Icons
+                                        .undo_rounded
+                                    : Icons
+                                        .check_rounded,
+                              ),
+                              const SizedBox(width: 8),
+                              Text(
+                                appointment.completed
+                                    ? 'إلغاء الإكمال'
+                                    : 'تم الإنجاز',
+                              ),
+                            ],
+                          ),
+                        ),
+                        const PopupMenuItem(
+                          value: 'edit',
+                          child: Row(
+                            children: [
+                              Icon(
+                                Icons.edit_rounded,
+                              ),
+                              SizedBox(width: 8),
+                              Text('تعديل'),
+                            ],
+                          ),
+                        ),
+                        const PopupMenuItem(
+                          value: 'delete',
+                          child: Row(
+                            children: [
+                              Icon(
+                                Icons
+                                    .delete_outline_rounded,
+                              ),
+                              SizedBox(width: 8),
+                              Text('حذف'),
+                            ],
+                          ),
+                        ),
+                      ];
+                    },
+                  ),
+                ],
+              ),
+
+              if (overdue)
+                Container(
+                  width: double.infinity,
+                  margin: const EdgeInsets.only(
+                    top: 12,
+                  ),
+                  padding:
+                      const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 7,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.red.withOpacity(.08),
+                    borderRadius:
+                        BorderRadius.circular(10),
+                  ),
+                  child: const Row(
+                    children: [
+                      Icon(
+                        Icons.warning_rounded,
+                        color: Colors.red,
+                        size: 18,
+                      ),
+                      SizedBox(width: 7),
+                      Text(
+                        'هذا الموعد متأخر',
+                        style: TextStyle(
+                          color: Colors.red,
+                          fontWeight:
+                              FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+              if (appointment.reminderMinutes >=
+                      0 ||
+                  appointment.recurrence !=
+                      'لا يتكرر')
+                Padding(
+                  padding: const EdgeInsets.only(
+                    top: 10,
+                  ),
+                  child: Row(
+                    children: [
+                      if (appointment
+                              .reminderMinutes >=
+                          0)
+                        _smallInfo(
+                          Icons.notifications_rounded,
+                          reminderText(
+                            appointment
+                                .reminderMinutes,
+                          ),
+                        ),
+                      if (appointment
+                              .recurrence !=
+                          'لا يتكرر') ...[
+                        const SizedBox(width: 8),
+                        _smallInfo(
+                          Icons.repeat_rounded,
+                          appointment.recurrence,
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _smallInfo(
     IconData icon,
     String text,
   ) {
-    return Padding(
-      padding:
-          const EdgeInsets.only(
-        top: 8,
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: 8,
+        vertical: 4,
+      ),
+      decoration: BoxDecoration(
+        color: Theme.of(context)
+            .colorScheme
+            .surfaceContainerHighest
+            .withOpacity(.55),
+        borderRadius:
+            BorderRadius.circular(8),
       ),
       child: Row(
+        mainAxisSize: MainAxisSize.min,
         children: [
           Icon(
             icon,
-            size: 18,
+            size: 14,
           ),
-          const SizedBox(
-            width: 8,
-          ),
-          Expanded(
-            child: Text(text),
+          const SizedBox(width: 4),
+          Text(
+            text,
+            style: const TextStyle(
+              fontSize: 11,
+            ),
           ),
         ],
       ),
@@ -1781,382 +2387,475 @@ class _HomePageState
 
   @override
   Widget build(BuildContext context) {
-    final next =
-        nextAppointment;
+    final next = nextAppointment;
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text(
-          'موعدي',
-          style: TextStyle(
-            fontWeight:
-                FontWeight.bold,
-          ),
-        ),
-        actions: [
-          IconButton(
-            tooltip:
-                'الإحصائيات',
-            icon: const Icon(
-              Icons.bar_chart,
-            ),
-            onPressed:
-                showStatistics,
-          ),
-
-          IconButton(
-            tooltip: 'التقويم',
-            icon: const Icon(
-              Icons.calendar_month,
-            ),
-            onPressed:
-                showCalendar,
-          ),
-
-          IconButton(
-            tooltip:
-                'الوضع الليلي',
-            icon: Icon(
-              Theme.of(context)
-                          .brightness ==
-                      Brightness.dark
-                  ? Icons.light_mode
-                  : Icons.dark_mode,
-            ),
-            onPressed:
-                widget.onThemeChanged,
-          ),
-        ],
-      ),
-
-      body:
-          RefreshIndicator(
-        onRefresh:
-            loadAppointments,
-        child: ListView(
-          padding:
-              const EdgeInsets.only(
-            bottom: 100,
-          ),
-          children: [
-            Padding(
-              padding:
-                  const EdgeInsets.all(
-                12,
-              ),
-              child: Row(
-                children: [
-                  Expanded(
-                    child:
-                        _dashboardCard(
-                      Icons.event,
-                      appointments
-                          .length
-                          .toString(),
-                      'كل المواعيد',
-                    ),
-                  ),
-                  const SizedBox(
-                    width: 8,
-                  ),
-                  Expanded(
-                    child:
-                        _dashboardCard(
-                      Icons.today,
-                      todayCount
-                          .toString(),
-                      'اليوم',
-                    ),
-                  ),
-                  const SizedBox(
-                    width: 8,
-                  ),
-                  Expanded(
-                    child:
-                        _dashboardCard(
-                      Icons.check_circle,
-                      completedCount
-                          .toString(),
-                      'مكتملة',
-                    ),
-                  ),
-                ],
-              ),
-            ),
-
-            if (next != null)
-              Card(
-                margin:
-                    const EdgeInsets
-                        .fromLTRB(
-                  12,
-                  0,
-                  12,
-                  12,
+    return Directionality(
+      textDirection: TextDirection.rtl,
+      child: Scaffold(
+        appBar: AppBar(
+          elevation: 0,
+          title: const Column(
+            crossAxisAlignment:
+                CrossAxisAlignment.start,
+            children: [
+              Text(
+                'موعدي',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 24,
                 ),
-                child:
-                    Padding(
+              ),
+              Text(
+                'نظّم وقتك بسهولة',
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.normal,
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            IconButton(
+              tooltip: 'التقويم',
+              icon: const Icon(
+                Icons.calendar_month_rounded,
+              ),
+              onPressed: showCalendar,
+            ),
+            IconButton(
+              tooltip: 'الإحصائيات',
+              icon: const Icon(
+                Icons.bar_chart_rounded,
+              ),
+              onPressed: showStatistics,
+            ),
+            IconButton(
+              tooltip: 'الإعدادات',
+              icon: const Icon(
+                Icons.settings_rounded,
+              ),
+              onPressed: showSettings,
+            ),
+          ],
+        ),
+
+        body: RefreshIndicator(
+          onRefresh: () async {
+            await loadData();
+          },
+          child: ListView(
+            padding: const EdgeInsets.only(
+              top: 10,
+              bottom: 100,
+            ),
+            children: [
+              // HEADER
+              Padding(
+                padding:
+                    const EdgeInsets.symmetric(
+                  horizontal: 16,
+                ),
+                child: Container(
                   padding:
-                      const EdgeInsets.all(
-                    16,
+                      const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [
+                        Theme.of(context)
+                            .colorScheme
+                            .primary,
+                        Theme.of(context)
+                            .colorScheme
+                            .secondary,
+                      ],
+                    ),
+                    borderRadius:
+                        BorderRadius.circular(25),
                   ),
-                  child: Column(
-                    crossAxisAlignment:
-                        CrossAxisAlignment
-                            .start,
+                  child: Row(
                     children: [
-                      const Row(
-                        children: [
-                          Icon(
-                            Icons
-                                .notifications_active,
-                          ),
-                          SizedBox(
-                            width: 8,
-                          ),
-                          Text(
-                            'أقرب موعد',
-                            style:
-                                TextStyle(
-                              fontSize: 18,
-                              fontWeight:
-                                  FontWeight
-                                      .bold,
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment:
+                              CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'مرحبا 👋',
+                              style: TextStyle(
+                                color: Colors.white70,
+                                fontSize: 14,
+                              ),
                             ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(
-                        height: 12,
-                      ),
-                      Text(
-                        next.title,
-                        style:
-                            const TextStyle(
-                          fontSize: 22,
-                          fontWeight:
-                              FontWeight
-                                  .bold,
+                            const SizedBox(height: 5),
+                            const Text(
+                              'وش عندك اليوم؟',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 23,
+                                fontWeight:
+                                    FontWeight.bold,
+                              ),
+                            ),
+                            const SizedBox(height: 6),
+                            Text(
+                              '${formatDate(DateTime.now())} • ${weekday(DateTime.now())}',
+                              style: const TextStyle(
+                                color: Colors.white70,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
-                      const SizedBox(
-                        height: 6,
-                      ),
-                      Text(
-                        '${next.date.day}/'
-                        '${next.date.month}/'
-                        '${next.date.year}'
-                        ' • '
-                        '${next.time.format(context)}',
-                      ),
-                      const SizedBox(
-                        height: 6,
-                      ),
-                      Text(
-                        next.type,
-                        style:
-                            TextStyle(
-                          color: Theme.of(
-                            context,
-                          )
-                              .colorScheme
-                              .primary,
-                          fontWeight:
-                              FontWeight
-                                  .bold,
-                        ),
+                      const Icon(
+                        Icons.event_available_rounded,
+                        color: Colors.white,
+                        size: 65,
                       ),
                     ],
                   ),
                 ),
               ),
 
-            Padding(
-              padding:
-                  const EdgeInsets
-                      .fromLTRB(
-                12,
-                4,
-                12,
-                8,
-              ),
-              child:
-                  TextField(
-                decoration:
-                    InputDecoration(
-                  hintText:
-                      'ابحث عن موعد...',
-                  prefixIcon:
-                      const Icon(
-                    Icons.search,
-                  ),
-                  border:
-                      OutlineInputBorder(
-                    borderRadius:
-                        BorderRadius
-                            .circular(
-                      16,
-                    ),
-                  ),
-                ),
-                onChanged:
-                    (value) {
-                  setState(() {
-                    searchText =
-                        value;
-                  });
-                },
-              ),
-            ),
+              const SizedBox(height: 15),
 
-            SizedBox(
-              height: 52,
-              child:
-                  ListView(
-                scrollDirection:
-                    Axis.horizontal,
+              // DASHBOARD
+              Padding(
                 padding:
-                    const EdgeInsets
-                        .symmetric(
+                    const EdgeInsets.symmetric(
                   horizontal: 12,
                 ),
-                children: [
-                  'الكل',
-                  ...appointmentTypes,
-                ].map(
-                  (filter) {
-                    final selected =
-                        selectedFilter ==
-                            filter;
-
-                    return Padding(
-                      padding:
-                          const EdgeInsets
-                              .only(
-                        right: 8,
-                      ),
-                      child:
-                          ChoiceChip(
-                        label:
-                            Text(
-                          filter,
-                        ),
-                        selected:
-                            selected,
-                        onSelected:
-                            (_) {
-                          setState(() {
-                            selectedFilter =
-                                filter;
-                          });
-                        },
-                      ),
-                    );
-                  },
-                ).toList(),
-              ),
-            ),
-
-            const SizedBox(
-              height: 8,
-            ),
-
-            if (filteredAppointments
-                .isEmpty)
-              const Padding(
-                padding:
-                    EdgeInsets.all(
-                  40,
-                ),
-                child: Column(
+                child: Row(
                   children: [
-                    Icon(
-                      Icons.event_busy,
-                      size: 60,
+                    dashboardCard(
+                      title: 'اليوم',
+                      value: todayCount.toString(),
+                      icon: Icons.today_rounded,
+                      color: Colors.blue,
+                      onTap: () {
+                        setState(() {
+                          selectedFilter = 'اليوم';
+                        });
+                      },
                     ),
-                    SizedBox(
-                      height: 12,
+                    const SizedBox(width: 8),
+                    dashboardCard(
+                      title: 'القادمة',
+                      value: appointments
+                          .where(
+                            (a) =>
+                                !a.completed &&
+                                a.dateTime.isAfter(
+                                  DateTime.now(),
+                                ),
+                          )
+                          .length
+                          .toString(),
+                      icon:
+                          Icons.upcoming_rounded,
+                      color: Colors.green,
+                      onTap: () {
+                        setState(() {
+                          selectedFilter = 'القادمة';
+                        });
+                      },
                     ),
-                    Text(
-                      'لا توجد مواعيد',
-                      style:
-                          TextStyle(
-                        fontSize: 18,
-                      ),
-                    ),
-                    SizedBox(
-                      height: 6,
-                    ),
-                    Text(
-                      'اضغط + لإضافة أول موعد',
+                    const SizedBox(width: 8),
+                    dashboardCard(
+                      title: 'مكتملة',
+                      value:
+                          completedCount.toString(),
+                      icon:
+                          Icons.check_circle_rounded,
+                      color: Colors.teal,
+                      onTap: () {
+                        setState(() {
+                          selectedFilter =
+                              'المكتملة';
+                        });
+                      },
                     ),
                   ],
                 ),
-              )
-            else
-              ...filteredAppointments
-                  .map(
-                appointmentCard,
               ),
-          ],
-        ),
-      ),
 
-      floatingActionButton:
-          FloatingActionButton
-              .extended(
-        onPressed: () {
-          showAppointmentDialog();
-        },
-        icon: const Icon(
-          Icons.add,
-        ),
-        label:
-            const Text(
-          'إضافة موعد',
-        ),
-      ),
-    );
-  }
+              const SizedBox(height: 10),
 
-  Widget _dashboardCard(
-    IconData icon,
-    String value,
-    String label,
-  ) {
-    return Card(
-      child: Padding(
-        padding:
-            const EdgeInsets
-                .symmetric(
-          vertical: 14,
-          horizontal: 6,
+              // NEXT APPOINTMENT
+              if (next != null)
+                Padding(
+                  padding:
+                      const EdgeInsets.symmetric(
+                    horizontal: 12,
+                  ),
+                  child: Card(
+                    child: Padding(
+                      padding:
+                          const EdgeInsets.all(16),
+                      child: Column(
+                        crossAxisAlignment:
+                            CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Icon(
+                                Icons
+                                    .notifications_active_rounded,
+                                color:
+                                    Theme.of(context)
+                                        .colorScheme
+                                        .primary,
+                              ),
+                              const SizedBox(width: 8),
+                              const Text(
+                                'أقرب موعد',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight:
+                                      FontWeight.bold,
+                                ),
+                              ),
+                            ],
+                          ),
+
+                          const SizedBox(height: 10),
+
+                          Text(
+                            next.title,
+                            style: const TextStyle(
+                              fontSize: 20,
+                              fontWeight:
+                                  FontWeight.bold,
+                            ),
+                          ),
+
+                          const SizedBox(height: 8),
+
+                          Row(
+                            children: [
+                              const Icon(
+                                Icons
+                                    .calendar_today_rounded,
+                                size: 17,
+                              ),
+                              const SizedBox(width: 5),
+                              Text(
+                                formatDate(
+                                  next.dateTime,
+                                ),
+                              ),
+                              const SizedBox(width: 15),
+                              const Icon(
+                                Icons
+                                    .access_time_rounded,
+                                size: 17,
+                              ),
+                              const SizedBox(width: 5),
+                              Text(
+                                formatTime(
+                                  next.dateTime,
+                                ),
+                              ),
+                            ],
+                          ),
+
+                          if (next.location.isNotEmpty)
+                            Padding(
+                              padding:
+                                  const EdgeInsets.only(
+                                top: 7,
+                              ),
+                              child: Row(
+                                children: [
+                                  const Icon(
+                                    Icons
+                                        .location_on_rounded,
+                                    size: 17,
+                                  ),
+                                  const SizedBox(
+                                    width: 5,
+                                  ),
+                                  Expanded(
+                                    child: Text(
+                                      next.location,
+                                      overflow:
+                                          TextOverflow
+                                              .ellipsis,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+
+              const SizedBox(height: 10),
+
+              // SEARCH
+              Padding(
+                padding:
+                    const EdgeInsets.symmetric(
+                  horizontal: 12,
+                ),
+                child: TextField(
+                  textDirection:
+                      TextDirection.rtl,
+                  onChanged: (value) {
+                    setState(() {
+                      searchText = value;
+                    });
+                  },
+                  decoration: InputDecoration(
+                    hintText:
+                        'ابحث عن موعد، شخص، مكان...',
+                    prefixIcon: const Icon(
+                      Icons.search_rounded,
+                    ),
+                    suffixIcon:
+                        searchText.isNotEmpty
+                            ? IconButton(
+                                icon: const Icon(
+                                  Icons.clear_rounded,
+                                ),
+                                onPressed: () {
+                                  setState(() {
+                                    searchText = '';
+                                  });
+                                },
+                              )
+                            : null,
+                  ),
+                ),
+              ),
+
+              const SizedBox(height: 10),
+
+              // FILTERS
+              SizedBox(
+                height: 48,
+                child: ListView.separated(
+                  padding:
+                      const EdgeInsets.symmetric(
+                    horizontal: 12,
+                  ),
+                  scrollDirection: Axis.horizontal,
+                  itemCount: filters.length,
+                  separatorBuilder:
+                      (_, __) =>
+                          const SizedBox(width: 7),
+                  itemBuilder: (context, index) {
+                    final filter =
+                        filters[index];
+
+                    final selected =
+                        selectedFilter == filter;
+
+                    return ChoiceChip(
+                      label: Text(filter),
+                      selected: selected,
+                      onSelected: (_) {
+                        setState(() {
+                          selectedFilter = filter;
+                        });
+                      },
+                    );
+                  },
+                ),
+              ),
+
+              const SizedBox(height: 5),
+
+              // LIST HEADER
+              Padding(
+                padding:
+                    const EdgeInsets.symmetric(
+                  horizontal: 18,
+                  vertical: 5,
+                ),
+                child: Row(
+                  children: [
+                    const Expanded(
+                      child: Text(
+                        'مواعيدك',
+                        style: TextStyle(
+                          fontSize: 19,
+                          fontWeight:
+                              FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                    Text(
+                      '${filteredAppointments.length} موعد',
+                      style: TextStyle(
+                        color: Colors.grey.shade600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              // APPOINTMENTS
+              if (filteredAppointments.isEmpty)
+                Padding(
+                  padding:
+                      const EdgeInsets.all(35),
+                  child: Column(
+                    children: [
+                      Icon(
+                        Icons
+                            .event_busy_rounded,
+                        size: 70,
+                        color: Colors.grey.shade400,
+                      ),
+                      const SizedBox(height: 12),
+                      Text(
+                        searchText.isNotEmpty
+                            ? 'ما لقيناش نتائج'
+                            : 'ما عندك حتى موعد',
+                        style: TextStyle(
+                          color:
+                              Colors.grey.shade600,
+                          fontSize: 16,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      TextButton.icon(
+                        onPressed: () {
+                          showAppointmentDialog();
+                        },
+                        icon: const Icon(
+                          Icons.add_rounded,
+                        ),
+                        label: const Text(
+                          'أضف أول موعد',
+                        ),
+                      ),
+                    ],
+                  ),
+                )
+              else
+                ...filteredAppointments.map(
+                  appointmentCard,
+                ),
+            ],
+          ),
         ),
-        child: Column(
-          children: [
-            Icon(icon),
-            const SizedBox(
-              height: 5,
+
+        floatingActionButton: FloatingActionButton.extended(
+          onPressed: () {
+            showAppointmentDialog();
+          },
+          icon: const Icon(
+            Icons.add_rounded,
+          ),
+          label: const Text(
+            'موعد جديد',
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
             ),
-            Text(
-              value,
-              style:
-                  const TextStyle(
-                fontSize: 21,
-                fontWeight:
-                    FontWeight.bold,
-              ),
-            ),
-            Text(
-              label,
-              textAlign:
-                  TextAlign.center,
-              style:
-                  const TextStyle(
-                fontSize: 11,
-              ),
-            ),
-          ],
+          ),
         ),
       ),
     );
