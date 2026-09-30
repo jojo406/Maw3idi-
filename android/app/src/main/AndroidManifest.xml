@@ -1,19 +1,18 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
-    <!-- السماح بإظهار الإشعارات على Android 13+ -->
+    <!-- صلاحيات الإشعارات -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
-
-    <!-- السماح للتطبيق بإعادة جدولة الإشعارات بعد إعادة تشغيل الهاتف -->
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>
-<uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
-<uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
+
+    <!-- صلاحيات الموقع -->
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
+
     <application
-        android:label=" jdiouia ألو وصلني"
+        android:label="jdiouia ألو وصلني"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
-<meta-data
-    android:name="com.google.android.geo.API_KEY"
-    android:value="ضع_مفتاح_GOOGLE_MAPS_هنا" />
+
         <activity
             android:name=".MainActivity"
             android:exported="true"
@@ -25,44 +24,20 @@
             android:windowSoftInputMode="adjustResize">
 
             <meta-data
-                android:name="io.flutter.embedding.android.NormalTheme"
-                android:resource="@style/NormalTheme"/>
+              android:name="io.flutter.embedding.android.NormalTheme"
+              android:resource="@style/NormalTheme"
+              />
 
             <intent-filter>
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
-
         </activity>
-
-        <!-- إشعارات flutter_local_notifications -->
-        <receiver
-            android:exported="false"
-            android:name="com.dexterous.flutterlocalnotifications.ScheduledNotificationReceiver"/>
-
-        <receiver
-            android:exported="false"
-            android:name="com.dexterous.flutterlocalnotifications.ScheduledNotificationBootReceiver">
-            <intent-filter>
-                <action android:name="android.intent.action.BOOT_COMPLETED"/>
-                <action android:name="android.intent.action.MY_PACKAGE_REPLACED"/>
-                <action android:name="android.intent.action.QUICKBOOT_POWERON"/>
-                <action android:name="com.htc.intent.action.QUICKBOOT_POWERON"/>
-            </intent-filter>
-        </receiver>
 
         <meta-data
             android:name="flutterEmbedding"
-            android:value="2"/>
-<uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
-<uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
-    </application>
+            android:value="2" />
 
-    <queries>
-        <intent>
-            <action android:name="android.intent.action.PROCESS_TEXT"/>
-            <data android:mimeType="text/plain"/>
-        </intent>
-    </queries>
+    </application>
 
 </manifest>
