@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
@@ -8,13 +10,8 @@ import 'package:geolocator/geolocator.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp();
-
   runApp(const AloWaselniApp());
 }
-
-// =====================================================
-// التطبيق
-// =====================================================
 
 class AloWaselniApp extends StatelessWidget {
   const AloWaselniApp({super.key});
@@ -26,11 +23,10 @@ class AloWaselniApp extends StatelessWidget {
       title: 'ألو وصلني',
       theme: ThemeData(
         useMaterial3: true,
-        fontFamily: 'sans',
+        fontFamily: 'Arial',
         colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color(0xFF1976D2),
+          seedColor: const Color(0xFF1565C0),
         ),
-        scaffoldBackgroundColor: const Color(0xFFF5F7FA),
       ),
       home: const HomePage(),
     );
@@ -38,7 +34,7 @@ class AloWaselniApp extends StatelessWidget {
 }
 
 // =====================================================
-// الصفحة الرئيسية
+// HOME
 // =====================================================
 
 class HomePage extends StatelessWidget {
@@ -49,70 +45,45 @@ class HomePage extends StatelessWidget {
     return Scaffold(
       backgroundColor: const Color(0xFFF5F7FA),
       body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(20, 30, 20, 30),
+        child: Padding(
+          padding: const EdgeInsets.all(20),
           child: Column(
             children: [
-              const SizedBox(height: 15),
+              const SizedBox(height: 25),
 
-              // الشعار
-              Container(
-                width: 100,
-                height: 100,
-                decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    colors: [
-                      Color(0xFF1976D2),
-                      Color(0xFF42A5F5),
-                    ],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                  borderRadius: BorderRadius.circular(30),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.blue.withOpacity(.22),
-                      blurRadius: 25,
-                      offset: const Offset(0, 10),
-                    ),
-                  ],
-                ),
-                child: const Icon(
-                  Icons.local_shipping_rounded,
-                  color: Colors.white,
-                  size: 55,
-                ),
+              const Icon(
+                Icons.local_shipping_rounded,
+                size: 70,
+                color: Color(0xFF1565C0),
               ),
 
-              const SizedBox(height: 20),
+              const SizedBox(height: 12),
 
               const Text(
                 'ألو وصلني',
                 style: TextStyle(
-                  fontSize: 34,
-                  fontWeight: FontWeight.w900,
-                  color: Color(0xFF172033),
+                  fontSize: 32,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF1565C0),
                 ),
               ),
 
-              const SizedBox(height: 8),
+              const SizedBox(height: 5),
 
-              Text(
-                'النقل والتوصيل داخل البلدية',
-                textAlign: TextAlign.center,
+              const Text(
+                'خدمة التوصيل داخل البلدية',
                 style: TextStyle(
                   fontSize: 16,
-                  color: Colors.grey.shade600,
+                  color: Colors.grey,
                 ),
               ),
 
-              const SizedBox(height: 38),
+              const SizedBox(height: 45),
 
               RoleButton(
                 icon: Icons.person_rounded,
-                title: 'أنا الزبون',
-                subtitle: 'اطلب سيارة أو خدمة توصيل',
-                color: const Color(0xFF1976D2),
+                title: 'أنا زبون',
+                subtitle: 'اطلب سيارة أو دراجة',
                 onTap: () {
                   Navigator.push(
                     context,
@@ -123,40 +94,36 @@ class HomePage extends StatelessWidget {
                 },
               ),
 
-              const SizedBox(height: 15),
+              const SizedBox(height: 18),
 
               RoleButton(
                 icon: Icons.directions_car_rounded,
-                title: 'أنا السائق',
-                subtitle: 'شوف طلبات السيارات',
-                color: const Color(0xFF159447),
+                title: 'سائق سيارة',
+                subtitle: 'استقبل طلبات الزبائن',
                 onTap: () {
                   Navigator.push(
                     context,
                     MaterialPageRoute(
                       builder: (_) => const DriverPage(
                         vehicleType: 'car',
-                        title: 'أنا السائق',
                       ),
                     ),
                   );
                 },
               ),
 
-              const SizedBox(height: 15),
+              const SizedBox(height: 18),
 
               RoleButton(
                 icon: Icons.two_wheeler_rounded,
-                title: 'أنا سائق الدراجة',
-                subtitle: 'شوف طلبات الدراجات والتوصيل',
-                color: const Color(0xFFFF8A00),
+                title: 'سائق دراجة',
+                subtitle: 'استقبل طلبات الزبائن',
                 onTap: () {
                   Navigator.push(
                     context,
                     MaterialPageRoute(
                       builder: (_) => const DriverPage(
                         vehicleType: 'motorcycle',
-                        title: 'أنا سائق الدراجة',
                       ),
                     ),
                   );
@@ -171,14 +138,13 @@ class HomePage extends StatelessWidget {
 }
 
 // =====================================================
-// زر الدور
+// ROLE BUTTON
 // =====================================================
 
 class RoleButton extends StatelessWidget {
   final IconData icon;
   final String title;
   final String subtitle;
-  final Color color;
   final VoidCallback onTap;
 
   const RoleButton({
@@ -186,7 +152,6 @@ class RoleButton extends StatelessWidget {
     required this.icon,
     required this.title,
     required this.subtitle,
-    required this.color,
     required this.onTap,
   });
 
@@ -196,31 +161,27 @@ class RoleButton extends StatelessWidget {
       color: Colors.white,
       borderRadius: BorderRadius.circular(22),
       elevation: 2,
-      shadowColor: Colors.black12,
       child: InkWell(
         borderRadius: BorderRadius.circular(22),
         onTap: onTap,
-        child: Container(
-          width: double.infinity,
-          padding: const EdgeInsets.all(17),
+        child: Padding(
+          padding: const EdgeInsets.all(20),
           child: Row(
             children: [
               Container(
                 width: 58,
                 height: 58,
                 decoration: BoxDecoration(
-                  color: color.withOpacity(.11),
-                  borderRadius: BorderRadius.circular(17),
+                  color: const Color(0xFFE3F2FD),
+                  borderRadius: BorderRadius.circular(18),
                 ),
                 child: Icon(
                   icon,
-                  color: color,
-                  size: 31,
+                  color: const Color(0xFF1565C0),
+                  size: 30,
                 ),
               ),
-
-              const SizedBox(width: 15),
-
+              const SizedBox(width: 16),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -229,26 +190,23 @@ class RoleButton extends StatelessWidget {
                       title,
                       style: const TextStyle(
                         fontSize: 19,
-                        fontWeight: FontWeight.w800,
-                        color: Color(0xFF172033),
+                        fontWeight: FontWeight.bold,
                       ),
                     ),
                     const SizedBox(height: 4),
                     Text(
                       subtitle,
-                      style: TextStyle(
-                        fontSize: 13,
-                        color: Colors.grey.shade600,
+                      style: const TextStyle(
+                        color: Colors.grey,
                       ),
                     ),
                   ],
                 ),
               ),
-
-              Icon(
+              const Icon(
                 Icons.arrow_forward_ios_rounded,
                 size: 18,
-                color: Colors.grey.shade400,
+                color: Colors.grey,
               ),
             ],
           ),
@@ -259,7 +217,7 @@ class RoleButton extends StatelessWidget {
 }
 
 // =====================================================
-// صفحة الزبون
+// CUSTOMER
 // =====================================================
 
 class CustomerPage extends StatelessWidget {
@@ -270,25 +228,20 @@ class CustomerPage extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(
         title: const Text(
-          'أنا الزبون',
+          'ألو وصلني',
           style: TextStyle(fontWeight: FontWeight.bold),
         ),
         centerTitle: true,
-        backgroundColor: Colors.white,
-        foregroundColor: const Color(0xFF172033),
-        elevation: 0,
       ),
+      backgroundColor: const Color(0xFFF5F7FA),
       body: Padding(
-        padding: const EdgeInsets.all(20),
+        padding: const EdgeInsets.all(18),
         child: Column(
           children: [
-            const SizedBox(height: 15),
-
             ServiceButton(
-              icon: Icons.directions_car_rounded,
+              icon: Icons.local_shipping_rounded,
               title: 'ألو وصلني',
-              subtitle: 'نقلك للمكان اللي حاب تروحلو',
-              color: const Color(0xFF1976D2),
+              subtitle: 'اطلب سيارة أو دراجة',
               onTap: () {
                 Navigator.push(
                   context,
@@ -304,8 +257,7 @@ class CustomerPage extends StatelessWidget {
             ServiceButton(
               icon: Icons.shopping_bag_rounded,
               title: 'ألو جيبلي',
-              subtitle: 'نجيبلك الحاجة اللي تحتاجها',
-              color: const Color(0xFFFF8A00),
+              subtitle: 'خلي السائق يجيبلك طلبك',
               onTap: () {
                 Navigator.push(
                   context,
@@ -322,15 +274,10 @@ class CustomerPage extends StatelessWidget {
   }
 }
 
-// =====================================================
-// زر الخدمة
-// =====================================================
-
 class ServiceButton extends StatelessWidget {
   final IconData icon;
   final String title;
   final String subtitle;
-  final Color color;
   final VoidCallback onTap;
 
   const ServiceButton({
@@ -338,7 +285,6 @@ class ServiceButton extends StatelessWidget {
     required this.icon,
     required this.title,
     required this.subtitle,
-    required this.color,
     required this.onTap,
   });
 
@@ -346,32 +292,25 @@ class ServiceButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return Material(
       color: Colors.white,
-      borderRadius: BorderRadius.circular(24),
+      borderRadius: BorderRadius.circular(22),
       elevation: 2,
       child: InkWell(
+        borderRadius: BorderRadius.circular(22),
         onTap: onTap,
-        borderRadius: BorderRadius.circular(24),
-        child: Container(
-          width: double.infinity,
-          padding: const EdgeInsets.all(20),
+        child: Padding(
+          padding: const EdgeInsets.all(22),
           child: Row(
             children: [
-              Container(
-                width: 68,
-                height: 68,
-                decoration: BoxDecoration(
-                  color: color.withOpacity(.10),
-                  borderRadius: BorderRadius.circular(20),
-                ),
+              CircleAvatar(
+                radius: 29,
+                backgroundColor: const Color(0xFFE3F2FD),
                 child: Icon(
                   icon,
-                  color: color,
-                  size: 38,
+                  color: const Color(0xFF1565C0),
+                  size: 30,
                 ),
               ),
-
-              const SizedBox(width: 17),
-
+              const SizedBox(width: 16),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -379,27 +318,19 @@ class ServiceButton extends StatelessWidget {
                     Text(
                       title,
                       style: const TextStyle(
-                        fontSize: 22,
-                        fontWeight: FontWeight.w900,
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
                       ),
                     ),
                     const SizedBox(height: 5),
                     Text(
                       subtitle,
-                      style: TextStyle(
-                        fontSize: 13,
-                        color: Colors.grey.shade600,
-                      ),
+                      style: const TextStyle(color: Colors.grey),
                     ),
                   ],
                 ),
               ),
-
-              Icon(
-                Icons.arrow_forward_ios_rounded,
-                size: 18,
-                color: Colors.grey.shade400,
-              ),
+              const Icon(Icons.arrow_forward_ios_rounded),
             ],
           ),
         ),
@@ -409,21 +340,21 @@ class ServiceButton extends StatelessWidget {
 }
 
 // =====================================================
-// الخريطة العصرية
+// LOCATION MAP
 // =====================================================
 
 class LocationMap extends StatefulWidget {
   final LatLng? pickup;
   final LatLng? destination;
   final Function(LatLng) onMapTap;
-  final bool showCurrentLocationButton;
+  final bool showDestination;
 
   const LocationMap({
     super.key,
-    required this.pickup,
-    required this.destination,
+    this.pickup,
+    this.destination,
     required this.onMapTap,
-    this.showCurrentLocationButton = true,
+    this.showDestination = true,
   });
 
   @override
@@ -434,31 +365,21 @@ class _LocationMapState extends State<LocationMap> {
   final MapController mapController = MapController();
 
   LatLng? currentLocation;
-  bool loadingLocation = false;
+  bool loading = true;
 
   @override
   void initState() {
     super.initState();
-    getCurrentLocation();
+    _getLocation();
   }
 
-  Future<void> getCurrentLocation() async {
-    if (loadingLocation) return;
-
-    setState(() {
-      loadingLocation = true;
-    });
-
+  Future<void> _getLocation() async {
     try {
-      bool serviceEnabled =
+      final serviceEnabled =
           await Geolocator.isLocationServiceEnabled();
 
       if (!serviceEnabled) {
-        if (mounted) {
-          showLocationMessage(
-            'فعّل الموقع GPS في الهاتف',
-          );
-        }
+        setState(() => loading = false);
         return;
       }
 
@@ -466,196 +387,105 @@ class _LocationMapState extends State<LocationMap> {
           await Geolocator.checkPermission();
 
       if (permission == LocationPermission.denied) {
-        permission =
-            await Geolocator.requestPermission();
+        permission = await Geolocator.requestPermission();
       }
 
-      if (permission ==
-              LocationPermission.denied ||
-          permission ==
-              LocationPermission.deniedForever) {
-        if (mounted) {
-          showLocationMessage(
-            'اسمح للتطبيق باستعمال موقعك',
-          );
-        }
+      if (permission == LocationPermission.denied ||
+          permission == LocationPermission.deniedForever) {
+        setState(() => loading = false);
         return;
       }
 
       final position =
-          await Geolocator.getCurrentPosition(
-        locationSettings: const LocationSettings(
-          accuracy: LocationAccuracy.high,
-        ),
-      );
+          await Geolocator.getCurrentPosition();
 
-      final point = LatLng(
+      final location = LatLng(
         position.latitude,
         position.longitude,
       );
 
-      if (!mounted) return;
-
       setState(() {
-        currentLocation = point;
+        currentLocation = location;
+        loading = false;
       });
 
-      mapController.move(point, 16);
-    } catch (e) {
-      if (mounted) {
-        showLocationMessage(
-          'تعذر تحديد موقعك',
-        );
-      }
-    } finally {
-      if (mounted) {
-        setState(() {
-          loadingLocation = false;
-        });
-      }
+      mapController.move(location, 15);
+    } catch (_) {
+      setState(() => loading = false);
     }
   }
 
-  void showLocationMessage(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        behavior: SnackBarBehavior.floating,
-      ),
-    );
+  void _centerLocation() {
+    if (currentLocation != null) {
+      mapController.move(currentLocation!, 16);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
+    final center =
+        currentLocation ??
+        widget.pickup ??
+        const LatLng(35.6971, -0.6308);
+
     final markers = <Marker>[];
 
-    // الموقع الحالي
     if (currentLocation != null) {
       markers.add(
         Marker(
           point: currentLocation!,
-          width: 45,
-          height: 45,
-          child: Container(
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: Colors.blue.withOpacity(.18),
-            ),
-            padding: const EdgeInsets.all(7),
-            child: Container(
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: Colors.blue,
-                border: Border.all(
-                  color: Colors.white,
-                  width: 3,
-                ),
-                boxShadow: const [
-                  BoxShadow(
-                    blurRadius: 8,
-                    color: Colors.black26,
-                  ),
-                ],
-              ),
-            ),
+          width: 55,
+          height: 55,
+          child: const Icon(
+            Icons.my_location,
+            color: Colors.blue,
+            size: 38,
           ),
         ),
       );
     }
 
-    // الانطلاق
     if (widget.pickup != null) {
       markers.add(
         Marker(
           point: widget.pickup!,
           width: 55,
-          height: 65,
-          child: Column(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(7),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF16A05D),
-                  borderRadius: BorderRadius.circular(15),
-                  boxShadow: const [
-                    BoxShadow(
-                      blurRadius: 8,
-                      color: Colors.black26,
-                    ),
-                  ],
-                ),
-                child: const Icon(
-                  Icons.trip_origin_rounded,
-                  color: Colors.white,
-                  size: 25,
-                ),
-              ),
-              const Icon(
-                Icons.arrow_drop_down,
-                color: Color(0xFF16A05D),
-                size: 20,
-              ),
-            ],
+          height: 55,
+          child: const Icon(
+            Icons.location_on,
+            color: Colors.green,
+            size: 42,
           ),
         ),
       );
     }
 
-    // الوجهة
-    if (widget.destination != null) {
+    if (widget.showDestination &&
+        widget.destination != null) {
       markers.add(
         Marker(
           point: widget.destination!,
           width: 55,
-          height: 65,
-          child: Column(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(7),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFE53935),
-                  borderRadius: BorderRadius.circular(15),
-                  boxShadow: const [
-                    BoxShadow(
-                      blurRadius: 8,
-                      color: Colors.black26,
-                    ),
-                  ],
-                ),
-                child: const Icon(
-                  Icons.flag_rounded,
-                  color: Colors.white,
-                  size: 25,
-                ),
-              ),
-              const Icon(
-                Icons.arrow_drop_down,
-                color: Color(0xFFE53935),
-                size: 20,
-              ),
-            ],
+          height: 55,
+          child: const Icon(
+            Icons.flag_rounded,
+            color: Colors.red,
+            size: 38,
           ),
         ),
       );
     }
 
     return ClipRRect(
-      borderRadius: BorderRadius.circular(25),
+      borderRadius: BorderRadius.circular(22),
       child: Stack(
         children: [
           FlutterMap(
             mapController: mapController,
             options: MapOptions(
-              initialCenter:
-                  currentLocation ??
-                  const LatLng(
-                    36.7372,
-                    3.0863,
-                  ),
-              initialZoom: 13.5,
-              minZoom: 5,
-              maxZoom: 19,
-              onTap: (tapPosition, point) {
+              initialCenter: center,
+              initialZoom: 14,
+              onTap: (_, point) {
                 widget.onMapTap(point);
               },
             ),
@@ -666,71 +496,13 @@ class _LocationMapState extends State<LocationMap> {
                 userAgentPackageName:
                     'com.example.maw3idi',
               ),
-
-              MarkerLayer(
-                markers: markers,
-              ),
-
-              const RichAttributionWidget(
-                attributions: [
-                  TextSourceAttribution(
-                    'OpenStreetMap contributors',
-                  ),
-                ],
-              ),
+              MarkerLayer(markers: markers),
             ],
           ),
 
-          // زر موقعي
-          if (widget.showCurrentLocationButton)
-            Positioned(
-              right: 14,
-              bottom: 18,
-              child: Material(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(16),
-                elevation: 5,
-                child: InkWell(
-                  borderRadius:
-                      BorderRadius.circular(16),
-                  onTap: () async {
-                    await getCurrentLocation();
-
-                    if (currentLocation != null) {
-                      widget.onMapTap(
-                        currentLocation!,
-                      );
-                    }
-                  },
-                  child: Container(
-                    width: 52,
-                    height: 52,
-                    decoration: BoxDecoration(
-                      borderRadius:
-                          BorderRadius.circular(16),
-                    ),
-                    child: loadingLocation
-                        ? const Padding(
-                            padding: EdgeInsets.all(14),
-                            child:
-                                CircularProgressIndicator(
-                              strokeWidth: 2.5,
-                            ),
-                          )
-                        : const Icon(
-                            Icons.my_location_rounded,
-                            color: Color(0xFF1976D2),
-                            size: 27,
-                          ),
-                  ),
-                ),
-              ),
-            ),
-
-          // أزرار التكبير
           Positioned(
-            left: 14,
-            bottom: 18,
+            right: 12,
+            bottom: 12,
             child: Column(
               children: [
                 MapControlButton(
@@ -752,9 +524,21 @@ class _LocationMapState extends State<LocationMap> {
                     );
                   },
                 ),
+                const SizedBox(height: 8),
+                MapControlButton(
+                  icon: Icons.my_location,
+                  onTap: _centerLocation,
+                ),
               ],
             ),
           ),
+
+          if (loading)
+            const Positioned.fill(
+              child: Center(
+                child: CircularProgressIndicator(),
+              ),
+            ),
         ],
       ),
     );
@@ -762,7 +546,1046 @@ class _LocationMapState extends State<LocationMap> {
 }
 
 // =====================================================
-// زر التحكم بالخريطة
+// WASELNI
+// =====================================================
+
+class WaselniPage extends StatefulWidget {
+  const WaselniPage({super.key});
+
+  @override
+  State<WaselniPage> createState() => _WaselniPageState();
+}
+
+class _WaselniPageState extends State<WaselniPage> {
+  LatLng? pickup;
+  LatLng? destination;
+
+  String vehicle = 'car';
+
+  final phoneController = TextEditingController();
+
+  String? requestId;
+
+  Timer? locationTimer;
+
+  @override
+  void dispose() {
+    locationTimer?.cancel();
+    phoneController.dispose();
+    super.dispose();
+  }
+
+  void _mapTap(LatLng point) {
+    setState(() {
+      if (pickup == null) {
+        pickup = point;
+      } else if (destination == null) {
+        destination = point;
+      } else {
+        pickup = point;
+        destination = null;
+      }
+    });
+  }
+
+  Future<void> sendRequest() async {
+    if (pickup == null || destination == null) {
+      _showMessage('حدد نقطة الانطلاق والوجهة من الخريطة');
+      return;
+    }
+
+    if (phoneController.text.trim().isEmpty) {
+      _showMessage('أدخل رقم الهاتف');
+      return;
+    }
+
+    try {
+      final doc = await FirebaseFirestore.instance
+          .collection('requests')
+          .add({
+        'service': 'alo_waselni',
+        'vehicleType': vehicle,
+        'pickupLat': pickup!.latitude,
+        'pickupLng': pickup!.longitude,
+        'destinationLat': destination!.latitude,
+        'destinationLng': destination!.longitude,
+        'phone': phoneController.text.trim(),
+        'status': 'pending',
+
+        // الموقع الحالي للزبون
+        'customerLocationLat': pickup!.latitude,
+        'customerLocationLng': pickup!.longitude,
+        'customerLocationUpdatedAt':
+            FieldValue.serverTimestamp(),
+
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+
+      requestId = doc.id;
+
+      _startLiveLocation();
+
+      if (!mounted) return;
+
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (_) {
+          return AlertDialog(
+            title: const Text('تم إرسال الطلب ✅'),
+            content: const Text(
+              'الطلب وصل للسائقين.\n'
+              'موقعك الحالي يتحدث تلقائياً للسائق.',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  Navigator.pop(context);
+                },
+                child: const Text('حسناً'),
+              ),
+            ],
+          );
+        },
+      );
+    } catch (e) {
+      _showMessage('حدث خطأ أثناء إرسال الطلب');
+    }
+  }
+
+  void _startLiveLocation() {
+    locationTimer?.cancel();
+
+    locationTimer = Timer.periodic(
+      const Duration(seconds: 5),
+      (_) => _updateCustomerLocation(),
+    );
+
+    _updateCustomerLocation();
+  }
+
+  Future<void> _updateCustomerLocation() async {
+    if (requestId == null) return;
+
+    try {
+      final serviceEnabled =
+          await Geolocator.isLocationServiceEnabled();
+
+      if (!serviceEnabled) return;
+
+      LocationPermission permission =
+          await Geolocator.checkPermission();
+
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+      }
+
+      if (permission == LocationPermission.denied ||
+          permission == LocationPermission.deniedForever) {
+        return;
+      }
+
+      final position =
+          await Geolocator.getCurrentPosition();
+
+      await FirebaseFirestore.instance
+          .collection('requests')
+          .doc(requestId)
+          .update({
+        'customerLocationLat': position.latitude,
+        'customerLocationLng': position.longitude,
+        'customerLocationUpdatedAt':
+            FieldValue.serverTimestamp(),
+      });
+    } catch (_) {}
+  }
+
+  void _showMessage(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message)),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text(
+          'ألو وصلني',
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
+        centerTitle: true,
+      ),
+      backgroundColor: const Color(0xFFF5F7FA),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          children: [
+            SizedBox(
+              height: 330,
+              child: LocationMap(
+                pickup: pickup,
+                destination: destination,
+                onMapTap: _mapTap,
+              ),
+            ),
+
+            const SizedBox(height: 14),
+
+            const Text(
+              'اضغط على الخريطة لاختيار الانطلاق ثم الوجهة',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: Colors.grey),
+            ),
+
+            const SizedBox(height: 15),
+
+            Row(
+              children: [
+                Expanded(
+                  child: VehicleButton(
+                    icon: Icons.directions_car,
+                    title: 'سيارة',
+                    selected: vehicle == 'car',
+                    onTap: () {
+                      setState(() => vehicle = 'car');
+                    },
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: VehicleButton(
+                    icon: Icons.two_wheeler,
+                    title: 'دراجة',
+                    selected: vehicle == 'motorcycle',
+                    onTap: () {
+                      setState(() => vehicle = 'motorcycle');
+                    },
+                  ),
+                ),
+              ],
+            ),
+
+            const SizedBox(height: 14),
+
+            ModernTextField(
+              controller: phoneController,
+              hint: 'رقم الهاتف',
+              icon: Icons.phone,
+              keyboardType: TextInputType.phone,
+            ),
+
+            const SizedBox(height: 18),
+
+            SizedBox(
+              width: double.infinity,
+              height: 55,
+              child: ElevatedButton.icon(
+                onPressed: sendRequest,
+                icon: const Icon(Icons.send),
+                label: const Text(
+                  'اطلب الآن',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// =====================================================
+// JIBLI
+// =====================================================
+
+class JibliPage extends StatefulWidget {
+  const JibliPage({super.key});
+
+  @override
+  State<JibliPage> createState() => _JibliPageState();
+}
+
+class _JibliPageState extends State<JibliPage> {
+  LatLng? pickup;
+  LatLng? destination;
+
+  final itemController = TextEditingController();
+  final phoneController = TextEditingController();
+
+  String? requestId;
+  Timer? locationTimer;
+
+  @override
+  void dispose() {
+    locationTimer?.cancel();
+    itemController.dispose();
+    phoneController.dispose();
+    super.dispose();
+  }
+
+  void _mapTap(LatLng point) {
+    setState(() {
+      if (pickup == null) {
+        pickup = point;
+      } else if (destination == null) {
+        destination = point;
+      } else {
+        pickup = point;
+        destination = null;
+      }
+    });
+  }
+
+  Future<void> sendRequest() async {
+    if (pickup == null || destination == null) {
+      _showMessage('حدد نقطة الانطلاق والوجهة');
+      return;
+    }
+
+    if (itemController.text.trim().isEmpty) {
+      _showMessage('اكتب واش حاب السائق يجيبلك');
+      return;
+    }
+
+    if (phoneController.text.trim().isEmpty) {
+      _showMessage('أدخل رقم الهاتف');
+      return;
+    }
+
+    try {
+      final doc = await FirebaseFirestore.instance
+          .collection('requests')
+          .add({
+        'service': 'alo_jibli',
+        'item': itemController.text.trim(),
+        'pickupLat': pickup!.latitude,
+        'pickupLng': pickup!.longitude,
+        'destinationLat': destination!.latitude,
+        'destinationLng': destination!.longitude,
+        'phone': phoneController.text.trim(),
+        'status': 'pending',
+
+        'customerLocationLat': pickup!.latitude,
+        'customerLocationLng': pickup!.longitude,
+        'customerLocationUpdatedAt':
+            FieldValue.serverTimestamp(),
+
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+
+      requestId = doc.id;
+
+      _startLiveLocation();
+
+      if (!mounted) return;
+
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (_) {
+          return AlertDialog(
+            title: const Text('تم إرسال الطلب ✅'),
+            content: const Text(
+              'السائقين يقدرو يشوفو موقعك الحالي على الخريطة.',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('حسناً'),
+              ),
+            ],
+          );
+        },
+      );
+    } catch (_) {
+      _showMessage('حدث خطأ أثناء إرسال الطلب');
+    }
+  }
+
+  void _startLiveLocation() {
+    locationTimer?.cancel();
+
+    locationTimer = Timer.periodic(
+      const Duration(seconds: 5),
+      (_) => _updateCustomerLocation(),
+    );
+
+    _updateCustomerLocation();
+  }
+
+  Future<void> _updateCustomerLocation() async {
+    if (requestId == null) return;
+
+    try {
+      final serviceEnabled =
+          await Geolocator.isLocationServiceEnabled();
+
+      if (!serviceEnabled) return;
+
+      LocationPermission permission =
+          await Geolocator.checkPermission();
+
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+      }
+
+      if (permission == LocationPermission.denied ||
+          permission == LocationPermission.deniedForever) {
+        return;
+      }
+
+      final position =
+          await Geolocator.getCurrentPosition();
+
+      await FirebaseFirestore.instance
+          .collection('requests')
+          .doc(requestId)
+          .update({
+        'customerLocationLat': position.latitude,
+        'customerLocationLng': position.longitude,
+        'customerLocationUpdatedAt':
+            FieldValue.serverTimestamp(),
+      });
+    } catch (_) {}
+  }
+
+  void _showMessage(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message)),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text(
+          'ألو جيبلي',
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
+        centerTitle: true,
+      ),
+      backgroundColor: const Color(0xFFF5F7FA),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          children: [
+            ModernTextField(
+              controller: itemController,
+              hint: 'واش حاب السائق يجيبلك؟',
+              icon: Icons.shopping_bag,
+            ),
+
+            const SizedBox(height: 14),
+
+            ModernTextField(
+              controller: phoneController,
+              hint: 'رقم الهاتف',
+              icon: Icons.phone,
+              keyboardType: TextInputType.phone,
+            ),
+
+            const SizedBox(height: 15),
+
+            SizedBox(
+              height: 330,
+              child: LocationMap(
+                pickup: pickup,
+                destination: destination,
+                onMapTap: _mapTap,
+              ),
+            ),
+
+            const SizedBox(height: 12),
+
+            const Text(
+              'حدد مكان الانطلاق ثم مكان التسليم',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: Colors.grey),
+            ),
+
+            const SizedBox(height: 18),
+
+            SizedBox(
+              width: double.infinity,
+              height: 55,
+              child: ElevatedButton.icon(
+                onPressed: sendRequest,
+                icon: const Icon(Icons.send),
+                label: const Text(
+                  'أرسل الطلب',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// =====================================================
+// DRIVER
+// =====================================================
+
+class DriverPage extends StatelessWidget {
+  final String vehicleType;
+
+  const DriverPage({
+    super.key,
+    required this.vehicleType,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(
+          vehicleType == 'car'
+              ? 'طلبات السيارة'
+              : 'طلبات الدراجة',
+          style: const TextStyle(
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        centerTitle: true,
+      ),
+      backgroundColor: const Color(0xFFF5F7FA),
+      body: StreamBuilder<QuerySnapshot>(
+        stream: FirebaseFirestore.instance
+            .collection('requests')
+            .where('status', isEqualTo: 'pending')
+            .snapshots(),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState ==
+              ConnectionState.waiting) {
+            return const Center(
+              child: CircularProgressIndicator(),
+            );
+          }
+
+          if (snapshot.hasError) {
+            return const Center(
+              child: Text(
+                'تعذر تحميل الطلبات',
+                style: TextStyle(
+                  fontSize: 17,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            );
+          }
+
+          final docs = snapshot.data?.docs ?? [];
+
+          final filtered = docs.where((doc) {
+            final data =
+                doc.data() as Map<String, dynamic>;
+
+            final service = data['service'];
+
+            // ألو جيبلي يبان لجميع السائقين
+            if (service == 'alo_jibli') {
+              return true;
+            }
+
+            return data['vehicleType'] == vehicleType;
+          }).toList();
+
+          if (filtered.isEmpty) {
+            return const Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    Icons.inbox_rounded,
+                    size: 70,
+                    color: Colors.grey,
+                  ),
+                  SizedBox(height: 12),
+                  Text(
+                    'ما كاش طلبات حالياً',
+                    style: TextStyle(
+                      fontSize: 19,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  SizedBox(height: 5),
+                  Text(
+                    'الطلبات الجديدة راح تظهر هنا',
+                    style: TextStyle(color: Colors.grey),
+                  ),
+                ],
+              ),
+            );
+          }
+
+          return ListView.builder(
+            padding: const EdgeInsets.all(14),
+            itemCount: filtered.length,
+            itemBuilder: (context, index) {
+              return DriverRequestCard(
+                doc: filtered[index],
+              );
+            },
+          );
+        },
+      ),
+    );
+  }
+}
+
+// =====================================================
+// DRIVER REQUEST CARD
+// =====================================================
+
+class DriverRequestCard extends StatelessWidget {
+  final QueryDocumentSnapshot doc;
+
+  const DriverRequestCard({
+    super.key,
+    required this.doc,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final data =
+        doc.data() as Map<String, dynamic>;
+
+    final service = data['service'] ?? '';
+
+    final isJibli = service == 'alo_jibli';
+
+    return Card(
+      margin: const EdgeInsets.only(bottom: 16),
+      elevation: 2,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(22),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Column(
+          children: [
+            Row(
+              children: [
+                CircleAvatar(
+                  radius: 25,
+                  backgroundColor:
+                      const Color(0xFFE3F2FD),
+                  child: Icon(
+                    isJibli
+                        ? Icons.shopping_bag
+                        : Icons.local_shipping,
+                    color: const Color(0xFF1565C0),
+                  ),
+                ),
+
+                const SizedBox(width: 12),
+
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment:
+                        CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        isJibli
+                            ? 'ألو جيبلي'
+                            : 'ألو وصلني',
+                        style: const TextStyle(
+                          fontSize: 19,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+
+                      if (isJibli &&
+                          data['item'] != null)
+                        Padding(
+                          padding:
+                              const EdgeInsets.only(top: 4),
+                          child: Text(
+                            'الطلب: ${data['item']}',
+                            style: const TextStyle(
+                              color: Colors.grey,
+                            ),
+                          ),
+                        ),
+
+                      if (data['phone'] != null)
+                        Padding(
+                          padding:
+                              const EdgeInsets.only(top: 3),
+                          child: Text(
+                            'الهاتف: ${data['phone']}',
+                            style: const TextStyle(
+                              color: Colors.grey,
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+
+            const SizedBox(height: 12),
+
+            // =================================================
+            // خريطة السائق:
+            // موقع الزبون فقط
+            // بدون الوجهة
+            // =================================================
+
+            SizedBox(
+              height: 250,
+              child: LiveCustomerMap(
+                requestId: doc.id,
+                initialLat:
+                    (data['customerLocationLat'] ??
+                            data['pickupLat'])
+                        .toDouble(),
+                initialLng:
+                    (data['customerLocationLng'] ??
+                            data['pickupLng'])
+                        .toDouble(),
+              ),
+            ),
+
+            const SizedBox(height: 12),
+
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(
+                horizontal: 14,
+                vertical: 11,
+              ),
+              decoration: BoxDecoration(
+                color: const Color(0xFFE3F2FD),
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: const Row(
+                children: [
+                  Icon(
+                    Icons.location_on,
+                    color: Colors.blue,
+                  ),
+                  SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'موقع الزبون الحالي يتحدث مباشرة',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            const SizedBox(height: 12),
+
+            SizedBox(
+              width: double.infinity,
+              height: 52,
+              child: ElevatedButton.icon(
+                onPressed: () async {
+                  await FirebaseFirestore.instance
+                      .collection('requests')
+                      .doc(doc.id)
+                      .update({
+                    'status': 'accepted',
+                    'acceptedAt':
+                        FieldValue.serverTimestamp(),
+                  });
+
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context)
+                        .showSnackBar(
+                      const SnackBar(
+                        content:
+                            Text('تم قبول الطلب ✅'),
+                      ),
+                    );
+                  }
+                },
+                icon: const Icon(Icons.check_circle),
+                label: const Text(
+                  'قبول الطلب',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// =====================================================
+// LIVE CUSTOMER MAP
+// =====================================================
+
+class LiveCustomerMap extends StatefulWidget {
+  final String requestId;
+  final double initialLat;
+  final double initialLng;
+
+  const LiveCustomerMap({
+    super.key,
+    required this.requestId,
+    required this.initialLat,
+    required this.initialLng,
+  });
+
+  @override
+  State<LiveCustomerMap> createState() =>
+      _LiveCustomerMapState();
+}
+
+class _LiveCustomerMapState
+    extends State<LiveCustomerMap> {
+  final MapController mapController = MapController();
+
+  late LatLng customerLocation;
+
+  @override
+  void initState() {
+    super.initState();
+
+    customerLocation = LatLng(
+      widget.initialLat,
+      widget.initialLng,
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(20),
+      child: StreamBuilder<DocumentSnapshot>(
+        stream: FirebaseFirestore.instance
+            .collection('requests')
+            .doc(widget.requestId)
+            .snapshots(),
+        builder: (context, snapshot) {
+          if (snapshot.hasData &&
+              snapshot.data!.exists) {
+            final data = snapshot.data!.data()
+                as Map<String, dynamic>;
+
+            final lat = data['customerLocationLat'];
+            final lng = data['customerLocationLng'];
+
+            if (lat != null && lng != null) {
+              customerLocation = LatLng(
+                (lat as num).toDouble(),
+                (lng as num).toDouble(),
+              );
+            }
+          }
+
+          return Stack(
+            children: [
+              FlutterMap(
+                mapController: mapController,
+                options: MapOptions(
+                  initialCenter: customerLocation,
+                  initialZoom: 15,
+                ),
+                children: [
+                  TileLayer(
+                    urlTemplate:
+                        'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                    userAgentPackageName:
+                        'com.example.maw3idi',
+                  ),
+
+                  MarkerLayer(
+                    markers: [
+                      Marker(
+                        point: customerLocation,
+                        width: 70,
+                        height: 70,
+                        child: Column(
+                          children: [
+                            Container(
+                              padding:
+                                  const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 4,
+                              ),
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius:
+                                    BorderRadius.circular(8),
+                                boxShadow: const [
+                                  BoxShadow(
+                                    blurRadius: 5,
+                                    color: Colors.black26,
+                                  ),
+                                ],
+                              ),
+                              child: const Text(
+                                'الزبون',
+                                style: TextStyle(
+                                  fontWeight:
+                                      FontWeight.bold,
+                                  fontSize: 11,
+                                ),
+                              ),
+                            ),
+                            const Icon(
+                              Icons.location_on,
+                              color: Colors.blue,
+                              size: 38,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+
+              Positioned(
+                right: 10,
+                bottom: 10,
+                child: MapControlButton(
+                  icon: Icons.my_location,
+                  onTap: () {
+                    mapController.move(
+                      customerLocation,
+                      16,
+                    );
+                  },
+                ),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+}
+
+// =====================================================
+// TEXT FIELD
+// =====================================================
+
+class ModernTextField extends StatelessWidget {
+  final TextEditingController controller;
+  final String hint;
+  final IconData icon;
+  final TextInputType? keyboardType;
+
+  const ModernTextField({
+    super.key,
+    required this.controller,
+    required this.hint,
+    required this.icon,
+    this.keyboardType,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return TextField(
+      controller: controller,
+      keyboardType: keyboardType,
+      decoration: InputDecoration(
+        hintText: hint,
+        prefixIcon: Icon(icon),
+        filled: true,
+        fillColor: Colors.white,
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(18),
+          borderSide: BorderSide.none,
+        ),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 17,
+        ),
+      ),
+    );
+  }
+}
+
+// =====================================================
+// VEHICLE BUTTON
+// =====================================================
+
+class VehicleButton extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final bool selected;
+  final VoidCallback onTap;
+
+  const VehicleButton({
+    super.key,
+    required this.icon,
+    required this.title,
+    required this.selected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      borderRadius: BorderRadius.circular(18),
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.all(15),
+        decoration: BoxDecoration(
+          color: selected
+              ? const Color(0xFFE3F2FD)
+              : Colors.white,
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(
+            color: selected
+                ? const Color(0xFF1565C0)
+                : Colors.transparent,
+            width: 2,
+          ),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              icon,
+              color: selected
+                  ? const Color(0xFF1565C0)
+                  : Colors.grey,
+            ),
+            const SizedBox(width: 8),
+            Text(
+              title,
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                color: selected
+                    ? const Color(0xFF1565C0)
+                    : Colors.grey,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// =====================================================
+// MAP CONTROL
 // =====================================================
 
 class MapControlButton extends StatelessWidget {
@@ -779,1133 +1602,15 @@ class MapControlButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return Material(
       color: Colors.white,
-      borderRadius: BorderRadius.circular(14),
-      elevation: 5,
+      borderRadius: BorderRadius.circular(12),
+      elevation: 3,
       child: InkWell(
+        borderRadius: BorderRadius.circular(12),
         onTap: onTap,
-        borderRadius: BorderRadius.circular(14),
         child: SizedBox(
-          width: 48,
-          height: 48,
-          child: Icon(
-            icon,
-            color: const Color(0xFF172033),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-// =====================================================
-// ألو وصلني
-// =====================================================
-
-class WaselniPage extends StatefulWidget {
-  const WaselniPage({super.key});
-
-  @override
-  State<WaselniPage> createState() => _WaselniPageState();
-}
-
-class _WaselniPageState extends State<WaselniPage> {
-  LatLng? pickup;
-  LatLng? destination;
-
-  bool selectingPickup = true;
-  bool sending = false;
-
-  String vehicle = 'car';
-
-  final phoneController = TextEditingController();
-
-  @override
-  void dispose() {
-    phoneController.dispose();
-    super.dispose();
-  }
-
-  void selectLocation(LatLng point) {
-    setState(() {
-      if (selectingPickup) {
-        pickup = point;
-        selectingPickup = false;
-      } else {
-        destination = point;
-      }
-    });
-  }
-
-  Future<void> sendRequest() async {
-    if (pickup == null) {
-      showMessage(
-        'حدد مكان الانطلاق من الخريطة',
-      );
-      return;
-    }
-
-    if (destination == null) {
-      showMessage(
-        'حدد الوجهة من الخريطة',
-      );
-      return;
-    }
-
-    if (phoneController.text.trim().isEmpty) {
-      showMessage(
-        'أدخل رقم الهاتف',
-      );
-      return;
-    }
-
-    setState(() {
-      sending = true;
-    });
-
-    try {
-      await FirebaseFirestore.instance
-          .collection('requests')
-          .add({
-        'service': 'alo_waselni',
-        'vehicleType': vehicle,
-        'pickupLat': pickup!.latitude,
-        'pickupLng': pickup!.longitude,
-        'destinationLat':
-            destination!.latitude,
-        'destinationLng':
-            destination!.longitude,
-        'phone':
-            phoneController.text.trim(),
-        'status': 'pending',
-        'createdAt':
-            FieldValue.serverTimestamp(),
-      });
-
-      if (!mounted) return;
-
-      showMessage(
-        'تم إرسال الطلب بنجاح ✅',
-      );
-
-      setState(() {
-        pickup = null;
-        destination = null;
-        selectingPickup = true;
-      });
-
-      phoneController.clear();
-    } catch (e) {
-      showMessage(
-        'تعذر إرسال الطلب. تأكد من إعداد Firebase.',
-      );
-    }
-
-    if (mounted) {
-      setState(() {
-        sending = false;
-      });
-    }
-  }
-
-  void showMessage(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        behavior: SnackBarBehavior.floating,
-      ),
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text(
-          'ألو وصلني',
-          style: TextStyle(
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        centerTitle: true,
-        backgroundColor: Colors.white,
-        foregroundColor: const Color(0xFF172033),
-        elevation: 0,
-      ),
-      body: Column(
-        children: [
-          Container(
-            margin: const EdgeInsets.fromLTRB(
-              15,
-              8,
-              15,
-              10,
-            ),
-            padding: const EdgeInsets.symmetric(
-              horizontal: 15,
-              vertical: 12,
-            ),
-            decoration: BoxDecoration(
-              color: const Color(0xFFEAF3FF),
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: Row(
-              children: [
-                const Icon(
-                  Icons.touch_app_rounded,
-                  color: Color(0xFF1976D2),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Text(
-                    selectingPickup
-                        ? 'اضغط على الخريطة لتحديد مكان الانطلاق'
-                        : destination == null
-                            ? 'اضغط على الخريطة لتحديد الوجهة'
-                            : 'تم تحديد الانطلاق والوجهة ✅',
-                    style: const TextStyle(
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-
-          Padding(
-            padding: const EdgeInsets.symmetric(
-              horizontal: 15,
-            ),
-            child: SizedBox(
-              height: 330,
-              child: LocationMap(
-                pickup: pickup,
-                destination: destination,
-                onMapTap: selectLocation,
-              ),
-            ),
-          ),
-
-          Expanded(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.all(15),
-              child: Column(
-                children: [
-                  const SizedBox(height: 5),
-
-                  Row(
-                    children: [
-                      Expanded(
-                        child: VehicleButton(
-                          title: '🚗 سيارة',
-                          selected:
-                              vehicle == 'car',
-                          color:
-                              const Color(0xFF1976D2),
-                          onTap: () {
-                            setState(() {
-                              vehicle = 'car';
-                            });
-                          },
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: VehicleButton(
-                          title: '🏍️ دراجة',
-                          selected:
-                              vehicle ==
-                                  'motorcycle',
-                          color:
-                              const Color(0xFFFF8A00),
-                          onTap: () {
-                            setState(() {
-                              vehicle =
-                                  'motorcycle';
-                            });
-                          },
-                        ),
-                      ),
-                    ],
-                  ),
-
-                  const SizedBox(height: 12),
-
-                  ModernTextField(
-                    controller: phoneController,
-                    label: 'رقم الهاتف',
-                    icon: Icons.phone_rounded,
-                    keyboardType:
-                        TextInputType.phone,
-                  ),
-
-                  const SizedBox(height: 14),
-
-                  SizedBox(
-                    width: double.infinity,
-                    height: 58,
-                    child: ElevatedButton(
-                      onPressed:
-                          sending
-                              ? null
-                              : sendRequest,
-                      style:
-                          ElevatedButton.styleFrom(
-                        backgroundColor:
-                            const Color(0xFF1976D2),
-                        foregroundColor:
-                            Colors.white,
-                        elevation: 2,
-                        shape:
-                            RoundedRectangleBorder(
-                          borderRadius:
-                              BorderRadius.circular(
-                            18,
-                          ),
-                        ),
-                      ),
-                      child: Text(
-                        sending
-                            ? 'جاري إرسال الطلب...'
-                            : 'اطلب التوصيلة 🚗',
-                        style: const TextStyle(
-                          fontSize: 18,
-                          fontWeight:
-                              FontWeight.w900,
-                        ),
-                      ),
-                    ),
-                  ),
-
-                  const SizedBox(height: 10),
-                ],
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// =====================================================
-// زر السيارة والدراجة
-// =====================================================
-
-class VehicleButton extends StatelessWidget {
-  final String title;
-  final bool selected;
-  final Color color;
-  final VoidCallback onTap;
-
-  const VehicleButton({
-    super.key,
-    required this.title,
-    required this.selected,
-    required this.color,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      height: 54,
-      child: ElevatedButton(
-        onPressed: onTap,
-        style: ElevatedButton.styleFrom(
-          backgroundColor:
-              selected
-                  ? color
-                  : Colors.white,
-          foregroundColor:
-              selected
-                  ? Colors.white
-                  : const Color(0xFF172033),
-          elevation: selected ? 2 : 0,
-          side: BorderSide(
-            color:
-                selected
-                    ? color
-                    : Colors.grey.shade300,
-          ),
-          shape:
-              RoundedRectangleBorder(
-            borderRadius:
-                BorderRadius.circular(16),
-          ),
-        ),
-        child: Text(
-          title,
-          style: const TextStyle(
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-// =====================================================
-// حقل عصري
-// =====================================================
-
-class ModernTextField extends StatelessWidget {
-  final TextEditingController controller;
-  final String label;
-  final IconData icon;
-  final TextInputType? keyboardType;
-
-  const ModernTextField({
-    super.key,
-    required this.controller,
-    required this.label,
-    required this.icon,
-    this.keyboardType,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return TextField(
-      controller: controller,
-      keyboardType: keyboardType,
-      decoration: InputDecoration(
-        labelText: label,
-        prefixIcon: Icon(icon),
-        filled: true,
-        fillColor: Colors.white,
-        border: OutlineInputBorder(
-          borderRadius:
-              BorderRadius.circular(17),
-          borderSide: BorderSide.none,
-        ),
-        enabledBorder:
-            OutlineInputBorder(
-          borderRadius:
-              BorderRadius.circular(17),
-          borderSide: BorderSide(
-            color: Colors.grey.shade200,
-          ),
-        ),
-        focusedBorder:
-            OutlineInputBorder(
-          borderRadius:
-              BorderRadius.circular(17),
-          borderSide: const BorderSide(
-            color: Color(0xFF1976D2),
-            width: 1.5,
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-// =====================================================
-// ألو جيبلي
-// =====================================================
-
-class JibliPage extends StatefulWidget {
-  const JibliPage({super.key});
-
-  @override
-  State<JibliPage> createState() => _JibliPageState();
-}
-
-class _JibliPageState extends State<JibliPage> {
-  LatLng? pickup;
-  LatLng? destination;
-
-  bool selectingPickup = true;
-  bool sending = false;
-
-  final itemController =
-      TextEditingController();
-
-  final phoneController =
-      TextEditingController();
-
-  @override
-  void dispose() {
-    itemController.dispose();
-    phoneController.dispose();
-    super.dispose();
-  }
-
-  void selectLocation(LatLng point) {
-    setState(() {
-      if (selectingPickup) {
-        pickup = point;
-        selectingPickup = false;
-      } else {
-        destination = point;
-      }
-    });
-  }
-
-  Future<void> sendRequest() async {
-    if (itemController.text.trim().isEmpty) {
-      showMessage(
-        'اكتب واش حاب يجيبلك',
-      );
-      return;
-    }
-
-    if (pickup == null) {
-      showMessage(
-        'حدد مكان الجلب',
-      );
-      return;
-    }
-
-    if (destination == null) {
-      showMessage(
-        'حدد مكان التسليم',
-      );
-      return;
-    }
-
-    if (phoneController.text.trim().isEmpty) {
-      showMessage(
-        'أدخل رقم الهاتف',
-      );
-      return;
-    }
-
-    setState(() {
-      sending = true;
-    });
-
-    try {
-      await FirebaseFirestore.instance
-          .collection('requests')
-          .add({
-        'service': 'alo_jibli',
-        'item':
-            itemController.text.trim(),
-        'pickupLat':
-            pickup!.latitude,
-        'pickupLng':
-            pickup!.longitude,
-        'destinationLat':
-            destination!.latitude,
-        'destinationLng':
-            destination!.longitude,
-        'phone':
-            phoneController.text.trim(),
-        'status': 'pending',
-        'createdAt':
-            FieldValue.serverTimestamp(),
-      });
-
-      if (!mounted) return;
-
-      showMessage(
-        'تم إرسال طلب ألو جيبلي بنجاح ✅',
-      );
-
-      setState(() {
-        pickup = null;
-        destination = null;
-        selectingPickup = true;
-      });
-
-      itemController.clear();
-      phoneController.clear();
-    } catch (e) {
-      showMessage(
-        'تعذر إرسال الطلب. تأكد من إعداد Firebase.',
-      );
-    }
-
-    if (mounted) {
-      setState(() {
-        sending = false;
-      });
-    }
-  }
-
-  void showMessage(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        behavior: SnackBarBehavior.floating,
-      ),
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text(
-          'ألو جيبلي',
-          style: TextStyle(
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        centerTitle: true,
-        backgroundColor: Colors.white,
-        foregroundColor: const Color(0xFF172033),
-        elevation: 0,
-      ),
-      body: Column(
-        children: [
-          Container(
-            margin: const EdgeInsets.fromLTRB(
-              15,
-              8,
-              15,
-              10,
-            ),
-            padding: const EdgeInsets.all(13),
-            decoration: BoxDecoration(
-              color: const Color(0xFFFFF3E2),
-              borderRadius:
-                  BorderRadius.circular(16),
-            ),
-            child: Row(
-              children: [
-                const Icon(
-                  Icons.location_on_rounded,
-                  color: Color(0xFFFF8A00),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Text(
-                    selectingPickup
-                        ? 'حدد مكان الجلب من الخريطة'
-                        : destination == null
-                            ? 'حدد مكان التسليم'
-                            : 'تم تحديد المكانين ✅',
-                    style: const TextStyle(
-                      fontWeight:
-                          FontWeight.bold,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-
-          Padding(
-            padding:
-                const EdgeInsets.symmetric(
-              horizontal: 15,
-            ),
-            child: SizedBox(
-              height: 300,
-              child: LocationMap(
-                pickup: pickup,
-                destination: destination,
-                onMapTap: selectLocation,
-              ),
-            ),
-          ),
-
-          Expanded(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.all(15),
-              child: Column(
-                children: [
-                  ModernTextField(
-                    controller:
-                        itemController,
-                    label:
-                        'وش حاب يجيبلك؟',
-                    icon:
-                        Icons.shopping_bag_rounded,
-                  ),
-
-                  const SizedBox(height: 12),
-
-                  ModernTextField(
-                    controller:
-                        phoneController,
-                    label:
-                        'رقم الهاتف',
-                    icon:
-                        Icons.phone_rounded,
-                    keyboardType:
-                        TextInputType.phone,
-                  ),
-
-                  const SizedBox(height: 14),
-
-                  SizedBox(
-                    width: double.infinity,
-                    height: 58,
-                    child: ElevatedButton(
-                      onPressed:
-                          sending
-                              ? null
-                              : sendRequest,
-                      style:
-                          ElevatedButton.styleFrom(
-                        backgroundColor:
-                            const Color(
-                          0xFFFF8A00,
-                        ),
-                        foregroundColor:
-                            Colors.white,
-                        elevation: 2,
-                        shape:
-                            RoundedRectangleBorder(
-                          borderRadius:
-                              BorderRadius.circular(
-                            18,
-                          ),
-                        ),
-                      ),
-                      child: Text(
-                        sending
-                            ? 'جاري إرسال الطلب...'
-                            : 'اطلب ألو جيبلي 📦',
-                        style:
-                            const TextStyle(
-                          fontSize: 18,
-                          fontWeight:
-                              FontWeight.w900,
-                        ),
-                      ),
-                    ),
-                  ),
-
-                  const SizedBox(height: 10),
-                ],
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// =====================================================
-// صفحة السائق
-// =====================================================
-
-class DriverPage extends StatelessWidget {
-  final String vehicleType;
-  final String title;
-
-  const DriverPage({
-    super.key,
-    required this.vehicleType,
-    required this.title,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final color =
-        vehicleType == 'car'
-            ? const Color(0xFF159447)
-            : const Color(0xFFFF8A00);
-
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(
-          title,
-          style: const TextStyle(
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        centerTitle: true,
-        backgroundColor: Colors.white,
-        foregroundColor: const Color(0xFF172033),
-        elevation: 0,
-      ),
-      body: StreamBuilder<QuerySnapshot>(
-        stream: FirebaseFirestore.instance
-            .collection('requests')
-            .where(
-              'status',
-              isEqualTo: 'pending',
-            )
-            .snapshots(),
-        builder:
-            (context, snapshot) {
-          if (snapshot.connectionState ==
-              ConnectionState.waiting) {
-            return const Center(
-              child:
-                  CircularProgressIndicator(),
-            );
-          }
-
-          if (snapshot.hasError) {
-            return const Center(
-              child: Text(
-                'تعذر تحميل الطلبات',
-                style: TextStyle(
-                  fontSize: 18,
-                ),
-              ),
-            );
-          }
-
-          final documents =
-              snapshot.data?.docs ?? [];
-
-          final requests =
-              documents.where((doc) {
-            final data =
-                doc.data()
-                    as Map<String, dynamic>;
-
-            if (data['service'] ==
-                'alo_jibli') {
-              return true;
-            }
-
-            return data['vehicleType'] ==
-                    vehicleType ||
-                data['vehicleType'] ==
-                    'any';
-          }).toList();
-
-          if (requests.isEmpty) {
-            return Center(
-              child: Column(
-                mainAxisAlignment:
-                    MainAxisAlignment.center,
-                children: [
-                  Icon(
-                    Icons.inbox_rounded,
-                    size: 70,
-                    color:
-                        Colors.grey.shade300,
-                  ),
-                  const SizedBox(height: 15),
-                  const Text(
-                    'ما كاش طلبات حاليا 📭',
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight:
-                          FontWeight.bold,
-                    ),
-                  ),
-                ],
-              ),
-            );
-          }
-
-          return ListView.builder(
-            padding:
-                const EdgeInsets.all(15),
-            itemCount:
-                requests.length,
-            itemBuilder:
-                (context, index) {
-              final doc =
-                  requests[index];
-
-              final data =
-                  doc.data()
-                      as Map<String, dynamic>;
-
-              return DriverRequestCard(
-                documentId: doc.id,
-                data: data,
-                color: color,
-              );
-            },
-          );
-        },
-      ),
-    );
-  }
-}
-
-// =====================================================
-// بطاقة طلب السائق
-// =====================================================
-
-class DriverRequestCard
-    extends StatelessWidget {
-  final String documentId;
-  final Map<String, dynamic> data;
-  final Color color;
-
-  const DriverRequestCard({
-    super.key,
-    required this.documentId,
-    required this.data,
-    required this.color,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final service =
-        data['service'] ?? '';
-
-    final isJibli =
-        service == 'alo_jibli';
-
-    final pickupLat =
-        (data['pickupLat'] as num?)
-            ?.toDouble();
-
-    final pickupLng =
-        (data['pickupLng'] as num?)
-            ?.toDouble();
-
-    final destinationLat =
-        (data['destinationLat']
-                as num?)
-            ?.toDouble();
-
-    final destinationLng =
-        (data['destinationLng']
-                as num?)
-            ?.toDouble();
-
-    return Card(
-      margin:
-          const EdgeInsets.only(
-        bottom: 15,
-      ),
-      elevation: 2,
-      color: Colors.white,
-      shape:
-          RoundedRectangleBorder(
-        borderRadius:
-            BorderRadius.circular(22),
-      ),
-      child: Padding(
-        padding:
-            const EdgeInsets.all(15),
-        child: Column(
-          crossAxisAlignment:
-              CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Container(
-                  width: 48,
-                  height: 48,
-                  decoration:
-                      BoxDecoration(
-                    color:
-                        color.withOpacity(
-                      .10,
-                    ),
-                    borderRadius:
-                        BorderRadius.circular(
-                      15,
-                    ),
-                  ),
-                  child: Icon(
-                    isJibli
-                        ? Icons
-                            .shopping_bag_rounded
-                        : Icons
-                            .directions_car_rounded,
-                    color: color,
-                  ),
-                ),
-
-                const SizedBox(width: 12),
-
-                Text(
-                  isJibli
-                      ? 'ألو جيبلي'
-                      : 'ألو وصلني',
-                  style:
-                      const TextStyle(
-                    fontSize: 20,
-                    fontWeight:
-                        FontWeight.w900,
-                  ),
-                ),
-              ],
-            ),
-
-            const SizedBox(height: 12),
-
-            if (isJibli)
-              Container(
-                width:
-                    double.infinity,
-                padding:
-                    const EdgeInsets.all(12),
-                decoration:
-                    BoxDecoration(
-                  color:
-                      Colors.orange.shade50,
-                  borderRadius:
-                      BorderRadius.circular(
-                    14,
-                  ),
-                ),
-                child: Text(
-                  '🛍️ المطلوب: ${data['item'] ?? ''}',
-                  style:
-                      const TextStyle(
-                    fontSize: 16,
-                    fontWeight:
-                        FontWeight.bold,
-                  ),
-                ),
-              ),
-
-            const SizedBox(height: 8),
-
-            Text(
-              '📞 ${data['phone'] ?? ''}',
-              style:
-                  const TextStyle(
-                fontSize: 16,
-              ),
-            ),
-
-            const SizedBox(height: 12),
-
-            if (pickupLat != null &&
-                pickupLng != null &&
-                destinationLat !=
-                    null &&
-                destinationLng !=
-                    null)
-              ClipRRect(
-                borderRadius:
-                    BorderRadius.circular(
-                  18,
-                ),
-                child: SizedBox(
-                  height: 190,
-                  child: FlutterMap(
-                    options:
-                        MapOptions(
-                      initialCenter:
-                          LatLng(
-                        pickupLat,
-                        pickupLng,
-                      ),
-                      initialZoom: 13,
-                    ),
-                    children: [
-                      TileLayer(
-                        urlTemplate:
-                            'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                        userAgentPackageName:
-                            'com.example.maw3idi',
-                      ),
-                      MarkerLayer(
-                        markers: [
-                          Marker(
-                            point: LatLng(
-                              pickupLat,
-                              pickupLng,
-                            ),
-                            width: 50,
-                            height: 60,
-                            child:
-                                const Icon(
-                              Icons
-                                  .location_on_rounded,
-                              color:
-                                  Colors.green,
-                              size: 45,
-                            ),
-                          ),
-                          Marker(
-                            point: LatLng(
-                              destinationLat,
-                              destinationLng,
-                            ),
-                            width: 50,
-                            height: 60,
-                            child:
-                                const Icon(
-                              Icons
-                                  .flag_rounded,
-                              color:
-                                  Colors.red,
-                              size: 43,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-
-            const SizedBox(height: 13),
-
-            SizedBox(
-              width:
-                  double.infinity,
-              height: 54,
-              child: ElevatedButton(
-                onPressed: () async {
-                  try {
-                    await FirebaseFirestore
-                        .instance
-                        .collection(
-                          'requests',
-                        )
-                        .doc(documentId)
-                        .update({
-                      'status':
-                          'accepted',
-                      'acceptedAt':
-                          FieldValue
-                              .serverTimestamp(),
-                    });
-
-                    if (context
-                        .mounted) {
-                      ScaffoldMessenger
-                          .of(context)
-                          .showSnackBar(
-                        const SnackBar(
-                          content: Text(
-                            'تم قبول الطلب ✅',
-                          ),
-                        ),
-                      );
-                    }
-                  } catch (e) {
-                    if (context
-                        .mounted) {
-                      ScaffoldMessenger
-                          .of(context)
-                          .showSnackBar(
-                        const SnackBar(
-                          content: Text(
-                            'تعذر قبول الطلب',
-                          ),
-                        ),
-                      );
-                    }
-                  }
-                },
-                style:
-                    ElevatedButton.styleFrom(
-                  backgroundColor:
-                      color,
-                  foregroundColor:
-                      Colors.white,
-                  shape:
-                      RoundedRectangleBorder(
-                    borderRadius:
-                        BorderRadius.circular(
-                      16,
-                    ),
-                  ),
-                ),
-                child: const Text(
-                  'قبول الطلب',
-                  style: TextStyle(
-                    fontSize: 17,
-                    fontWeight:
-                        FontWeight.w900,
-                  ),
-                ),
-              ),
-            ),
-          ],
+          width: 45,
+          height: 45,
+          child: Icon(icon),
         ),
       ),
     );
