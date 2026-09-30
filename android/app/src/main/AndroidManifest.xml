@@ -10,7 +10,9 @@
         android:label=" jdiouia ألو وصلني"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
-
+<meta-data
+    android:name="com.google.android.geo.API_KEY"
+    android:value="ضع_مفتاح_GOOGLE_MAPS_هنا" />
         <activity
             android:name=".MainActivity"
             android:exported="true"
