@@ -1,6 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_map/flutter_map.dart';
+import 'package:latlong2/latlong.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
-void main() {
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp();
+
   runApp(const AloWaselniApp());
 }
 
@@ -14,7 +21,6 @@ class AloWaselniApp extends StatelessWidget {
       title: 'ألو وصلني',
       theme: ThemeData(
         useMaterial3: true,
-        fontFamily: 'Arial',
         colorScheme: ColorScheme.fromSeed(
           seedColor: Colors.blue,
         ),
@@ -24,9 +30,9 @@ class AloWaselniApp extends StatelessWidget {
   }
 }
 
-// =======================
+// =====================================================
 // الصفحة الرئيسية
-// =======================
+// =====================================================
 
 class HomePage extends StatelessWidget {
   const HomePage({super.key});
@@ -36,261 +42,32 @@ class HomePage extends StatelessWidget {
     return Scaffold(
       backgroundColor: Colors.grey.shade100,
       body: SafeArea(
-        child: Center(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              children: [
-                const SizedBox(height: 25),
-
-                // الشعار
-                Container(
-                  width: 105,
-                  height: 105,
-                  decoration: BoxDecoration(
-                    color: Colors.blue,
-                    borderRadius: BorderRadius.circular(30),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.blue.withOpacity(0.25),
-                        blurRadius: 15,
-                        offset: const Offset(0, 7),
-                      ),
-                    ],
-                  ),
-                  child: const Icon(
-                    Icons.local_shipping_rounded,
-                    color: Colors.white,
-                    size: 58,
-                  ),
-                ),
-
-                const SizedBox(height: 18),
-
-                const Text(
-                  'ألو وصلني',
-                  style: TextStyle(
-                    fontSize: 34,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-
-                const SizedBox(height: 8),
-
-                Text(
-                  'خدمات النقل والتوصيل بسهولة',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 16,
-                    color: Colors.grey.shade600,
-                  ),
-                ),
-
-                const SizedBox(height: 40),
-
-                // =======================
-                // أنا الزبون
-                // =======================
-
-                HomeRoleCard(
-                  icon: Icons.person_rounded,
-                  title: 'أنا الزبون',
-                  subtitle: 'نطلب توصيلة أو خدمة ألو جيبلي',
-                  color: Colors.blue,
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => const CustomerPage(),
-                      ),
-                    );
-                  },
-                ),
-
-                const SizedBox(height: 16),
-
-                // =======================
-                // أنا السائق
-                // =======================
-
-                HomeRoleCard(
-                  icon: Icons.directions_car_rounded,
-                  title: 'أنا السائق',
-                  subtitle: 'سائق سيارة واستقبال طلبات الزبائن',
-                  color: Colors.green,
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => const DriverPage(
-                          title: 'واجهة السائق',
-                          icon: Icons.directions_car_rounded,
-                        ),
-                      ),
-                    );
-                  },
-                ),
-
-                const SizedBox(height: 16),
-
-                // =======================
-                // أنا الدراجة النارية
-                // =======================
-
-                HomeRoleCard(
-                  icon: Icons.two_wheeler_rounded,
-                  title: 'أنا الدراجة النارية',
-                  subtitle: 'سائق دراجة نارية واستقبال الطلبات',
-                  color: Colors.orange,
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => const DriverPage(
-                          title: 'واجهة الدراجة النارية',
-                          icon: Icons.two_wheeler_rounded,
-                        ),
-                      ),
-                    );
-                  },
-                ),
-
-                const SizedBox(height: 20),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-// =======================
-// بطاقة الواجهة الرئيسية
-// =======================
-
-class HomeRoleCard extends StatelessWidget {
-  final IconData icon;
-  final String title;
-  final String subtitle;
-  final Color color;
-  final VoidCallback onTap;
-
-  const HomeRoleCard({
-    super.key,
-    required this.icon,
-    required this.title,
-    required this.subtitle,
-    required this.color,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(22),
-      child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.all(18),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(22),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.07),
-              blurRadius: 12,
-              offset: const Offset(0, 5),
-            ),
-          ],
-        ),
-        child: Row(
-          children: [
-            Container(
-              width: 68,
-              height: 68,
-              decoration: BoxDecoration(
-                color: color.withOpacity(0.12),
-                borderRadius: BorderRadius.circular(18),
-              ),
-              child: Icon(
-                icon,
-                color: color,
-                size: 38,
-              ),
-            ),
-
-            const SizedBox(width: 16),
-
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: TextStyle(
-                      fontSize: 21,
-                      fontWeight: FontWeight.bold,
-                      color: color,
-                    ),
-                  ),
-                  const SizedBox(height: 5),
-                  Text(
-                    subtitle,
-                    style: TextStyle(
-                      fontSize: 13,
-                      color: Colors.grey.shade600,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-
-            Icon(
-              Icons.arrow_forward_ios_rounded,
-              color: Colors.grey.shade400,
-              size: 18,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-// =======================
-// واجهة الزبون
-// =======================
-
-class CustomerPage extends StatelessWidget {
-  const CustomerPage({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.grey.shade100,
-      appBar: AppBar(
-        title: const Text(
-          'واجهة الزبون',
-          style: TextStyle(
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        centerTitle: true,
-        backgroundColor: Colors.blue,
-        foregroundColor: Colors.white,
-      ),
-      body: SafeArea(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.all(20),
+          padding: const EdgeInsets.all(22),
           child: Column(
             children: [
-              const SizedBox(height: 15),
+              const SizedBox(height: 30),
+
+              Container(
+                width: 105,
+                height: 105,
+                decoration: BoxDecoration(
+                  color: Colors.blue,
+                  borderRadius: BorderRadius.circular(30),
+                ),
+                child: const Icon(
+                  Icons.local_shipping_rounded,
+                  color: Colors.white,
+                  size: 58,
+                ),
+              ),
+
+              const SizedBox(height: 18),
 
               const Text(
-                'وش حاب تدير؟',
+                'ألو وصلني',
                 style: TextStyle(
-                  fontSize: 27,
+                  fontSize: 34,
                   fontWeight: FontWeight.bold,
                 ),
               ),
@@ -298,42 +75,63 @@ class CustomerPage extends StatelessWidget {
               const SizedBox(height: 8),
 
               Text(
-                'اختار الخدمة اللي تحتاجها',
+                'خدمات النقل والتوصيل داخل البلدية',
+                textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: 16,
                   color: Colors.grey.shade600,
                 ),
               ),
 
-              const SizedBox(height: 30),
+              const SizedBox(height: 40),
 
-              ServiceCard(
-                icon: Icons.directions_car_rounded,
-                title: 'ألو وصلني',
-                subtitle: 'نحتاج سيارة أو دراجة توصلني',
+              RoleButton(
+                icon: Icons.person,
+                title: 'أنا الزبون',
                 color: Colors.blue,
                 onTap: () {
                   Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (_) => const AloWaselniPage(),
+                      builder: (_) => const CustomerPage(),
                     ),
                   );
                 },
               ),
 
-              const SizedBox(height: 18),
+              const SizedBox(height: 15),
 
-              ServiceCard(
-                icon: Icons.inventory_2_rounded,
-                title: 'ألو جيبلي',
-                subtitle: 'نحتاج واحد يجيبلي حاجة',
+              RoleButton(
+                icon: Icons.directions_car,
+                title: 'أنا السائق',
+                color: Colors.green,
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const DriverPage(
+                        vehicleType: 'car',
+                        title: 'أنا السائق',
+                      ),
+                    ),
+                  );
+                },
+              ),
+
+              const SizedBox(height: 15),
+
+              RoleButton(
+                icon: Icons.two_wheeler,
+                title: 'أنا سائق الدراجة',
                 color: Colors.orange,
                 onTap: () {
                   Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (_) => const AloJibliPage(),
+                      builder: (_) => const DriverPage(
+                        vehicleType: 'motorcycle',
+                        title: 'أنا سائق الدراجة',
+                      ),
                     ),
                   );
                 },
@@ -346,353 +144,1070 @@ class CustomerPage extends StatelessWidget {
   }
 }
 
-// =======================
-// بطاقة الخدمة
-// =======================
+// =====================================================
+// زر الدور
+// =====================================================
 
-class ServiceCard extends StatelessWidget {
+class RoleButton extends StatelessWidget {
   final IconData icon;
   final String title;
-  final String subtitle;
   final Color color;
   final VoidCallback onTap;
 
-  const ServiceCard({
+  const RoleButton({
     super.key,
     required this.icon,
     required this.title,
-    required this.subtitle,
     required this.color,
     required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(25),
-      child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.all(22),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(25),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.07),
-              blurRadius: 12,
-              offset: const Offset(0, 5),
+    return SizedBox(
+      width: double.infinity,
+      height: 72,
+      child: ElevatedButton.icon(
+        onPressed: onTap,
+        icon: Icon(icon, size: 31),
+        label: Text(
+          title,
+          style: const TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: color,
+          foregroundColor: Colors.white,
+          elevation: 3,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(18),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// =====================================================
+// صفحة الزبون
+// =====================================================
+
+class CustomerPage extends StatelessWidget {
+  const CustomerPage({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('أنا الزبون'),
+        centerTitle: true,
+        backgroundColor: Colors.blue,
+        foregroundColor: Colors.white,
+      ),
+      backgroundColor: Colors.grey.shade100,
+      body: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          children: [
+            const SizedBox(height: 25),
+
+            ServiceButton(
+              icon: Icons.directions_car,
+              title: 'ألو وصلني',
+              color: Colors.blue,
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => const WaselniPage(),
+                  ),
+                );
+              },
+            ),
+
+            const SizedBox(height: 20),
+
+            ServiceButton(
+              icon: Icons.shopping_bag,
+              title: 'ألو جيبلي',
+              color: Colors.orange,
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => const JibliPage(),
+                  ),
+                );
+              },
             ),
           ],
         ),
-        child: Row(
-          children: [
-            Container(
-              width: 70,
-              height: 70,
-              decoration: BoxDecoration(
-                color: color.withOpacity(0.12),
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: Icon(
-                icon,
-                color: color,
-                size: 38,
+      ),
+    );
+  }
+}
+
+// =====================================================
+// زر الخدمة
+// =====================================================
+
+class ServiceButton extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final Color color;
+  final VoidCallback onTap;
+
+  const ServiceButton({
+    super.key,
+    required this.icon,
+    required this.title,
+    required this.color,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: double.infinity,
+      height: 90,
+      child: ElevatedButton.icon(
+        onPressed: onTap,
+        icon: Icon(icon, size: 40),
+        label: Text(
+          title,
+          style: const TextStyle(
+            fontSize: 24,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: color,
+          foregroundColor: Colors.white,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// =====================================================
+// الخريطة
+// =====================================================
+
+class LocationMap extends StatelessWidget {
+  final LatLng? pickup;
+  final LatLng? destination;
+  final Function(LatLng) onMapTap;
+
+  const LocationMap({
+    super.key,
+    required this.pickup,
+    required this.destination,
+    required this.onMapTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final markers = <Marker>[];
+
+    if (pickup != null) {
+      markers.add(
+        Marker(
+          point: pickup!,
+          width: 50,
+          height: 50,
+          child: const Icon(
+            Icons.location_on,
+            color: Colors.green,
+            size: 48,
+          ),
+        ),
+      );
+    }
+
+    if (destination != null) {
+      markers.add(
+        Marker(
+          point: destination!,
+          width: 50,
+          height: 50,
+          child: const Icon(
+            Icons.location_on,
+            color: Colors.red,
+            size: 48,
+          ),
+        ),
+      );
+    }
+
+    return FlutterMap(
+      options: MapOptions(
+        initialCenter: const LatLng(
+          36.7372,
+          3.0863,
+        ),
+        initialZoom: 13,
+        onTap: (tapPosition, point) {
+          onMapTap(point);
+        },
+      ),
+      children: [
+        TileLayer(
+          urlTemplate:
+              'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+          userAgentPackageName:
+              'com.example.maw3idi',
+        ),
+
+        MarkerLayer(
+          markers: markers,
+        ),
+
+        const RichAttributionWidget(
+          attributions: [
+            TextSourceAttribution(
+              'OpenStreetMap contributors',
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
+// =====================================================
+// ألو وصلني
+// =====================================================
+
+class WaselniPage extends StatefulWidget {
+  const WaselniPage({super.key});
+
+  @override
+  State<WaselniPage> createState() => _WaselniPageState();
+}
+
+class _WaselniPageState extends State<WaselniPage> {
+  LatLng? pickup;
+  LatLng? destination;
+
+  bool selectingPickup = true;
+  bool sending = false;
+
+  String vehicle = 'car';
+
+  final phoneController = TextEditingController();
+
+  @override
+  void dispose() {
+    phoneController.dispose();
+    super.dispose();
+  }
+
+  void selectLocation(LatLng point) {
+    setState(() {
+      if (selectingPickup) {
+        pickup = point;
+        selectingPickup = false;
+      } else {
+        destination = point;
+      }
+    });
+  }
+
+  Future<void> sendRequest() async {
+    if (pickup == null) {
+      showMessage('حدد مكان الانطلاق من الخريطة');
+      return;
+    }
+
+    if (destination == null) {
+      showMessage('حدد الوجهة من الخريطة');
+      return;
+    }
+
+    if (phoneController.text.trim().isEmpty) {
+      showMessage('أدخل رقم الهاتف');
+      return;
+    }
+
+    setState(() {
+      sending = true;
+    });
+
+    try {
+      await FirebaseFirestore.instance
+          .collection('requests')
+          .add({
+        'service': 'alo_waselni',
+        'vehicleType': vehicle,
+
+        'pickupLat': pickup!.latitude,
+        'pickupLng': pickup!.longitude,
+
+        'destinationLat': destination!.latitude,
+        'destinationLng': destination!.longitude,
+
+        'phone': phoneController.text.trim(),
+
+        'status': 'pending',
+
+        'createdAt':
+            FieldValue.serverTimestamp(),
+      });
+
+      if (!mounted) return;
+
+      showMessage('تم إرسال الطلب بنجاح ✅');
+
+      setState(() {
+        pickup = null;
+        destination = null;
+        selectingPickup = true;
+      });
+
+      phoneController.clear();
+    } catch (e) {
+      showMessage(
+        'تعذر إرسال الطلب. تأكد من إعداد Firebase.',
+      );
+    }
+
+    if (mounted) {
+      setState(() {
+        sending = false;
+      });
+    }
+  }
+
+  void showMessage(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('ألو وصلني'),
+        centerTitle: true,
+        backgroundColor: Colors.blue,
+        foregroundColor: Colors.white,
+      ),
+      body: Column(
+        children: [
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(12),
+            color: Colors.blue.shade50,
+            child: Text(
+              selectingPickup
+                  ? '📍 اضغط على الخريطة لتحديد مكان الانطلاق'
+                  : destination == null
+                      ? '📍 اضغط على الخريطة لتحديد الوجهة'
+                      : '✅ تم تحديد المكانين',
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 15,
               ),
             ),
-            const SizedBox(width: 18),
-            Expanded(
+          ),
+
+          SizedBox(
+            height: 330,
+            child: LocationMap(
+              pickup: pickup,
+              destination: destination,
+              onMapTap: selectLocation,
+            ),
+          ),
+
+          Expanded(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(15),
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    title,
-                    style: TextStyle(
-                      fontSize: 23,
-                      fontWeight: FontWeight.bold,
-                      color: color,
+                  Row(
+                    children: [
+                      Expanded(
+                        child: VehicleButton(
+                          title: '🚗 سيارة',
+                          selected: vehicle == 'car',
+                          color: Colors.blue,
+                          onTap: () {
+                            setState(() {
+                              vehicle = 'car';
+                            });
+                          },
+                        ),
+                      ),
+
+                      const SizedBox(width: 10),
+
+                      Expanded(
+                        child: VehicleButton(
+                          title: '🏍️ دراجة',
+                          selected:
+                              vehicle == 'motorcycle',
+                          color: Colors.orange,
+                          onTap: () {
+                            setState(() {
+                              vehicle = 'motorcycle';
+                            });
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
+
+                  const SizedBox(height: 12),
+
+                  TextField(
+                    controller: phoneController,
+                    keyboardType: TextInputType.phone,
+                    decoration: InputDecoration(
+                      labelText: 'رقم الهاتف',
+                      prefixIcon:
+                          const Icon(Icons.phone),
+                      filled: true,
+                      fillColor:
+                          Colors.grey.shade100,
+                      border: OutlineInputBorder(
+                        borderRadius:
+                            BorderRadius.circular(15),
+                        borderSide: BorderSide.none,
+                      ),
                     ),
                   ),
-                  const SizedBox(height: 6),
-                  Text(
-                    subtitle,
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: Colors.grey.shade600,
+
+                  const SizedBox(height: 12),
+
+                  SizedBox(
+                    width: double.infinity,
+                    height: 55,
+                    child: ElevatedButton(
+                      onPressed:
+                          sending ? null : sendRequest,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.blue,
+                        foregroundColor: Colors.white,
+                      ),
+                      child: Text(
+                        sending
+                            ? 'جاري الإرسال...'
+                            : 'طلب التوصيلة',
+                        style: const TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
                     ),
                   ),
                 ],
               ),
             ),
-            Icon(
-              Icons.arrow_forward_ios_rounded,
-              color: Colors.grey.shade500,
-              size: 20,
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
 }
 
-// =======================
-// ألو وصلني
-// =======================
+// =====================================================
+// زر السيارة / الدراجة
+// =====================================================
 
-class AloWaselniPage extends StatelessWidget {
-  const AloWaselniPage({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('ألو وصلني 🚗'),
-        centerTitle: true,
-        backgroundColor: Colors.blue,
-        foregroundColor: Colors.white,
-      ),
-      body: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          children: [
-            const SizedBox(height: 30),
-
-            const Icon(
-              Icons.local_taxi_rounded,
-              size: 90,
-              color: Colors.blue,
-            ),
-
-            const SizedBox(height: 20),
-
-            const Text(
-              'اطلب توصيلة',
-              style: TextStyle(
-                fontSize: 28,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-
-            const SizedBox(height: 10),
-
-            Text(
-              'هنا سنضيف طلب السيارة أو الدراجة وربطه بالسائقين.',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 16,
-                color: Colors.grey.shade600,
-              ),
-            ),
-
-            const Spacer(),
-
-            SizedBox(
-              width: double.infinity,
-              height: 58,
-              child: ElevatedButton(
-                onPressed: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text(
-                        'نضيف إنشاء الطلب الحقيقي مع Firebase في الخطوة القادمة.',
-                      ),
-                    ),
-                  );
-                },
-                child: const Text(
-                  'طلب توصيلة',
-                  style: TextStyle(
-                    fontSize: 19,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
-            ),
-
-            const SizedBox(height: 20),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-// =======================
-// ألو جيبلي
-// =======================
-
-class AloJibliPage extends StatelessWidget {
-  const AloJibliPage({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('ألو جيبلي 📦'),
-        centerTitle: true,
-        backgroundColor: Colors.orange,
-        foregroundColor: Colors.white,
-      ),
-      body: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          children: [
-            const SizedBox(height: 30),
-
-            const Icon(
-              Icons.inventory_2_rounded,
-              size: 90,
-              color: Colors.orange,
-            ),
-
-            const SizedBox(height: 20),
-
-            const Text(
-              'اطلب خدمة الجلب',
-              style: TextStyle(
-                fontSize: 28,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-
-            const SizedBox(height: 10),
-
-            Text(
-              'هنا سنضيف تفاصيل الشيء اللي حاب يجيبهولك الموصل.',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 16,
-                color: Colors.grey.shade600,
-              ),
-            ),
-
-            const Spacer(),
-
-            SizedBox(
-              width: double.infinity,
-              height: 58,
-              child: ElevatedButton(
-                onPressed: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text(
-                        'نضيف إنشاء الطلب الحقيقي مع Firebase في الخطوة القادمة.',
-                      ),
-                    ),
-                  );
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.orange,
-                  foregroundColor: Colors.white,
-                ),
-                child: const Text(
-                  'طلب ألو جيبلي',
-                  style: TextStyle(
-                    fontSize: 19,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
-            ),
-
-            const SizedBox(height: 20),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-// =======================
-// واجهة السائق / الدراجة
-// =======================
-
-class DriverPage extends StatelessWidget {
+class VehicleButton extends StatelessWidget {
   final String title;
-  final IconData icon;
+  final bool selected;
+  final Color color;
+  final VoidCallback onTap;
 
-  const DriverPage({
+  const VehicleButton({
     super.key,
     required this.title,
-    required this.icon,
+    required this.selected,
+    required this.color,
+    required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
+    return SizedBox(
+      height: 50,
+      child: ElevatedButton(
+        onPressed: onTap,
+        style: ElevatedButton.styleFrom(
+          backgroundColor:
+              selected ? color : Colors.grey.shade300,
+          foregroundColor:
+              selected ? Colors.white : Colors.black87,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(14),
+          ),
+        ),
+        child: Text(
+          title,
+          style: const TextStyle(
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// =====================================================
+// ألو جيبلي
+// =====================================================
+
+class JibliPage extends StatefulWidget {
+  const JibliPage({super.key});
+
+  @override
+  State<JibliPage> createState() => _JibliPageState();
+}
+
+class _JibliPageState extends State<JibliPage> {
+  LatLng? pickup;
+  LatLng? destination;
+
+  bool selectingPickup = true;
+  bool sending = false;
+
+  final itemController = TextEditingController();
+  final phoneController = TextEditingController();
+
+  @override
+  void dispose() {
+    itemController.dispose();
+    phoneController.dispose();
+    super.dispose();
+  }
+
+  void selectLocation(LatLng point) {
+    setState(() {
+      if (selectingPickup) {
+        pickup = point;
+        selectingPickup = false;
+      } else {
+        destination = point;
+      }
+    });
+  }
+
+  Future<void> sendRequest() async {
+    if (itemController.text.trim().isEmpty) {
+      showMessage('اكتب واش حاب يجيبلك');
+      return;
+    }
+
+    if (pickup == null) {
+      showMessage('حدد مكان الجلب');
+      return;
+    }
+
+    if (destination == null) {
+      showMessage('حدد مكان التسليم');
+      return;
+    }
+
+    if (phoneController.text.trim().isEmpty) {
+      showMessage('أدخل رقم الهاتف');
+      return;
+    }
+
+    setState(() {
+      sending = true;
+    });
+
+    try {
+      await FirebaseFirestore.instance
+          .collection('requests')
+          .add({
+        'service': 'alo_jibli',
+
+        'item': itemController.text.trim(),
+
+        'pickupLat': pickup!.latitude,
+        'pickupLng': pickup!.longitude,
+
+        'destinationLat':
+            destination!.latitude,
+        'destinationLng':
+            destination!.longitude,
+
+        'phone': phoneController.text.trim(),
+
+        'status': 'pending',
+
+        'createdAt':
+            FieldValue.serverTimestamp(),
+      });
+
+      if (!mounted) return;
+
+      showMessage(
+        'تم إرسال طلب ألو جيبلي بنجاح ✅',
+      );
+
+      setState(() {
+        pickup = null;
+        destination = null;
+        selectingPickup = true;
+      });
+
+      itemController.clear();
+      phoneController.clear();
+    } catch (e) {
+      showMessage(
+        'تعذر إرسال الطلب. تأكد من إعداد Firebase.',
+      );
+    }
+
+    if (mounted) {
+      setState(() {
+        sending = false;
+      });
+    }
+  }
+
+  void showMessage(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.grey.shade100,
+      appBar: AppBar(
+        title: const Text('ألو جيبلي'),
+        centerTitle: true,
+        backgroundColor: Colors.orange,
+        foregroundColor: Colors.white,
+      ),
+      body: Column(
+        children: [
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(12),
+            color: Colors.orange.shade50,
+            child: Text(
+              selectingPickup
+                  ? '📍 حدد مكان الجلب'
+                  : destination == null
+                      ? '📍 حدد مكان التسليم'
+                      : '✅ تم تحديد المكانين',
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+
+          SizedBox(
+            height: 300,
+            child: LocationMap(
+              pickup: pickup,
+              destination: destination,
+              onMapTap: selectLocation,
+            ),
+          ),
+
+          Expanded(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(15),
+              child: Column(
+                children: [
+                  TextField(
+                    controller: itemController,
+                    decoration: InputDecoration(
+                      labelText: 'وش حاب يجيبلك؟',
+                      prefixIcon: const Icon(
+                        Icons.shopping_bag,
+                      ),
+                      filled: true,
+                      fillColor:
+                          Colors.grey.shade100,
+                      border: OutlineInputBorder(
+                        borderRadius:
+                            BorderRadius.circular(15),
+                        borderSide: BorderSide.none,
+                      ),
+                    ),
+                  ),
+
+                  const SizedBox(height: 12),
+
+                  TextField(
+                    controller: phoneController,
+                    keyboardType:
+                        TextInputType.phone,
+                    decoration: InputDecoration(
+                      labelText: 'رقم الهاتف',
+                      prefixIcon:
+                          const Icon(Icons.phone),
+                      filled: true,
+                      fillColor:
+                          Colors.grey.shade100,
+                      border: OutlineInputBorder(
+                        borderRadius:
+                            BorderRadius.circular(15),
+                        borderSide: BorderSide.none,
+                      ),
+                    ),
+                  ),
+
+                  const SizedBox(height: 12),
+
+                  SizedBox(
+                    width: double.infinity,
+                    height: 55,
+                    child: ElevatedButton(
+                      onPressed:
+                          sending ? null : sendRequest,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor:
+                            Colors.orange,
+                        foregroundColor:
+                            Colors.white,
+                      ),
+                      child: Text(
+                        sending
+                            ? 'جاري الإرسال...'
+                            : 'طلب ألو جيبلي',
+                        style: const TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// =====================================================
+// صفحة السائق
+// =====================================================
+
+class DriverPage extends StatelessWidget {
+  final String vehicleType;
+  final String title;
+
+  const DriverPage({
+    super.key,
+    required this.vehicleType,
+    required this.title,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final color = vehicleType == 'car'
+        ? Colors.green
+        : Colors.orange;
+
+    return Scaffold(
       appBar: AppBar(
         title: Text(title),
         centerTitle: true,
-        backgroundColor: Colors.green,
+        backgroundColor: color,
         foregroundColor: Colors.white,
       ),
-      body: Center(
-        child: Padding(
-          padding: const EdgeInsets.all(25),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(
-                icon,
-                size: 100,
-                color: Colors.green,
+      backgroundColor: Colors.grey.shade100,
+      body: StreamBuilder<QuerySnapshot>(
+        stream: FirebaseFirestore.instance
+            .collection('requests')
+            .where(
+              'status',
+              isEqualTo: 'pending',
+            )
+            .snapshots(),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState ==
+              ConnectionState.waiting) {
+            return const Center(
+              child: CircularProgressIndicator(),
+            );
+          }
+
+          if (snapshot.hasError) {
+            return const Center(
+              child: Padding(
+                padding: EdgeInsets.all(20),
+                child: Text(
+                  'تعذر تحميل الطلبات',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 18,
+                  ),
+                ),
               ),
+            );
+          }
 
-              const SizedBox(height: 25),
+          final documents =
+              snapshot.data?.docs ?? [];
 
-              Text(
-                title,
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  fontSize: 28,
+          final requests = documents.where((doc) {
+            final data =
+                doc.data() as Map<String, dynamic>;
+
+            if (data['service'] ==
+                'alo_jibli') {
+              return true;
+            }
+
+            return data['vehicleType'] ==
+                    vehicleType ||
+                data['vehicleType'] == 'any';
+          }).toList();
+
+          if (requests.isEmpty) {
+            return const Center(
+              child: Text(
+                'ما كاش طلبات حاليا 📭',
+                style: TextStyle(
+                  fontSize: 21,
                   fontWeight: FontWeight.bold,
                 ),
               ),
+            );
+          }
 
-              const SizedBox(height: 12),
+          return ListView.builder(
+            padding: const EdgeInsets.all(15),
+            itemCount: requests.length,
+            itemBuilder: (context, index) {
+              final doc = requests[index];
 
+              final data =
+                  doc.data()
+                      as Map<String, dynamic>;
+
+              return DriverRequestCard(
+                documentId: doc.id,
+                data: data,
+                color: color,
+              );
+            },
+          );
+        },
+      ),
+    );
+  }
+}
+
+// =====================================================
+// بطاقة الطلب للسائق
+// =====================================================
+
+class DriverRequestCard extends StatelessWidget {
+  final String documentId;
+  final Map<String, dynamic> data;
+  final Color color;
+
+  const DriverRequestCard({
+    super.key,
+    required this.documentId,
+    required this.data,
+    required this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final service =
+        data['service'] ?? '';
+
+    final isJibli =
+        service == 'alo_jibli';
+
+    final pickupLat =
+        (data['pickupLat'] as num?)?.toDouble();
+
+    final pickupLng =
+        (data['pickupLng'] as num?)?.toDouble();
+
+    final destinationLat =
+        (data['destinationLat'] as num?)
+            ?.toDouble();
+
+    final destinationLng =
+        (data['destinationLng'] as num?)
+            ?.toDouble();
+
+    return Card(
+      margin: const EdgeInsets.only(
+        bottom: 15,
+      ),
+      elevation: 3,
+      child: Padding(
+        padding: const EdgeInsets.all(15),
+        child: Column(
+          crossAxisAlignment:
+              CrossAxisAlignment.start,
+          children: [
+            Text(
+              isJibli
+                  ? '📦 ألو جيبلي'
+                  : '🚗 ألو وصلني',
+              style: const TextStyle(
+                fontSize: 21,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+
+            const SizedBox(height: 10),
+
+            if (isJibli)
               Text(
-                'هنا راح تظهر طلبات الزبائن القريبة منك.',
-                textAlign: TextAlign.center,
-                style: TextStyle(
+                '🛍️ المطلوب: ${data['item'] ?? ''}',
+                style: const TextStyle(
                   fontSize: 16,
-                  color: Colors.grey.shade600,
                 ),
               ),
 
-              const SizedBox(height: 35),
+            const SizedBox(height: 5),
 
+            Text(
+              '📞 ${data['phone'] ?? ''}',
+              style: const TextStyle(
+                fontSize: 16,
+              ),
+            ),
+
+            const SizedBox(height: 12),
+
+            if (pickupLat != null &&
+                pickupLng != null &&
+                destinationLat != null &&
+                destinationLng != null)
               SizedBox(
-                width: double.infinity,
-                height: 58,
-                child: ElevatedButton.icon(
-                  onPressed: () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text(
-                          'نضيف استقبال الطلبات الحقيقية في الخطوة القادمة.',
-                        ),
-                      ),
-                    );
-                  },
-                  icon: const Icon(Icons.list_alt_rounded),
-                  label: const Text(
-                    'طلبات الزبائن',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
+                height: 180,
+                child: FlutterMap(
+                  options: MapOptions(
+                    initialCenter: LatLng(
+                      pickupLat,
+                      pickupLng,
                     ),
+                    initialZoom: 13,
                   ),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.green,
-                    foregroundColor: Colors.white,
+                  children: [
+                    TileLayer(
+                      urlTemplate:
+                          'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                      userAgentPackageName:
+                          'com.example.maw3idi',
+                    ),
+
+                    MarkerLayer(
+                      markers: [
+                        Marker(
+                          point: LatLng(
+                            pickupLat,
+                            pickupLng,
+                          ),
+                          width: 50,
+                          height: 50,
+                          child: const Icon(
+                            Icons.location_on,
+                            color: Colors.green,
+                            size: 45,
+                          ),
+                        ),
+                        Marker(
+                          point: LatLng(
+                            destinationLat,
+                            destinationLng,
+                          ),
+                          width: 50,
+                          height: 50,
+                          child: const Icon(
+                            Icons.location_on,
+                            color: Colors.red,
+                            size: 45,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+
+            const SizedBox(height: 12),
+
+            SizedBox(
+              width: double.infinity,
+              height: 50,
+              child: ElevatedButton(
+                onPressed: () async {
+                  try {
+                    await FirebaseFirestore
+                        .instance
+                        .collection('requests')
+                        .doc(documentId)
+                        .update({
+                      'status': 'accepted',
+                      'acceptedAt':
+                          FieldValue
+                              .serverTimestamp(),
+                    });
+
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(
+                        context,
+                      ).showSnackBar(
+                        const SnackBar(
+                          content: Text(
+                            'تم قبول الطلب ✅',
+                          ),
+                        ),
+                      );
+                    }
+                  } catch (e) {
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(
+                        context,
+                      ).showSnackBar(
+                        const SnackBar(
+                          content: Text(
+                            'تعذر قبول الطلب',
+                          ),
+                        ),
+                      );
+                    }
+                  }
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: color,
+                  foregroundColor: Colors.white,
+                ),
+                child: const Text(
+                  'قبول الطلب',
+                  style: TextStyle(
+                    fontSize: 17,
+                    fontWeight: FontWeight.bold,
                   ),
                 ),
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
