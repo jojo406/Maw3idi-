@@ -1,18 +1,60 @@
 import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
+
 import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
+
 import 'package:geolocator/geolocator.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+
+// ============================================================
+// FIREBASE MESSAGING
+// ============================================================
+
+@pragma('vm:entry-point')
+Future<void> firebaseMessagingBackgroundHandler(
+  RemoteMessage message,
+) async {
+  await Firebase.initializeApp();
+}
+
+
+// ============================================================
+// MAIN
+// ============================================================
+
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
   await Firebase.initializeApp();
+
+  FirebaseMessaging.onBackgroundMessage(
+    firebaseMessagingBackgroundHandler,
+  );
+
+  try {
+    await FirebaseMessaging.instance.requestPermission(
+      alert: true,
+      badge: true,
+      sound: true,
+      provisional: false,
+    );
+  } catch (_) {}
+
   runApp(const AloWaselniApp());
 }
+
+
+// ============================================================
+// APP
+// ============================================================
 
 class AloWaselniApp extends StatelessWidget {
   const AloWaselniApp({super.key});
@@ -26,13 +68,142 @@ class AloWaselniApp extends StatelessWidget {
         useMaterial3: true,
         fontFamily: 'Arial',
         colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color(0xFF1565C0),
+          seedColor: Colors.blue,
         ),
+        scaffoldBackgroundColor: const Color(0xfff5f7fb),
       ),
       home: const HomePage(),
     );
   }
 }
+
+
+// ============================================================
+// GPS
+// ============================================================
+
+Future<Position?> getCurrentLocation() async {
+  try {
+    bool serviceEnabled =
+        await Geolocator.isLocationServiceEnabled();
+
+    if (!serviceEnabled) {
+      await Geolocator.openLocationSettings();
+
+      await Future.delayed(
+        const Duration(seconds: 2),
+      );
+
+      serviceEnabled =
+          await Geolocator.isLocationServiceEnabled();
+
+      if (!serviceEnabled) {
+        return null;
+      }
+    }
+
+    LocationPermission permission =
+        await Geolocator.checkPermission();
+
+    if (permission == LocationPermission.denied) {
+      permission =
+          await Geolocator.requestPermission();
+    }
+
+    if (permission == LocationPermission.denied) {
+      return null;
+    }
+
+    if (permission == LocationPermission.deniedForever) {
+      await Geolocator.openAppSettings();
+      return null;
+    }
+
+    final position =
+        await Geolocator.getCurrentPosition(
+      locationSettings: const LocationSettings(
+        accuracy: LocationAccuracy.high,
+        distanceFilter: 5,
+      ),
+    );
+
+    return position;
+  } catch (_) {
+    return null;
+  }
+}
+
+
+// ============================================================
+// HELPERS
+// ============================================================
+
+String serviceName(String service) {
+  if (service == 'alo_jibli') {
+    return 'ألو جيبلي';
+  }
+
+  return 'ألو وصلني';
+}
+
+String vehicleName(String vehicle) {
+  if (vehicle == 'motorcycle') {
+    return 'دراجة نارية';
+  }
+
+  return 'سيارة';
+}
+
+String statusName(String status) {
+  switch (status) {
+    case 'pending':
+      return 'جاري البحث عن السائق';
+
+    case 'accepted':
+      return 'تم قبول طلبك';
+
+    case 'driver_arriving':
+      return 'السائق في الطريق إليك';
+
+    case 'driver_arrived':
+      return 'السائق وصل';
+
+    case 'completed':
+      return 'تم إنهاء الطلب';
+
+    case 'cancelled':
+      return 'تم إلغاء الطلب';
+
+    default:
+      return 'حالة غير معروفة';
+  }
+}
+
+IconData statusIcon(String status) {
+  switch (status) {
+    case 'pending':
+      return Icons.search;
+
+    case 'accepted':
+      return Icons.check_circle_outline;
+
+    case 'driver_arriving':
+      return Icons.directions_car;
+
+    case 'driver_arrived':
+      return Icons.location_on;
+
+    case 'completed':
+      return Icons.done_all;
+
+    case 'cancelled':
+      return Icons.cancel_outlined;
+
+    default:
+      return Icons.info_outline;
+  }
+}
+
 
 // ============================================================
 // HOME
@@ -44,40 +215,46 @@ class HomePage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F7FA),
       body: SafeArea(
-        child: Padding(
+        child: Container(
+          width: double.infinity,
           padding: const EdgeInsets.all(20),
           child: Column(
             children: [
               const SizedBox(height: 25),
+
               const Icon(
                 Icons.local_shipping_rounded,
-                size: 72,
-                color: Color(0xFF1565C0),
+                size: 70,
+                color: Colors.blue,
               ),
-              const SizedBox(height: 10),
+
+              const SizedBox(height: 12),
+
               const Text(
                 'ألو وصلني',
                 style: TextStyle(
-                  fontSize: 32,
+                  fontSize: 34,
                   fontWeight: FontWeight.bold,
-                  color: Color(0xFF1565C0),
                 ),
               ),
+
+              const SizedBox(height: 6),
+
               const Text(
                 'خدمة التوصيل داخل البلدية',
                 style: TextStyle(
+                  fontSize: 17,
                   color: Colors.grey,
-                  fontSize: 16,
                 ),
               ),
-              const SizedBox(height: 42),
 
-              RoleButton(
-                icon: Icons.person_rounded,
-                title: 'أنا زبون',
-                subtitle: 'اطلب خدمة التوصيل',
+              const SizedBox(height: 40),
+
+              _HomeButton(
+                icon: Icons.person,
+                title: 'زبون',
+                subtitle: 'أطلب سيارة أو أرسل لي حاجة',
                 onTap: () {
                   Navigator.push(
                     context,
@@ -88,10 +265,10 @@ class HomePage extends StatelessWidget {
                 },
               ),
 
-              const SizedBox(height: 16),
+              const SizedBox(height: 15),
 
-              RoleButton(
-                icon: Icons.directions_car_rounded,
+              _HomeButton(
+                icon: Icons.directions_car,
                 title: 'سائق سيارة',
                 subtitle: 'استقبل طلبات ألو وصلني',
                 onTap: () {
@@ -106,10 +283,10 @@ class HomePage extends StatelessWidget {
                 },
               ),
 
-              const SizedBox(height: 16),
+              const SizedBox(height: 15),
 
-              RoleButton(
-                icon: Icons.two_wheeler_rounded,
+              _HomeButton(
+                icon: Icons.two_wheeler,
                 title: 'سائق دراجة',
                 subtitle: 'استقبل طلبات ألو جيبلي',
                 onTap: () {
@@ -123,6 +300,18 @@ class HomePage extends StatelessWidget {
                   );
                 },
               ),
+
+              const Spacer(),
+
+              const Text(
+                'ألو وصلني • بسيط • سريع • داخل البلدية',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: Colors.grey,
+                ),
+              ),
+
+              const SizedBox(height: 10),
             ],
           ),
         ),
@@ -131,14 +320,14 @@ class HomePage extends StatelessWidget {
   }
 }
 
-class RoleButton extends StatelessWidget {
+
+class _HomeButton extends StatelessWidget {
   final IconData icon;
   final String title;
   final String subtitle;
   final VoidCallback onTap;
 
-  const RoleButton({
-    super.key,
+  const _HomeButton({
     required this.icon,
     required this.title,
     required this.subtitle,
@@ -147,56 +336,65 @@ class RoleButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: Colors.white,
-      elevation: 2,
-      borderRadius: BorderRadius.circular(22),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(22),
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.all(19),
-          child: Row(
-            children: [
-              Container(
-                width: 58,
-                height: 58,
-                decoration: BoxDecoration(
-                  color: const Color(0xFFE3F2FD),
-                  borderRadius: BorderRadius.circular(18),
+    return SizedBox(
+      width: double.infinity,
+      height: 82,
+      child: Card(
+        elevation: 2,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(15),
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(
+              horizontal: 18,
+            ),
+            child: Row(
+              children: [
+                CircleAvatar(
+                  radius: 25,
+                  backgroundColor:
+                      Colors.blue.withOpacity(.1),
+                  child: Icon(
+                    icon,
+                    color: Colors.blue,
+                  ),
                 ),
-                child: Icon(
-                  icon,
-                  size: 30,
-                  color: const Color(0xFF1565C0),
-                ),
-              ),
-              const SizedBox(width: 15),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      title,
-                      style: const TextStyle(
-                        fontSize: 19,
-                        fontWeight: FontWeight.bold,
+
+                const SizedBox(width: 15),
+
+                Expanded(
+                  child: Column(
+                    mainAxisAlignment:
+                        MainAxisAlignment.center,
+                    crossAxisAlignment:
+                        CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        title,
+                        style: const TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      subtitle,
-                      style: const TextStyle(color: Colors.grey),
-                    ),
-                  ],
+
+                      const SizedBox(height: 3),
+
+                      Text(
+                        subtitle,
+                        style: const TextStyle(
+                          color: Colors.grey,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-              const Icon(
-                Icons.arrow_forward_ios_rounded,
-                size: 18,
-                color: Colors.grey,
-              ),
-            ],
+
+                const Icon(
+                  Icons.arrow_forward_ios,
+                  size: 18,
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -204,8 +402,9 @@ class RoleButton extends StatelessWidget {
   }
 }
 
+
 // ============================================================
-// CUSTOMER HOME
+// CUSTOMER
 // ============================================================
 
 class CustomerPage extends StatelessWidget {
@@ -215,73 +414,126 @@ class CustomerPage extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text(
-          'ألو وصلني',
-          style: TextStyle(fontWeight: FontWeight.bold),
-        ),
+        title: const Text('ألو وصلني'),
         centerTitle: true,
+        actions: [
+          IconButton(
+            tooltip: 'طلباتي',
+            icon: const Icon(Icons.history),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) =>
+                      const CustomerHistoryPage(),
+                ),
+              );
+            },
+          ),
+        ],
       ),
-      backgroundColor: const Color(0xFFF5F7FA),
-      body: Padding(
+      body: ListView(
         padding: const EdgeInsets.all(18),
-        child: Column(
-          children: [
-            ServiceButton(
-              icon: Icons.local_shipping_rounded,
-              title: 'ألو وصلني',
-              subtitle: 'اطلب سيارة',
+        children: [
+          const SizedBox(height: 10),
+
+          const Text(
+            'وش تحتاج اليوم؟',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 27,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+
+          const SizedBox(height: 8),
+
+          const Text(
+            'اختار الخدمة المناسبة ليك',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: Colors.grey,
+              fontSize: 16,
+            ),
+          ),
+
+          const SizedBox(height: 30),
+
+          _ServiceCard(
+            icon: Icons.directions_car_rounded,
+            title: 'ألو وصلني',
+            subtitle:
+                'اطلب سائق سيارة يجي لموقعك',
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => const WaselniPage(),
+                ),
+              );
+            },
+          ),
+
+          const SizedBox(height: 18),
+
+          _ServiceCard(
+            icon: Icons.two_wheeler_rounded,
+            title: 'ألو جيبلي',
+            subtitle:
+                'اطلب من سائق الدراجة يجيبلك حاجة',
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => const JibliPage(),
+                ),
+              );
+            },
+          ),
+
+          const SizedBox(height: 18),
+
+          Card(
+            child: ListTile(
+              leading: const CircleAvatar(
+                child: Icon(Icons.history),
+              ),
+              title: const Text(
+                'طلباتي السابقة',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              subtitle: const Text(
+                'شوف الطلبات اللي درتها من قبل',
+              ),
+              trailing:
+                  const Icon(Icons.arrow_forward_ios),
               onTap: () {
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (_) => const WaselniPage(),
+                    builder: (_) =>
+                        const CustomerHistoryPage(),
                   ),
                 );
               },
             ),
-            const SizedBox(height: 16),
-            ServiceButton(
-              icon: Icons.shopping_bag_rounded,
-              title: 'ألو جيبلي',
-              subtitle: 'خلي سائق الدراجة يجيبلك طلبك',
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => const JibliPage(),
-                  ),
-                );
-              },
-            ),
-            const SizedBox(height: 16),
-            ServiceButton(
-              icon: Icons.history,
-              title: 'طلباتي السابقة',
-              subtitle: 'شوف الطلبات والتقييمات',
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => const HistoryPage(),
-                  ),
-                );
-              },
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
 }
 
-class ServiceButton extends StatelessWidget {
+
+class _ServiceCard extends StatelessWidget {
   final IconData icon;
   final String title;
   final String subtitle;
   final VoidCallback onTap;
 
-  const ServiceButton({
-    super.key,
+  const _ServiceCard({
     required this.icon,
     required this.title,
     required this.subtitle,
@@ -290,47 +542,62 @@ class ServiceButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: Colors.white,
-      elevation: 2,
-      borderRadius: BorderRadius.circular(22),
+    return Card(
+      elevation: 3,
       child: InkWell(
-        borderRadius: BorderRadius.circular(22),
+        borderRadius: BorderRadius.circular(16),
         onTap: onTap,
         child: Padding(
           padding: const EdgeInsets.all(20),
           child: Row(
             children: [
-              CircleAvatar(
-                radius: 29,
-                backgroundColor: const Color(0xFFE3F2FD),
+              Container(
+                width: 65,
+                height: 65,
+                decoration: BoxDecoration(
+                  color: Colors.blue.withOpacity(.1),
+                  borderRadius:
+                      BorderRadius.circular(18),
+                ),
                 child: Icon(
                   icon,
-                  size: 30,
-                  color: const Color(0xFF1565C0),
+                  size: 34,
+                  color: Colors.blue,
                 ),
               ),
-              const SizedBox(width: 15),
+
+              const SizedBox(width: 18),
+
               Expanded(
                 child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                  crossAxisAlignment:
+                      CrossAxisAlignment.start,
                   children: [
                     Text(
                       title,
                       style: const TextStyle(
-                        fontSize: 19,
+                        fontSize: 21,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
-                    const SizedBox(height: 4),
+
+                    const SizedBox(height: 6),
+
                     Text(
                       subtitle,
-                      style: const TextStyle(color: Colors.grey),
+                      style: const TextStyle(
+                        color: Colors.grey,
+                        fontSize: 14,
+                      ),
                     ),
                   ],
                 ),
               ),
-              const Icon(Icons.arrow_forward_ios_rounded),
+
+              const Icon(
+                Icons.arrow_forward_ios,
+                size: 18,
+              ),
             ],
           ),
         ),
@@ -339,254 +606,119 @@ class ServiceButton extends StatelessWidget {
   }
 }
 
-// ============================================================
-// LOCATION
-// ============================================================
-
-Future<LatLng?> getCurrentLocation() async {
-  try {
-    if (!await Geolocator.isLocationServiceEnabled()) {
-      return null;
-    }
-
-    var permission = await Geolocator.checkPermission();
-
-    if (permission == LocationPermission.denied) {
-      permission = await Geolocator.requestPermission();
-    }
-
-    if (permission == LocationPermission.denied ||
-        permission == LocationPermission.deniedForever) {
-      return null;
-    }
-
-    final position = await Geolocator.getCurrentPosition();
-
-    return LatLng(
-      position.latitude,
-      position.longitude,
-    );
-  } catch (_) {
-    return null;
-  }
-}
 
 // ============================================================
-// AUTOMATIC CUSTOMER MAP
+// MAP WIDGET
 // ============================================================
 
-class LocationMap extends StatefulWidget {
-  final LatLng? location;
+class LocationMap extends StatelessWidget {
+  final LatLng? customerLocation;
   final LatLng? driverLocation;
-  final bool showDriver;
+  final double height;
 
   const LocationMap({
     super.key,
-    this.location,
+    required this.customerLocation,
     this.driverLocation,
-    this.showDriver = false,
+    this.height = 240,
   });
-
-  @override
-  State<LocationMap> createState() => _LocationMapState();
-}
-
-class _LocationMapState extends State<LocationMap> {
-  final MapController mapController = MapController();
-
-  LatLng? currentLocation;
-  Timer? timer;
-  bool loading = true;
-
-  @override
-  void initState() {
-    super.initState();
-    _loadLocation();
-
-    timer = Timer.periodic(
-      const Duration(seconds: 5),
-      (_) => _loadLocation(),
-    );
-  }
-
-  @override
-  void dispose() {
-    timer?.cancel();
-    super.dispose();
-  }
-
-  Future<void> _loadLocation() async {
-    final location = await getCurrentLocation();
-
-    if (!mounted || location == null) return;
-
-    setState(() {
-      currentLocation = location;
-      loading = false;
-    });
-
-    try {
-      mapController.move(location, 16);
-    } catch (_) {}
-  }
 
   @override
   Widget build(BuildContext context) {
     final center =
-        currentLocation ??
-        widget.location ??
-        const LatLng(35.6971, -0.6308);
+        customerLocation ??
+        driverLocation ??
+        const LatLng(
+          35.6971,
+          -0.6308,
+        );
 
     final markers = <Marker>[];
 
-    if (currentLocation != null) {
+    if (customerLocation != null) {
       markers.add(
         Marker(
-          point: currentLocation!,
-          width: 70,
-          height: 70,
-          child: Column(
-            children: [
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 8,
-                  vertical: 3,
-                ),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: const Text(
-                  'موقعك',
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 11,
-                  ),
-                ),
-              ),
-              const Icon(
-                Icons.location_on,
-                color: Colors.blue,
-                size: 40,
-              ),
-            ],
+          point: customerLocation!,
+          width: 55,
+          height: 55,
+          child: const Icon(
+            Icons.location_on,
+            color: Colors.blue,
+            size: 48,
           ),
         ),
       );
     }
 
-    if (widget.showDriver &&
-        widget.driverLocation != null) {
+    if (driverLocation != null) {
       markers.add(
         Marker(
-          point: widget.driverLocation!,
-          width: 65,
-          height: 65,
+          point: driverLocation!,
+          width: 55,
+          height: 55,
           child: const Icon(
-            Icons.local_taxi,
-            color: Colors.orange,
-            size: 42,
+            Icons.local_shipping,
+            color: Colors.red,
+            size: 43,
           ),
         ),
       );
     }
 
     return ClipRRect(
-      borderRadius: BorderRadius.circular(22),
-      child: Stack(
-        children: [
-          FlutterMap(
-            mapController: mapController,
-            options: MapOptions(
-              initialCenter: center,
-              initialZoom: 15,
-            ),
-            children: [
-              TileLayer(
-                urlTemplate:
-                    'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                userAgentPackageName:
-                    'com.example.maw3idi',
-              ),
-              MarkerLayer(markers: markers),
-            ],
+      borderRadius: BorderRadius.circular(16),
+      child: SizedBox(
+        height: height,
+        child: FlutterMap(
+          options: MapOptions(
+            initialCenter: center,
+            initialZoom: 15,
           ),
-
-          Positioned(
-            right: 10,
-            bottom: 10,
-            child: Column(
-              children: [
-                MapControlButton(
-                  icon: Icons.add,
-                  onTap: () {
-                    mapController.move(
-                      mapController.camera.center,
-                      mapController.camera.zoom + 1,
-                    );
-                  },
-                ),
-                const SizedBox(height: 7),
-                MapControlButton(
-                  icon: Icons.remove,
-                  onTap: () {
-                    mapController.move(
-                      mapController.camera.center,
-                      mapController.camera.zoom - 1,
-                    );
-                  },
-                ),
-                const SizedBox(height: 7),
-                MapControlButton(
-                  icon: Icons.my_location,
-                  onTap: () {
-                    if (currentLocation != null) {
-                      mapController.move(
-                        currentLocation!,
-                        16,
-                      );
-                    }
-                  },
-                ),
-              ],
+          children: [
+            TileLayer(
+              urlTemplate:
+                  'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+              userAgentPackageName:
+                  'com.example.maw3idi',
             ),
-          ),
 
-          if (loading)
-            const Positioned.fill(
-              child: Center(
-                child: CircularProgressIndicator(),
-              ),
+            MarkerLayer(
+              markers: markers,
             ),
-        ],
+          ],
+        ),
       ),
     );
   }
 }
 
+
 // ============================================================
-// ألو وصلني - CAR ONLY
+// WASSELNI - CAR
 // ============================================================
 
 class WaselniPage extends StatefulWidget {
   const WaselniPage({super.key});
 
   @override
-  State<WaselniPage> createState() => _WaselniPageState();
+  State<WaselniPage> createState() =>
+      _WaselniPageState();
 }
 
 class _WaselniPageState extends State<WaselniPage> {
-  String? requestId;
-  LatLng? customerLocation;
+  final phoneController =
+      TextEditingController();
 
+  Position? position;
   Timer? locationTimer;
 
-  final phoneController = TextEditingController();
+  bool loading = false;
+  String? requestId;
 
   @override
   void initState() {
     super.initState();
-    _loadLocation();
+    loadLocation();
   }
 
   @override
@@ -596,121 +728,130 @@ class _WaselniPageState extends State<WaselniPage> {
     super.dispose();
   }
 
-  Future<void> _loadLocation() async {
-    final location = await getCurrentLocation();
+  Future<void> loadLocation() async {
+    final p = await getCurrentLocation();
 
     if (!mounted) return;
 
     setState(() {
-      customerLocation = location;
+      position = p;
     });
   }
 
-  Future<void> _sendRequest() async {
-    if (customerLocation == null) {
-      _message(
-        'ما قدرناش نحدد موقعك. فعّل GPS وحاول من جديد.',
-      );
-      return;
-    }
-
-    if (phoneController.text.trim().isEmpty) {
-      _message('أدخل رقم الهاتف');
-      return;
-    }
-
-    try {
-      final doc = await FirebaseFirestore.instance
-          .collection('requests')
-          .add({
-        'service': 'alo_waselni',
-        'vehicleType': 'car',
-
-        'customerLocationLat':
-            customerLocation!.latitude,
-        'customerLocationLng':
-            customerLocation!.longitude,
-
-        'phone': phoneController.text.trim(),
-
-        'status': 'pending',
-
-        'customerLocationUpdatedAt':
-            FieldValue.serverTimestamp(),
-
-        'createdAt':
-            FieldValue.serverTimestamp(),
-      });
-
-      requestId = doc.id;
-
-      await saveRequestId(doc.id);
-
-      _startLocationTracking();
-
-      if (mounted) {
-        setState(() {});
-      }
-    } catch (_) {
-      _message('حدث خطأ أثناء إرسال الطلب');
-    }
-  }
-
-  void _startLocationTracking() {
+  void startLocationUpdates() {
     locationTimer?.cancel();
 
     locationTimer = Timer.periodic(
       const Duration(seconds: 5),
-      (_) => _updateCustomerLocation(),
-    );
+      (_) async {
+        if (requestId == null) return;
 
-    _updateCustomerLocation();
+        final p = await getCurrentLocation();
+
+        if (p == null) return;
+
+        try {
+          await FirebaseFirestore.instance
+              .collection('requests')
+              .doc(requestId)
+              .update({
+            'customerLocationLat': p.latitude,
+            'customerLocationLng': p.longitude,
+            'customerLocationUpdatedAt':
+                FieldValue.serverTimestamp(),
+          });
+
+          if (mounted) {
+            setState(() {
+              position = p;
+            });
+          }
+        } catch (_) {}
+      },
+    );
   }
 
-  Future<void> _updateCustomerLocation() async {
-    if (requestId == null) return;
+  Future<void> createRequest() async {
+    if (phoneController.text.trim().isEmpty) {
+      showMessage('دخل رقم الهاتف');
+      return;
+    }
 
-    final location = await getCurrentLocation();
+    if (position == null) {
+      await loadLocation();
+    }
 
-    if (location == null) return;
+    if (position == null) {
+      showMessage(
+        'ما قدرناش نحددو موقعك. فعل GPS وعاود.',
+      );
+      return;
+    }
+
+    setState(() {
+      loading = true;
+    });
 
     try {
-      await FirebaseFirestore.instance
+      final doc = await FirebaseFirestore
+          .instance
           .collection('requests')
-          .doc(requestId)
-          .update({
-        'customerLocationLat': location.latitude,
-        'customerLocationLng': location.longitude,
+          .add({
+        'service': 'alo_waselni',
+        'vehicleType': 'car',
+        'phone':
+            phoneController.text.trim(),
+        'customerLocationLat':
+            position!.latitude,
+        'customerLocationLng':
+            position!.longitude,
+        'status': 'pending',
+        'createdAt':
+            FieldValue.serverTimestamp(),
         'customerLocationUpdatedAt':
             FieldValue.serverTimestamp(),
       });
-    } catch (_) {}
-  }
 
-  Future<void> _cancelRequest() async {
-    if (requestId == null) return;
+      await saveCustomerRequestId(doc.id);
 
-    try {
-      await FirebaseFirestore.instance
-          .collection('requests')
-          .doc(requestId)
-          .update({
-        'status': 'cancelled',
-      });
-    } catch (_) {}
+      requestId = doc.id;
 
-    locationTimer?.cancel();
+      startLocationUpdates();
 
-    if (mounted) {
+      if (!mounted) return;
+
       setState(() {
-        requestId = null;
+        loading = false;
       });
+
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (_) =>
+              CustomerTrackingPage(
+            requestId: doc.id,
+          ),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+
+      setState(() {
+        loading = false;
+      });
+
+      showMessage(
+        'حدث خطأ في إرسال الطلب',
+      );
     }
   }
 
-  void _message(String text) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(text)),
+  void showMessage(String message) {
+    ScaffoldMessenger.of(context)
+        .showSnackBar(
+      SnackBar(
+        content: Text(message),
+      ),
     );
   }
 
@@ -718,236 +859,236 @@ class _WaselniPageState extends State<WaselniPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text(
-          'ألو وصلني',
-          style: TextStyle(fontWeight: FontWeight.bold),
-        ),
+        title: const Text('ألو وصلني'),
         centerTitle: true,
       ),
-      backgroundColor: const Color(0xFFF5F7FA),
-      body: requestId != null
-          ? CustomerTrackingPage(
-              requestId: requestId!,
-              onCancel: _cancelRequest,
-            )
-          : SingleChildScrollView(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                children: [
-                  SizedBox(
-                    height: 350,
-                    child: LocationMap(
-                      location: customerLocation,
+      body: ListView(
+        padding: const EdgeInsets.all(18),
+        children: [
+          const Icon(
+            Icons.directions_car,
+            size: 65,
+            color: Colors.blue,
+          ),
+
+          const SizedBox(height: 12),
+
+          const Text(
+            'اطلب سيارة',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 27,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+
+          const SizedBox(height: 8),
+
+          const Text(
+            'موقعك يتحدد تلقائياً بواسطة GPS',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: Colors.grey,
+            ),
+          ),
+
+          const SizedBox(height: 20),
+
+          LocationMap(
+            customerLocation:
+                position == null
+                    ? null
+                    : LatLng(
+                        position!.latitude,
+                        position!.longitude,
+                      ),
+          ),
+
+          const SizedBox(height: 20),
+
+          TextField(
+            controller: phoneController,
+            keyboardType:
+                TextInputType.phone,
+            decoration:
+                const InputDecoration(
+              labelText: 'رقم الهاتف',
+              hintText: '05xxxxxxxx',
+              prefixIcon:
+                  Icon(Icons.phone),
+              border:
+                  OutlineInputBorder(),
+            ),
+          ),
+
+          const SizedBox(height: 20),
+
+          SizedBox(
+            height: 55,
+            child: FilledButton.icon(
+              onPressed:
+                  loading
+                      ? null
+                      : createRequest,
+              icon: loading
+                  ? const SizedBox(
+                      width: 22,
+                      height: 22,
+                      child:
+                          CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
+                    )
+                  : const Icon(
+                      Icons.send,
                     ),
-                  ),
-
-                  const SizedBox(height: 12),
-
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(14),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(18),
-                    ),
-                    child: const Row(
-                      children: [
-                        Icon(
-                          Icons.my_location,
-                          color: Color(0xFF1565C0),
-                        ),
-                        SizedBox(width: 10),
-                        Expanded(
-                          child: Text(
-                            'موقعك يتحدد أوتوماتيكياً',
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  const SizedBox(height: 14),
-
-                  ModernTextField(
-                    controller: phoneController,
-                    hint: 'رقم الهاتف',
-                    icon: Icons.phone,
-                    keyboardType: TextInputType.phone,
-                  ),
-
-                  const SizedBox(height: 18),
-
-                  MainButton(
-                    icon: Icons.local_taxi,
-                    text: 'اطلب السيارة الآن',
-                    onPressed: _sendRequest,
-                  ),
-                ],
+              label: Text(
+                loading
+                    ? 'جاري الإرسال...'
+                    : 'اطلب سيارة',
               ),
             ),
+          ),
+        ],
+      ),
     );
   }
 }
 
+
 // ============================================================
-// ألو جيبلي - MOTORCYCLE ONLY
+// JIBLI - MOTORCYCLE
 // ============================================================
 
 class JibliPage extends StatefulWidget {
   const JibliPage({super.key});
 
   @override
-  State<JibliPage> createState() => _JibliPageState();
+  State<JibliPage> createState() =>
+      _JibliPageState();
 }
 
 class _JibliPageState extends State<JibliPage> {
-  String? requestId;
-  LatLng? customerLocation;
+  final itemController =
+      TextEditingController();
 
-  Timer? locationTimer;
+  final phoneController =
+      TextEditingController();
 
-  final itemController = TextEditingController();
-  final phoneController = TextEditingController();
+  Position? position;
+
+  bool loading = false;
 
   @override
   void initState() {
     super.initState();
-    _loadLocation();
+    loadLocation();
   }
 
   @override
   void dispose() {
-    locationTimer?.cancel();
     itemController.dispose();
     phoneController.dispose();
     super.dispose();
   }
 
-  Future<void> _loadLocation() async {
-    final location = await getCurrentLocation();
+  Future<void> loadLocation() async {
+    final p = await getCurrentLocation();
 
     if (!mounted) return;
 
     setState(() {
-      customerLocation = location;
+      position = p;
     });
   }
 
-  Future<void> _sendRequest() async {
-    if (customerLocation == null) {
-      _message(
-        'ما قدرناش نحدد موقعك. فعّل GPS وحاول من جديد.',
+  Future<void> createRequest() async {
+    if (itemController.text.trim().isEmpty) {
+      showMessage(
+        'اكتب واش حاب يجيبلك السائق',
       );
       return;
     }
 
-    if (itemController.text.trim().isEmpty) {
-      _message('اكتب واش حاب السائق يجيبلك');
+    if (phoneController.text.trim().isEmpty) {
+      showMessage('دخل رقم الهاتف');
       return;
     }
 
-    if (phoneController.text.trim().isEmpty) {
-      _message('أدخل رقم الهاتف');
+    if (position == null) {
+      await loadLocation();
+    }
+
+    if (position == null) {
+      showMessage(
+        'ما قدرناش نحددو موقعك. فعل GPS وعاود.',
+      );
       return;
     }
+
+    setState(() {
+      loading = true;
+    });
 
     try {
-      final doc = await FirebaseFirestore.instance
+      final doc = await FirebaseFirestore
+          .instance
           .collection('requests')
           .add({
         'service': 'alo_jibli',
         'vehicleType': 'motorcycle',
-
-        'item': itemController.text.trim(),
-
+        'item':
+            itemController.text.trim(),
+        'phone':
+            phoneController.text.trim(),
         'customerLocationLat':
-            customerLocation!.latitude,
+            position!.latitude,
         'customerLocationLng':
-            customerLocation!.longitude,
-
-        'phone': phoneController.text.trim(),
-
+            position!.longitude,
         'status': 'pending',
-
-        'customerLocationUpdatedAt':
-            FieldValue.serverTimestamp(),
-
         'createdAt':
             FieldValue.serverTimestamp(),
-      });
-
-      requestId = doc.id;
-
-      await saveRequestId(doc.id);
-
-      _startLocationTracking();
-
-      if (mounted) {
-        setState(() {});
-      }
-    } catch (_) {
-      _message('حدث خطأ أثناء إرسال الطلب');
-    }
-  }
-
-  void _startLocationTracking() {
-    locationTimer?.cancel();
-
-    locationTimer = Timer.periodic(
-      const Duration(seconds: 5),
-      (_) => _updateLocation(),
-    );
-
-    _updateLocation();
-  }
-
-  Future<void> _updateLocation() async {
-    if (requestId == null) return;
-
-    final location = await getCurrentLocation();
-
-    if (location == null) return;
-
-    try {
-      await FirebaseFirestore.instance
-          .collection('requests')
-          .doc(requestId)
-          .update({
-        'customerLocationLat': location.latitude,
-        'customerLocationLng': location.longitude,
         'customerLocationUpdatedAt':
             FieldValue.serverTimestamp(),
       });
-    } catch (_) {}
-  }
 
-  Future<void> _cancelRequest() async {
-    if (requestId == null) return;
+      await saveCustomerRequestId(doc.id);
 
-    try {
-      await FirebaseFirestore.instance
-          .collection('requests')
-          .doc(requestId)
-          .update({
-        'status': 'cancelled',
-      });
-    } catch (_) {}
+      if (!mounted) return;
 
-    locationTimer?.cancel();
-
-    if (mounted) {
       setState(() {
-        requestId = null;
+        loading = false;
       });
+
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (_) =>
+              CustomerTrackingPage(
+            requestId: doc.id,
+          ),
+        ),
+      );
+    } catch (_) {
+      if (!mounted) return;
+
+      setState(() {
+        loading = false;
+      });
+
+      showMessage(
+        'حدث خطأ في إرسال الطلب',
+      );
     }
   }
 
-  void _message(String text) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(text)),
+  void showMessage(String message) {
+    ScaffoldMessenger.of(context)
+        .showSnackBar(
+      SnackBar(
+        content: Text(message),
+      ),
     );
   }
 
@@ -955,275 +1096,634 @@ class _JibliPageState extends State<JibliPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text(
-          'ألو جيبلي',
-          style: TextStyle(fontWeight: FontWeight.bold),
-        ),
+        title: const Text('ألو جيبلي'),
         centerTitle: true,
       ),
-      backgroundColor: const Color(0xFFF5F7FA),
-      body: requestId != null
-          ? CustomerTrackingPage(
-              requestId: requestId!,
-              onCancel: _cancelRequest,
-            )
-          : SingleChildScrollView(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                children: [
-                  ModernTextField(
-                    controller: itemController,
-                    hint: 'واش حاب سائق الدراجة يجيبلك؟',
-                    icon: Icons.shopping_bag,
-                  ),
+      body: ListView(
+        padding: const EdgeInsets.all(18),
+        children: [
+          const Icon(
+            Icons.two_wheeler,
+            size: 65,
+            color: Colors.blue,
+          ),
 
-                  const SizedBox(height: 12),
+          const SizedBox(height: 12),
 
-                  ModernTextField(
-                    controller: phoneController,
-                    hint: 'رقم الهاتف',
-                    icon: Icons.phone,
-                    keyboardType: TextInputType.phone,
-                  ),
+          const Text(
+            'ألو جيبلي',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 27,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
 
-                  const SizedBox(height: 14),
+          const SizedBox(height: 8),
 
-                  SizedBox(
-                    height: 350,
-                    child: LocationMap(
-                      location: customerLocation,
+          const Text(
+            'السائق يجي يجيبلك الحاجة لموقعك',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: Colors.grey,
+            ),
+          ),
+
+          const SizedBox(height: 20),
+
+          LocationMap(
+            customerLocation:
+                position == null
+                    ? null
+                    : LatLng(
+                        position!.latitude,
+                        position!.longitude,
+                      ),
+          ),
+
+          const SizedBox(height: 20),
+
+          TextField(
+            controller: itemController,
+            maxLines: 3,
+            decoration:
+                const InputDecoration(
+              labelText:
+                  'واش حاب يجيبلك؟',
+              hintText:
+                  'مثال: دواء، خبز، غرض...',
+              prefixIcon:
+                  Icon(Icons.shopping_bag),
+              border:
+                  OutlineInputBorder(),
+            ),
+          ),
+
+          const SizedBox(height: 15),
+
+          TextField(
+            controller: phoneController,
+            keyboardType:
+                TextInputType.phone,
+            decoration:
+                const InputDecoration(
+              labelText: 'رقم الهاتف',
+              hintText: '05xxxxxxxx',
+              prefixIcon:
+                  Icon(Icons.phone),
+              border:
+                  OutlineInputBorder(),
+            ),
+          ),
+
+          const SizedBox(height: 20),
+
+          SizedBox(
+            height: 55,
+            child: FilledButton.icon(
+              onPressed:
+                  loading
+                      ? null
+                      : createRequest,
+              icon: loading
+                  ? const SizedBox(
+                      width: 22,
+                      height: 22,
+                      child:
+                          CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
+                    )
+                  : const Icon(
+                      Icons.send,
                     ),
-                  ),
-
-                  const SizedBox(height: 12),
-
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(14),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(18),
-                    ),
-                    child: const Row(
-                      children: [
-                        Icon(
-                          Icons.my_location,
-                          color: Color(0xFF1565C0),
-                        ),
-                        SizedBox(width: 10),
-                        Expanded(
-                          child: Text(
-                            'موقعك يتحدد أوتوماتيكياً',
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  const SizedBox(height: 18),
-
-                  MainButton(
-                    icon: Icons.two_wheeler,
-                    text: 'أرسل طلب ألو جيبلي',
-                    onPressed: _sendRequest,
-                  ),
-                ],
+              label: Text(
+                loading
+                    ? 'جاري الإرسال...'
+                    : 'أرسل الطلب',
               ),
             ),
+          ),
+        ],
+      ),
     );
   }
 }
+
 
 // ============================================================
 // CUSTOMER TRACKING
 // ============================================================
 
-class CustomerTrackingPage extends StatelessWidget {
+class CustomerTrackingPage
+    extends StatelessWidget {
   final String requestId;
-  final VoidCallback onCancel;
 
   const CustomerTrackingPage({
     super.key,
     required this.requestId,
-    required this.onCancel,
   });
 
-  String statusTitle(String status) {
-    switch (status) {
-      case 'pending':
-        return 'جاري البحث عن السائق';
-      case 'accepted':
-        return 'تم قبول طلبك';
-      case 'driver_arriving':
-        return 'السائق في الطريق إليك';
-      case 'driver_arrived':
-        return 'السائق وصل';
-      case 'completed':
-        return 'تم إنهاء الطلب';
-      case 'cancelled':
-        return 'تم إلغاء الطلب';
-      default:
-        return 'حالة الطلب';
-    }
-  }
+  Future<void> cancelRequest(
+    BuildContext context,
+  ) async {
+    try {
+      await FirebaseFirestore.instance
+          .collection('requests')
+          .doc(requestId)
+          .update({
+        'status': 'cancelled',
+        'cancelledAt':
+            FieldValue.serverTimestamp(),
+      });
 
-  IconData statusIcon(String status) {
-    switch (status) {
-      case 'accepted':
-        return Icons.check_circle;
-      case 'driver_arriving':
-        return Icons.directions_car;
-      case 'driver_arrived':
-        return Icons.location_on;
-      case 'completed':
-        return Icons.done_all;
-      case 'cancelled':
-        return Icons.cancel;
-      default:
-        return Icons.search;
-    }
+      if (context.mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(
+          const SnackBar(
+            content: Text(
+              'تم إلغاء الطلب',
+            ),
+          ),
+        );
+      }
+    } catch (_) {}
   }
 
   @override
   Widget build(BuildContext context) {
-    return StreamBuilder<DocumentSnapshot>(
-      stream: FirebaseFirestore.instance
-          .collection('requests')
-          .doc(requestId)
-          .snapshots(),
-      builder: (context, snapshot) {
-        if (!snapshot.hasData) {
-          return const Center(
-            child: CircularProgressIndicator(),
-          );
-        }
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text(
+          'تتبع الطلب',
+        ),
+        centerTitle: true,
+      ),
+      body: StreamBuilder<
+          DocumentSnapshot<Map<String, dynamic>>>(
+        stream: FirebaseFirestore.instance
+            .collection('requests')
+            .doc(requestId)
+            .snapshots(),
+        builder: (
+          context,
+          snapshot,
+        ) {
+          if (snapshot.connectionState ==
+              ConnectionState.waiting) {
+            return const Center(
+              child:
+                  CircularProgressIndicator(),
+            );
+          }
 
-        if (!snapshot.data!.exists) {
-          return const Center(
-            child: Text('الطلب غير موجود'),
-          );
-        }
-
-        final data =
-            snapshot.data!.data() as Map<String, dynamic>;
-
-        final status = data['status'] ?? 'pending';
-
-        LatLng? customerLocation;
-        LatLng? driverLocation;
-
-        if (data['customerLocationLat'] != null &&
-            data['customerLocationLng'] != null) {
-          customerLocation = LatLng(
-            (data['customerLocationLat'] as num).toDouble(),
-            (data['customerLocationLng'] as num).toDouble(),
-          );
-        }
-
-        if (data['driverLocationLat'] != null &&
-            data['driverLocationLng'] != null) {
-          driverLocation = LatLng(
-            (data['driverLocationLat'] as num).toDouble(),
-            (data['driverLocationLng'] as num).toDouble(),
-          );
-        }
-
-        return SingleChildScrollView(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            children: [
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(18),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(22),
-                ),
-                child: Column(
-                  children: [
-                    Icon(
-                      statusIcon(status),
-                      size: 50,
-                      color: status == 'cancelled'
-                          ? Colors.red
-                          : const Color(0xFF1565C0),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      statusTitle(status),
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(
-                        fontSize: 21,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ],
-                ),
+          if (!snapshot.hasData ||
+              !snapshot.data!.exists) {
+            return const Center(
+              child: Text(
+                'الطلب غير موجود',
               ),
+            );
+          }
 
-              const SizedBox(height: 15),
+          final data =
+              snapshot.data!.data()!;
 
-              if (customerLocation != null)
-                SizedBox(
-                  height: 330,
-                  child: LocationMap(
-                    location: customerLocation,
-                    driverLocation: driverLocation,
-                    showDriver: driverLocation != null,
-                  ),
-                ),
+          final status =
+              data['status'] ?? 'pending';
 
-              const SizedBox(height: 15),
+          final customerLat =
+              (data['customerLocationLat']
+                      as num?)
+                  ?.toDouble();
 
-              if (data['driverId'] != null)
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(18),
-                  ),
-                  child: const Row(
+          final customerLng =
+              (data['customerLocationLng']
+                      as num?)
+                  ?.toDouble();
+
+          final driverLat =
+              (data['driverLocationLat']
+                      as num?)
+                  ?.toDouble();
+
+          final driverLng =
+              (data['driverLocationLng']
+                      as num?)
+                  ?.toDouble();
+
+          LatLng? customerLocation;
+
+          if (customerLat != null &&
+              customerLng != null) {
+            customerLocation =
+                LatLng(
+              customerLat,
+              customerLng,
+            );
+          }
+
+          LatLng? driverLocation;
+
+          if (driverLat != null &&
+              driverLng != null) {
+            driverLocation =
+                LatLng(
+              driverLat,
+              driverLng,
+            );
+          }
+
+          return ListView(
+            padding:
+                const EdgeInsets.all(18),
+            children: [
+              Card(
+                child: Padding(
+                  padding:
+                      const EdgeInsets.all(20),
+                  child: Column(
                     children: [
-                      CircleAvatar(
-                        child: Icon(Icons.person),
+                      Icon(
+                        statusIcon(status),
+                        size: 55,
+                        color:
+                            status ==
+                                    'cancelled'
+                                ? Colors.red
+                                : Colors.blue,
                       ),
-                      SizedBox(width: 12),
-                      Expanded(
-                        child: Text(
-                          'تم العثور على سائق لطلبك',
-                          style: TextStyle(
-                            fontSize: 17,
-                            fontWeight: FontWeight.bold,
-                          ),
+
+                      const SizedBox(height: 10),
+
+                      Text(
+                        statusName(status),
+                        textAlign:
+                            TextAlign.center,
+                        style:
+                            const TextStyle(
+                          fontSize: 21,
+                          fontWeight:
+                              FontWeight.bold,
+                        ),
+                      ),
+
+                      const SizedBox(height: 7),
+
+                      Text(
+                        serviceName(
+                          data['service']
+                                  ?.toString() ??
+                              'alo_waselni',
+                        ),
+                        style:
+                            const TextStyle(
+                          color: Colors.grey,
                         ),
                       ),
                     ],
                   ),
                 ),
+              ),
 
               const SizedBox(height: 15),
 
+              LocationMap(
+                customerLocation:
+                    customerLocation,
+                driverLocation:
+                    driverLocation,
+                height: 300,
+              ),
+
+              const SizedBox(height: 15),
+
+              if (data['item'] != null)
+                Card(
+                  child: ListTile(
+                    leading:
+                        const Icon(
+                      Icons.shopping_bag,
+                    ),
+                    title:
+                        const Text(
+                      'الطلب',
+                    ),
+                    subtitle:
+                        Text(
+                      data['item']
+                          .toString(),
+                    ),
+                  ),
+                ),
+
+              if (data['phone'] != null)
+                Card(
+                  child: ListTile(
+                    leading:
+                        const Icon(
+                      Icons.phone,
+                    ),
+                    title:
+                        const Text(
+                      'رقم الهاتف',
+                    ),
+                    subtitle:
+                        Text(
+                      data['phone']
+                          .toString(),
+                    ),
+                  ),
+                ),
+
+              const SizedBox(height: 10),
+
               if (status == 'pending')
-                MainButton(
-                  icon: Icons.cancel,
-                  text: 'إلغاء الطلب',
-                  color: Colors.red,
-                  onPressed: onCancel,
+                SizedBox(
+                  height: 52,
+                  child:
+                      OutlinedButton.icon(
+                    onPressed: () =>
+                        cancelRequest(
+                      context,
+                    ),
+                    icon: const Icon(
+                      Icons.cancel,
+                    ),
+                    label:
+                        const Text(
+                      'إلغاء الطلب',
+                    ),
+                  ),
                 ),
 
               if (status == 'completed')
-                RatingWidget(requestId: requestId),
+                Card(
+                  child: ListTile(
+                    leading:
+                        const Icon(
+                      Icons.star,
+                      color:
+                          Colors.amber,
+                    ),
+                    title:
+                        const Text(
+                      'شكراً لاستعمال ألو وصلني',
+                      style:
+                          TextStyle(
+                        fontWeight:
+                            FontWeight.bold,
+                      ),
+                    ),
+                    subtitle:
+                        const Text(
+                      'تم إنهاء الطلب بنجاح',
+                    ),
+                  ),
+                ),
             ],
-          ),
-        );
-      },
+          );
+        },
+      ),
     );
   }
 }
+
+
+// ============================================================
+// CUSTOMER HISTORY
+// ============================================================
+
+Future<void> saveCustomerRequestId(
+  String id,
+) async {
+  final prefs =
+      await SharedPreferences
+          .getInstance();
+
+  final list =
+      prefs.getStringList(
+            'customer_request_ids',
+          ) ??
+          [];
+
+  if (!list.contains(id)) {
+    list.insert(0, id);
+  }
+
+  if (list.length > 50) {
+    list.removeRange(
+      50,
+      list.length,
+    );
+  }
+
+  await prefs.setStringList(
+    'customer_request_ids',
+    list,
+  );
+}
+
+
+Future<List<String>>
+    getCustomerRequestIds() async {
+  final prefs =
+      await SharedPreferences
+          .getInstance();
+
+  return prefs.getStringList(
+        'customer_request_ids',
+      ) ??
+      [];
+}
+
+
+class CustomerHistoryPage
+    extends StatefulWidget {
+  const CustomerHistoryPage({
+    super.key,
+  });
+
+  @override
+  State<CustomerHistoryPage> createState() =>
+      _CustomerHistoryPageState();
+}
+
+class _CustomerHistoryPageState
+    extends State<CustomerHistoryPage> {
+  List<String> ids = [];
+  bool loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    loadHistory();
+  }
+
+  Future<void> loadHistory() async {
+    final result =
+        await getCustomerRequestIds();
+
+    if (!mounted) return;
+
+    setState(() {
+      ids = result;
+      loading = false;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title:
+            const Text('طلباتي السابقة'),
+        centerTitle: true,
+      ),
+      body: loading
+          ? const Center(
+              child:
+                  CircularProgressIndicator(),
+            )
+          : ids.isEmpty
+              ? const Center(
+                  child: Padding(
+                    padding:
+                        EdgeInsets.all(25),
+                    child: Column(
+                      mainAxisSize:
+                          MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.history,
+                          size: 70,
+                          color: Colors.grey,
+                        ),
+                        SizedBox(height: 12),
+                        Text(
+                          'مازال ما عندك حتى طلب',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight:
+                                FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                )
+              : ListView.builder(
+                  padding:
+                      const EdgeInsets.all(12),
+                  itemCount: ids.length,
+                  itemBuilder:
+                      (context, index) {
+                    final id = ids[index];
+
+                    return StreamBuilder<
+                        DocumentSnapshot<
+                            Map<String,
+                                dynamic>>>(
+                      stream:
+                          FirebaseFirestore
+                              .instance
+                              .collection(
+                                  'requests')
+                              .doc(id)
+                              .snapshots(),
+                      builder:
+                          (context, snapshot) {
+                        if (!snapshot
+                            .hasData) {
+                          return const Card(
+                            child: ListTile(
+                              title:
+                                  Text(
+                                'جاري التحميل...',
+                              ),
+                            ),
+                          );
+                        }
+
+                        final data =
+                            snapshot.data!
+                                    .data() ??
+                                {};
+
+                        final service =
+                            data['service']
+                                    ?.toString() ??
+                                '';
+
+                        final status =
+                            data['status']
+                                    ?.toString() ??
+                                'pending';
+
+                        return Card(
+                          margin:
+                              const EdgeInsets
+                                  .only(
+                            bottom: 10,
+                          ),
+                          child: ListTile(
+                            leading:
+                                CircleAvatar(
+                              child: Icon(
+                                service ==
+                                        'alo_jibli'
+                                    ? Icons
+                                        .two_wheeler
+                                    : Icons
+                                        .directions_car,
+                              ),
+                            ),
+                            title: Text(
+                              serviceName(
+                                service,
+                              ),
+                              style:
+                                  const TextStyle(
+                                fontWeight:
+                                    FontWeight
+                                        .bold,
+                              ),
+                            ),
+                            subtitle:
+                                Text(
+                              statusName(
+                                status,
+                              ),
+                            ),
+                            trailing:
+                                const Icon(
+                              Icons
+                                  .arrow_forward_ios,
+                              size: 17,
+                            ),
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) =>
+                                      CustomerTrackingPage(
+                                    requestId:
+                                        id,
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+                        );
+                      },
+                    );
+                  },
+                ),
+    );
+  }
+}
+
 
 // ============================================================
 // DRIVER
@@ -1238,1204 +1738,1124 @@ class DriverPage extends StatefulWidget {
   });
 
   @override
-  State<DriverPage> createState() => _DriverPageState();
+  State<DriverPage> createState() =>
+      _DriverPageState();
 }
 
-class _DriverPageState extends State<DriverPage> {
-  bool online = true;
+class _DriverPageState
+    extends State<DriverPage> {
+  final FirebaseFirestore firestore =
+      FirebaseFirestore.instance;
 
-  String? driverId;
-  Timer? driverTimer;
+  String driverId = '';
+
+  bool online = false;
+  bool loading = true;
+
+  Position? position;
+
+  Timer? locationTimer;
+
+  String? fcmToken;
+
+  StreamSubscription<
+      RemoteMessage>? messageSubscription;
 
   @override
   void initState() {
     super.initState();
-    _loadDriverId();
+
+    initializeDriver();
   }
 
   @override
   void dispose() {
-    driverTimer?.cancel();
-    _setDriverOffline();
+    locationTimer?.cancel();
+    messageSubscription?.cancel();
     super.dispose();
   }
 
-  Future<void> _loadDriverId() async {
-    final prefs = await SharedPreferences.getInstance();
+  Future<void> initializeDriver() async {
+    final prefs =
+        await SharedPreferences
+            .getInstance();
 
-    driverId = prefs.getString('driver_id');
+    String? savedId =
+        prefs.getString(
+      'driver_id',
+    );
 
-    if (driverId == null) {
-      driverId =
+    if (savedId == null ||
+        savedId.isEmpty) {
+      savedId =
           'driver_${DateTime.now().millisecondsSinceEpoch}';
 
       await prefs.setString(
         'driver_id',
-        driverId!,
+        savedId,
       );
     }
 
-    await _setDriverOnline();
-    _startDriverLocation();
+    driverId = savedId;
 
-    if (mounted) {
-      setState(() {});
+    await setupFirebaseMessaging();
+
+    await loadLocation();
+
+    if (!mounted) return;
+
+    setState(() {
+      loading = false;
+    });
+  }
+
+  Future<void> setupFirebaseMessaging() async {
+    try {
+      final messaging =
+          FirebaseMessaging.instance;
+
+      await messaging.requestPermission(
+        alert: true,
+        badge: true,
+        sound: true,
+      );
+
+      final token =
+          await messaging.getToken();
+
+      if (token != null) {
+        fcmToken = token;
+
+        await firestore
+            .collection('drivers')
+            .doc(driverId)
+            .set(
+          {
+            'fcmToken': token,
+            'vehicleType':
+                widget.vehicleType,
+            'online': online,
+            'updatedAt':
+                FieldValue.serverTimestamp(),
+          },
+          SetOptions(
+            merge: true,
+          ),
+        );
+      }
+
+      messageSubscription =
+          FirebaseMessaging.onMessage.listen(
+        (message) {
+          if (!mounted) return;
+
+          final title =
+              message.notification?.title ??
+                  'طلب جديد';
+
+          final body =
+              message.notification?.body ??
+                  'عندك طلب جديد';
+
+          ScaffoldMessenger.of(context)
+              .showSnackBar(
+            SnackBar(
+              duration:
+                  const Duration(
+                seconds: 5,
+              ),
+              content: Text(
+                '$title\n$body',
+              ),
+            ),
+          );
+        },
+      );
+
+      FirebaseMessaging
+          .instance.onTokenRefresh
+          .listen(
+        (newToken) async {
+          fcmToken = newToken;
+
+          try {
+            await firestore
+                .collection('drivers')
+                .doc(driverId)
+                .set(
+              {
+                'fcmToken': newToken,
+                'vehicleType':
+                    widget.vehicleType,
+                'updatedAt':
+                    FieldValue
+                        .serverTimestamp(),
+              },
+              SetOptions(
+                merge: true,
+              ),
+            );
+          } catch (_) {}
+        },
+      );
+    } catch (_) {}
+  }
+
+  Future<void> loadLocation() async {
+    final p =
+        await getCurrentLocation();
+
+    if (!mounted) return;
+
+    setState(() {
+      position = p;
+    });
+
+    if (online && p != null) {
+      await updateDriverLocation(p);
     }
   }
 
-  Future<void> _setDriverOnline() async {
-    if (driverId == null) return;
-
+  Future<void> updateDriverLocation(
+    Position p,
+  ) async {
     try {
-      await FirebaseFirestore.instance
+      await firestore
           .collection('drivers')
           .doc(driverId)
-          .set({
-        'vehicleType': widget.vehicleType,
-        'online': true,
-        'updatedAt': FieldValue.serverTimestamp(),
-      }, SetOptions(merge: true));
+          .set(
+        {
+          'vehicleType':
+              widget.vehicleType,
+          'online': online,
+          'lat': p.latitude,
+          'lng': p.longitude,
+          'updatedAt':
+              FieldValue.serverTimestamp(),
+        },
+        SetOptions(
+          merge: true,
+        ),
+      );
     } catch (_) {}
   }
 
-  Future<void> _setDriverOffline() async {
-    if (driverId == null) return;
+  void startLocationTimer() {
+    locationTimer?.cancel();
 
-    try {
-      await FirebaseFirestore.instance
-          .collection('drivers')
-          .doc(driverId)
-          .set({
-        'online': false,
-        'updatedAt': FieldValue.serverTimestamp(),
-      }, SetOptions(merge: true));
-    } catch (_) {}
-  }
-
-  void _startDriverLocation() {
-    driverTimer?.cancel();
-
-    driverTimer = Timer.periodic(
+    locationTimer = Timer.periodic(
       const Duration(seconds: 5),
-      (_) => _updateDriverLocation(),
-    );
+      (_) async {
+        if (!online) return;
 
-    _updateDriverLocation();
+        final p =
+            await getCurrentLocation();
+
+        if (p == null) return;
+
+        if (mounted) {
+          setState(() {
+            position = p;
+          });
+        }
+
+        await updateDriverLocation(p);
+
+        await updateAcceptedRequestsLocation(
+          p,
+        );
+      },
+    );
   }
 
-  Future<void> _updateDriverLocation() async {
-    if (driverId == null || !online) return;
-
-    final location = await getCurrentLocation();
-
-    if (location == null) return;
-
+  Future<void>
+      updateAcceptedRequestsLocation(
+    Position p,
+  ) async {
     try {
-      await FirebaseFirestore.instance
-          .collection('drivers')
-          .doc(driverId)
-          .set({
-        'vehicleType': widget.vehicleType,
-        'online': true,
-        'lat': location.latitude,
-        'lng': location.longitude,
-        'updatedAt': FieldValue.serverTimestamp(),
-      }, SetOptions(merge: true));
+      final snapshot =
+          await firestore
+              .collection('requests')
+              .where(
+                'driverId',
+                isEqualTo: driverId,
+              )
+              .get();
+
+      for (final doc in snapshot.docs) {
+        final data = doc.data();
+
+        final status =
+            data['status']
+                ?.toString();
+
+        if (status == 'accepted' ||
+            status ==
+                'driver_arriving' ||
+            status ==
+                'driver_arrived') {
+          await doc.reference.update({
+            'driverLocationLat':
+                p.latitude,
+            'driverLocationLng':
+                p.longitude,
+            'driverLocationUpdatedAt':
+                FieldValue.serverTimestamp(),
+          });
+        }
+      }
     } catch (_) {}
   }
 
-  Future<void> _toggleOnline(bool value) async {
+  Future<void> setOnline(
+    bool value,
+  ) async {
+    if (value) {
+      final p =
+          await getCurrentLocation();
+
+      if (p == null) {
+        if (!mounted) return;
+
+        ScaffoldMessenger.of(context)
+            .showSnackBar(
+          const SnackBar(
+            content: Text(
+              'لازم تفعل GPS باش تدخل متصل',
+            ),
+          ),
+        );
+
+        return;
+      }
+
+      position = p;
+    }
+
     setState(() {
       online = value;
     });
 
-    if (value) {
-      await _setDriverOnline();
-      _startDriverLocation();
+    try {
+      await firestore
+          .collection('drivers')
+          .doc(driverId)
+          .set(
+        {
+          'vehicleType':
+              widget.vehicleType,
+          'online': online,
+          'lat': position?.latitude,
+          'lng': position?.longitude,
+          'fcmToken': fcmToken,
+          'updatedAt':
+              FieldValue.serverTimestamp(),
+        },
+        SetOptions(
+          merge: true,
+        ),
+      );
+    } catch (_) {}
+
+    if (online) {
+      startLocationTimer();
     } else {
-      await _setDriverOffline();
-      driverTimer?.cancel();
+      locationTimer?.cancel();
+    }
+  }
+
+  Future<void> acceptRequest(
+    DocumentSnapshot<Map<String, dynamic>>
+        doc,
+  ) async {
+    if (!online) {
+      ScaffoldMessenger.of(context)
+          .showSnackBar(
+        const SnackBar(
+          content: Text(
+            'دخل متصل أولاً',
+          ),
+        ),
+      );
+
+      return;
+    }
+
+    try {
+      final p =
+          position ??
+              await getCurrentLocation();
+
+      await doc.reference.update({
+        'status': 'accepted',
+        'driverId': driverId,
+        'driverVehicleType':
+            widget.vehicleType,
+        'acceptedAt':
+            FieldValue.serverTimestamp(),
+        'driverLocationLat':
+            p?.latitude,
+        'driverLocationLng':
+            p?.longitude,
+        'driverLocationUpdatedAt':
+            FieldValue.serverTimestamp(),
+      });
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context)
+          .showSnackBar(
+        const SnackBar(
+          content: Text(
+            'تم قبول الطلب',
+          ),
+        ),
+      );
+    } catch (_) {}
+  }
+
+  Future<void> nextStatus(
+    DocumentSnapshot<Map<String, dynamic>>
+        doc,
+    String currentStatus,
+  ) async {
+    String? next;
+
+    if (currentStatus == 'accepted') {
+      next = 'driver_arriving';
+    } else if (currentStatus ==
+        'driver_arriving') {
+      next = 'driver_arrived';
+    } else if (currentStatus ==
+        'driver_arrived') {
+      next = 'completed';
+    }
+
+    if (next == null) return;
+
+    try {
+      await doc.reference.update({
+        'status': next,
+        '${next}At':
+            FieldValue.serverTimestamp(),
+      });
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context)
+          .showSnackBar(
+        SnackBar(
+          content: Text(
+            statusName(next!),
+          ),
+        ),
+      );
+    } catch (_) {}
+  }
+
+  Future<void> cancelDriverRequest(
+    DocumentSnapshot<Map<String, dynamic>>
+        doc,
+  ) async {
+    try {
+      await doc.reference.update({
+        'status': 'cancelled',
+        'cancelledAt':
+            FieldValue.serverTimestamp(),
+      });
+    } catch (_) {}
+  }
+
+  String nextButtonText(
+    String status,
+  ) {
+    switch (status) {
+      case 'accepted':
+        return 'أنا في الطريق';
+
+      case 'driver_arriving':
+        return 'وصلت للزبون';
+
+      case 'driver_arrived':
+        return 'إنهاء الطلب';
+
+      default:
+        return 'متابعة';
+    }
+  }
+
+  Future<void> callCustomer(
+    String phone,
+  ) async {
+    try {
+      const channel =
+          MethodChannel(
+        'allo_waselni/phone',
+      );
+
+      await channel.invokeMethod(
+        'call',
+        {
+          'phone': phone,
+        },
+      );
+    } catch (_) {
+      await Clipboard.setData(
+        ClipboardData(
+          text: phone,
+        ),
+      );
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context)
+          .showSnackBar(
+        const SnackBar(
+          content: Text(
+            'تم نسخ رقم الهاتف',
+          ),
+        ),
+      );
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final title = widget.vehicleType == 'car'
-        ? 'طلبات ألو وصلني'
-        : 'طلبات ألو جيبلي';
+    final title =
+        widget.vehicleType ==
+                'motorcycle'
+            ? 'سائق دراجة'
+            : 'سائق سيارة';
 
-    if (!online) {
+    if (loading) {
       return Scaffold(
         appBar: AppBar(
-          title: Text(
-            title,
-            style: const TextStyle(
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          centerTitle: true,
+          title: Text(title),
         ),
-        body: Center(
-          child: Padding(
-            padding: const EdgeInsets.all(25),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const Icon(
-                  Icons.power_settings_new,
-                  size: 75,
-                  color: Colors.grey,
-                ),
-                const SizedBox(height: 15),
-                const Text(
-                  'أنت غير متصل',
-                  style: TextStyle(
-                    fontSize: 22,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 10),
-                const Text(
-                  'فعّل الاتصال باش تستقبل الطلبات',
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 20),
-                Switch(
-                  value: online,
-                  onChanged: _toggleOnline,
-                ),
-              ],
-            ),
-          ),
+        body: const Center(
+          child:
+              CircularProgressIndicator(),
         ),
       );
     }
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(
-          title,
-          style: const TextStyle(
-            fontWeight: FontWeight.bold,
-          ),
-        ),
+        title: Text(title),
         centerTitle: true,
-        actions: [
-          Switch(
-            value: online,
-            onChanged: _toggleOnline,
+      ),
+      body: Column(
+        children: [
+          Container(
+            width: double.infinity,
+            margin:
+                const EdgeInsets.all(12),
+            padding:
+                const EdgeInsets.all(15),
+            decoration: BoxDecoration(
+              color: online
+                  ? Colors.green
+                      .withOpacity(.1)
+                  : Colors.grey
+                      .withOpacity(.1),
+              borderRadius:
+                  BorderRadius.circular(15),
+              border: Border.all(
+                color: online
+                    ? Colors.green
+                    : Colors.grey,
+              ),
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  online
+                      ? Icons.circle
+                      : Icons.circle_outlined,
+                  color: online
+                      ? Colors.green
+                      : Colors.grey,
+                ),
+
+                const SizedBox(width: 10),
+
+                Expanded(
+                  child: Text(
+                    online
+                        ? 'أنت متصل وتستقبل الطلبات'
+                        : 'أنت غير متصل',
+                    style:
+                        const TextStyle(
+                      fontWeight:
+                          FontWeight.bold,
+                    ),
+                  ),
+                ),
+
+                Switch(
+                  value: online,
+                  onChanged:
+                      setOnline,
+                ),
+              ],
+            ),
+          ),
+
+          if (position != null)
+            Padding(
+              padding:
+                  const EdgeInsets.symmetric(
+                horizontal: 12,
+              ),
+              child: LocationMap(
+                customerLocation:
+                    LatLng(
+                  position!.latitude,
+                  position!.longitude,
+                ),
+                height: 190,
+              ),
+            ),
+
+          const SizedBox(height: 8),
+
+          Expanded(
+            child: StreamBuilder<
+                QuerySnapshot<
+                    Map<String,
+                        dynamic>>>(
+              stream: firestore
+                  .collection('requests')
+                  .where(
+                    'status',
+                    whereIn: [
+                      'pending',
+                      'accepted',
+                      'driver_arriving',
+                      'driver_arrived',
+                    ],
+                  )
+                  .snapshots(),
+              builder: (
+                context,
+                snapshot,
+              ) {
+                if (snapshot.connectionState ==
+                    ConnectionState.waiting) {
+                  return const Center(
+                    child:
+                        CircularProgressIndicator(),
+                  );
+                }
+
+                if (snapshot.hasError) {
+                  return const Center(
+                    child: Padding(
+                      padding:
+                          EdgeInsets.all(20),
+                      child: Text(
+                        'ما قدرناش نحمّلو الطلبات.\n'
+                        'تأكد من إعدادات Firebase.',
+                        textAlign:
+                            TextAlign.center,
+                      ),
+                    ),
+                  );
+                }
+
+                final docs =
+                    snapshot.data?.docs ??
+                        [];
+
+                final filtered =
+                    docs.where((doc) {
+                  final data =
+                      doc.data();
+
+                  final service =
+                      data['service'];
+
+                  final status =
+                      data['status'];
+
+                  if (widget.vehicleType ==
+                      'car') {
+                    if (service !=
+                        'alo_waselni') {
+                      return false;
+                    }
+                  }
+
+                  if (widget.vehicleType ==
+                      'motorcycle') {
+                    if (service !=
+                        'alo_jibli') {
+                      return false;
+                    }
+                  }
+
+                  if (data['driverId'] ==
+                      driverId) {
+                    return true;
+                  }
+
+                  if (status !=
+                      'pending') {
+                    return false;
+                  }
+
+                  return true;
+                }).toList();
+
+                if (filtered.isEmpty) {
+                  return Center(
+                    child: Column(
+                      mainAxisSize:
+                          MainAxisSize.min,
+                      children: [
+                        Icon(
+                          online
+                              ? Icons
+                                  .hourglass_empty
+                              : Icons
+                                  .power_settings_new,
+                          size: 65,
+                          color: Colors.grey,
+                        ),
+                        const SizedBox(
+                            height: 12),
+                        Text(
+                          online
+                              ? 'ما كاش طلبات حالياً'
+                              : 'دخل متصل باش تشوف الطلبات',
+                          textAlign:
+                              TextAlign.center,
+                          style:
+                              const TextStyle(
+                            fontSize: 17,
+                            color:
+                                Colors.grey,
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                }
+
+                filtered.sort(
+                  (a, b) {
+                    final aData =
+                        a.data();
+                    final bData =
+                        b.data();
+
+                    final aTime =
+                        aData['createdAt']
+                            as Timestamp?;
+
+                    final bTime =
+                        bData['createdAt']
+                            as Timestamp?;
+
+                    if (aTime == null ||
+                        bTime == null) {
+                      return 0;
+                    }
+
+                    return bTime
+                        .compareTo(aTime);
+                  },
+                );
+
+                return ListView.builder(
+                  padding:
+                      const EdgeInsets
+                          .fromLTRB(
+                    12,
+                    5,
+                    12,
+                    20,
+                  ),
+                  itemCount:
+                      filtered.length,
+                  itemBuilder:
+                      (context, index) {
+                    return DriverRequestCard(
+                      doc: filtered[index],
+                      driverId: driverId,
+                      online: online,
+                      onAccept:
+                          acceptRequest,
+                      onNextStatus:
+                          nextStatus,
+                      onCancel:
+                          cancelDriverRequest,
+                      onCall:
+                          callCustomer,
+                      nextButtonText:
+                          nextButtonText,
+                    );
+                  },
+                );
+              },
+            ),
           ),
         ],
-      ),
-      backgroundColor: const Color(0xFFF5F7FA),
-      body: StreamBuilder<QuerySnapshot>(
-        stream: FirebaseFirestore.instance
-            .collection('requests')
-            .where(
-              'status',
-              whereIn: [
-                'pending',
-                'accepted',
-                'driver_arriving',
-                'driver_arrived',
-              ],
-            )
-            .snapshots(),
-        builder: (context, snapshot) {
-          if (snapshot.connectionState ==
-              ConnectionState.waiting) {
-            return const Center(
-              child: CircularProgressIndicator(),
-            );
-          }
-
-          if (snapshot.hasError) {
-            return const Center(
-              child: Text(
-                'تعذر تحميل الطلبات',
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            );
-          }
-
-          final docs = snapshot.data?.docs ?? [];
-
-          final filtered = docs.where((doc) {
-            final data =
-                doc.data() as Map<String, dynamic>;
-
-            final service = data['service'];
-            final status = data['status'];
-
-            // 🚗 السيارة = ألو وصلني فقط
-            if (widget.vehicleType == 'car') {
-              if (service != 'alo_waselni') {
-                return false;
-              }
-            }
-
-            // 🛵 الدراجة = ألو جيبلي فقط
-            if (widget.vehicleType == 'motorcycle') {
-              if (service != 'alo_jibli') {
-                return false;
-              }
-            }
-
-            // الطلب المقبول من هذا السائق يبقى ظاهر له
-            if (data['driverId'] == driverId) {
-              return true;
-            }
-
-            // الطلبات الجديدة فقط للسائقين الآخرين
-            if (status != 'pending') {
-              return false;
-            }
-
-            return true;
-          }).toList();
-
-          if (filtered.isEmpty) {
-            return Center(
-              child: Column(
-                mainAxisAlignment:
-                    MainAxisAlignment.center,
-                children: [
-                  Icon(
-                    widget.vehicleType == 'car'
-                        ? Icons.local_taxi
-                        : Icons.two_wheeler,
-                    size: 70,
-                    color: Colors.grey,
-                  ),
-                  const SizedBox(height: 12),
-                  const Text(
-                    'ما كاش طلبات حالياً',
-                    style: TextStyle(
-                      fontSize: 19,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 5),
-                  Text(
-                    widget.vehicleType == 'car'
-                        ? 'طلبات ألو وصلني تظهر هنا'
-                        : 'طلبات ألو جيبلي تظهر هنا',
-                    style: const TextStyle(
-                      color: Colors.grey,
-                    ),
-                  ),
-                ],
-              ),
-            );
-          }
-
-          return ListView.builder(
-            padding: const EdgeInsets.all(14),
-            itemCount: filtered.length,
-            itemBuilder: (context, index) {
-              return DriverRequestCard(
-                doc: filtered[index],
-                driverId: driverId,
-              );
-            },
-          );
-        },
       ),
     );
   }
 }
+
 
 // ============================================================
 // DRIVER REQUEST CARD
 // ============================================================
 
-class DriverRequestCard extends StatefulWidget {
-  final QueryDocumentSnapshot doc;
-  final String? driverId;
+class DriverRequestCard
+    extends StatelessWidget {
+  final DocumentSnapshot<
+      Map<String, dynamic>> doc;
+
+  final String driverId;
+  final bool online;
+
+  final Future<void> Function(
+    DocumentSnapshot<
+        Map<String, dynamic>>,
+  ) onAccept;
+
+  final Future<void> Function(
+    DocumentSnapshot<
+        Map<String, dynamic>>,
+    String,
+  ) onNextStatus;
+
+  final Future<void> Function(
+    DocumentSnapshot<
+        Map<String, dynamic>>,
+  ) onCancel;
+
+  final Future<void> Function(
+    String,
+  ) onCall;
+
+  final String Function(
+    String,
+  ) nextButtonText;
 
   const DriverRequestCard({
     super.key,
     required this.doc,
     required this.driverId,
+    required this.online,
+    required this.onAccept,
+    required this.onNextStatus,
+    required this.onCancel,
+    required this.onCall,
+    required this.nextButtonText,
   });
 
   @override
-  State<DriverRequestCard> createState() =>
-      _DriverRequestCardState();
-}
-
-class _DriverRequestCardState
-    extends State<DriverRequestCard> {
-  Timer? locationTimer;
-
-  @override
-  void initState() {
-    super.initState();
-
-    locationTimer = Timer.periodic(
-      const Duration(seconds: 5),
-      (_) => _updateLocationIfAccepted(),
-    );
-  }
-
-  @override
-  void dispose() {
-    locationTimer?.cancel();
-    super.dispose();
-  }
-
-  Future<void> _updateLocationIfAccepted() async {
-    final data =
-        widget.doc.data() as Map<String, dynamic>;
-
-    if (data['driverId'] != widget.driverId) {
-      return;
-    }
-
-    final status = data['status'];
-
-    if (status == 'completed' ||
-        status == 'cancelled') {
-      return;
-    }
-
-    final location = await getCurrentLocation();
-
-    if (location == null) return;
-
-    try {
-      await FirebaseFirestore.instance
-          .collection('requests')
-          .doc(widget.doc.id)
-          .update({
-        'driverLocationLat': location.latitude,
-        'driverLocationLng': location.longitude,
-        'driverLocationUpdatedAt':
-            FieldValue.serverTimestamp(),
-      });
-    } catch (_) {}
-  }
-
-  Future<void> _accept() async {
-    if (widget.driverId == null) return;
-
-    final location = await getCurrentLocation();
-
-    final update = <String, dynamic>{
-      'status': 'accepted',
-      'driverId': widget.driverId,
-      'acceptedAt': FieldValue.serverTimestamp(),
-    };
-
-    if (location != null) {
-      update['driverLocationLat'] =
-          location.latitude;
-      update['driverLocationLng'] =
-          location.longitude;
-      update['driverLocationUpdatedAt'] =
-          FieldValue.serverTimestamp();
-    }
-
-    try {
-      await FirebaseFirestore.instance
-          .collection('requests')
-          .doc(widget.doc.id)
-          .update(update);
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('تم قبول الطلب ✅'),
-          ),
-        );
-      }
-    } catch (_) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('تعذر قبول الطلب'),
-          ),
-        );
-      }
-    }
-  }
-
-  Future<void> _changeStatus(String status) async {
-    try {
-      await FirebaseFirestore.instance
-          .collection('requests')
-          .doc(widget.doc.id)
-          .update({
-        'status': status,
-        '${status}At':
-            FieldValue.serverTimestamp(),
-      });
-    } catch (_) {}
-  }
-
-  Future<void> _callCustomer() async {
-    final data =
-        widget.doc.data() as Map<String, dynamic>;
-
-    final phone = data['phone'];
-
-    if (phone == null ||
-        phone.toString().isEmpty) {
-      return;
-    }
-
-    const channel =
-        MethodChannel('allo_waselni/phone');
-
-    try {
-      await channel.invokeMethod(
-        'call',
-        {
-          'phone': phone.toString(),
-        },
-      );
-    } catch (_) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              'رقم الزبون: $phone',
-            ),
-          ),
-        );
-      }
-    }
-  }
-
-  @override
   Widget build(BuildContext context) {
-    final data =
-        widget.doc.data() as Map<String, dynamic>;
+    final data = doc.data();
 
-    final service = data['service'] ?? '';
-    final status = data['status'] ?? 'pending';
+    final service =
+        data['service']
+                ?.toString() ??
+            '';
 
-    final isJibli =
-        service == 'alo_jibli';
+    final status =
+        data['status']
+                ?.toString() ??
+            'pending';
+
+    final phone =
+        data['phone']
+                ?.toString() ??
+            '';
+
+    final item =
+        data['item']
+                ?.toString();
+
+    final customerLat =
+        (data['customerLocationLat']
+                as num?)
+            ?.toDouble();
+
+    final customerLng =
+        (data['customerLocationLng']
+                as num?)
+            ?.toDouble();
+
+    final driverLat =
+        (data['driverLocationLat']
+                as num?)
+            ?.toDouble();
+
+    final driverLng =
+        (data['driverLocationLng']
+                as num?)
+            ?.toDouble();
 
     LatLng? customerLocation;
 
-    if (data['customerLocationLat'] != null &&
-        data['customerLocationLng'] != null) {
-      customerLocation = LatLng(
-        (data['customerLocationLat'] as num)
-            .toDouble(),
-        (data['customerLocationLng'] as num)
-            .toDouble(),
+    if (customerLat != null &&
+        customerLng != null) {
+      customerLocation =
+          LatLng(
+        customerLat,
+        customerLng,
       );
     }
 
+    LatLng? driverLocation;
+
+    if (driverLat != null &&
+        driverLng != null) {
+      driverLocation =
+          LatLng(
+        driverLat,
+        driverLng,
+      );
+    }
+
+    final isMine =
+        data['driverId'] ==
+            driverId;
+
     return Card(
-      margin: const EdgeInsets.only(bottom: 16),
-      elevation: 2,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(22),
+      margin:
+          const EdgeInsets.only(
+        bottom: 14,
       ),
+      elevation: 3,
       child: Padding(
-        padding: const EdgeInsets.all(14),
+        padding:
+            const EdgeInsets.all(14),
         child: Column(
+          crossAxisAlignment:
+              CrossAxisAlignment.start,
           children: [
             Row(
               children: [
                 CircleAvatar(
-                  radius: 26,
-                  backgroundColor:
-                      const Color(0xFFE3F2FD),
+                  radius: 25,
                   child: Icon(
-                    isJibli
-                        ? Icons.shopping_bag
-                        : Icons.local_taxi,
-                    color:
-                        const Color(0xFF1565C0),
+                    service ==
+                            'alo_jibli'
+                        ? Icons
+                            .two_wheeler
+                        : Icons
+                            .directions_car,
                   ),
                 ),
+
                 const SizedBox(width: 12),
+
                 Expanded(
                   child: Column(
                     crossAxisAlignment:
-                        CrossAxisAlignment.start,
+                        CrossAxisAlignment
+                            .start,
                     children: [
                       Text(
-                        isJibli
-                            ? 'ألو جيبلي'
-                            : 'ألو وصلني',
-                        style: const TextStyle(
-                          fontSize: 19,
-                          fontWeight: FontWeight.bold,
+                        serviceName(
+                          service,
+                        ),
+                        style:
+                            const TextStyle(
+                          fontSize: 18,
+                          fontWeight:
+                              FontWeight
+                                  .bold,
                         ),
                       ),
 
-                      if (isJibli)
-                        Text(
-                          'الطلب: ${data['item'] ?? ''}',
-                          style: const TextStyle(
-                            color: Colors.grey,
-                          ),
-                        ),
+                      const SizedBox(
+                          height: 3),
 
                       Text(
-                        'الهاتف: ${data['phone'] ?? ''}',
-                        style: const TextStyle(
+                        isMine
+                            ? statusName(
+                                status,
+                              )
+                            : 'طلب جديد',
+                        style:
+                            const TextStyle(
                           color: Colors.grey,
                         ),
                       ),
                     ],
                   ),
                 ),
+
+                if (status !=
+                    'pending')
+                  Icon(
+                    statusIcon(
+                      status,
+                    ),
+                    color:
+                        Colors.blue,
+                  ),
               ],
             ),
 
-            const SizedBox(height: 12),
+            if (item != null) ...[
+              const SizedBox(height: 12),
 
-            // الخريطة فيها الزبون فقط
-            if (customerLocation != null)
-              SizedBox(
-                height: 250,
-                child: LiveCustomerMap(
-                  initialLocation:
-                      customerLocation,
-                  requestId: widget.doc.id,
+              Container(
+                width:
+                    double.infinity,
+                padding:
+                    const EdgeInsets.all(
+                  12,
+                ),
+                decoration:
+                    BoxDecoration(
+                  color: Colors.grey
+                      .withOpacity(.08),
+                  borderRadius:
+                      BorderRadius
+                          .circular(10),
+                ),
+                child: Text(
+                  'الحاجة: $item',
+                  style:
+                      const TextStyle(
+                    fontWeight:
+                        FontWeight.bold,
+                  ),
                 ),
               ),
+            ],
+
+            const SizedBox(height: 12),
+
+            LocationMap(
+              customerLocation:
+                  customerLocation,
+              driverLocation:
+                  isMine
+                      ? driverLocation
+                      : null,
+              height: 210,
+            ),
 
             const SizedBox(height: 10),
 
-            StatusChip(status: status),
+            if (phone.isNotEmpty)
+              ListTile(
+                contentPadding:
+                    EdgeInsets.zero,
+                leading:
+                    const CircleAvatar(
+                  child:
+                      Icon(Icons.phone),
+                ),
+                title:
+                    const Text(
+                  'رقم الزبون',
+                ),
+                subtitle:
+                    Text(phone),
+                trailing:
+                    IconButton(
+                  icon:
+                      const Icon(
+                    Icons.call,
+                    color: Colors.green,
+                  ),
+                  onPressed: () =>
+                      onCall(phone),
+                ),
+              ),
 
-            const SizedBox(height: 12),
+            const SizedBox(height: 5),
 
             if (status == 'pending')
-              MainButton(
-                icon: Icons.check_circle,
-                text: 'قبول الطلب',
-                onPressed: _accept,
-              ),
-
-            if (status == 'accepted') ...[
-              MainButton(
-                icon: Icons.directions_car,
-                text: 'أنا في الطريق',
-                onPressed: () =>
-                    _changeStatus(
-                  'driver_arriving',
-                ),
-              ),
-              const SizedBox(height: 8),
-              MainButton(
-                icon: Icons.phone,
-                text: 'اتصال بالزبون',
-                onPressed: _callCustomer,
-              ),
-            ],
-
-            if (status == 'driver_arriving') ...[
-              MainButton(
-                icon: Icons.location_on,
-                text: 'وصلت للزبون',
-                onPressed: () =>
-                    _changeStatus(
-                  'driver_arrived',
-                ),
-              ),
-              const SizedBox(height: 8),
-              MainButton(
-                icon: Icons.phone,
-                text: 'اتصال بالزبون',
-                onPressed: _callCustomer,
-              ),
-            ],
-
-            if (status == 'driver_arrived')
-              MainButton(
-                icon: Icons.done_all,
-                text: 'تم إنهاء الطلب',
-                onPressed: () =>
-                    _changeStatus(
-                  'completed',
-                ),
-              ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-// ============================================================
-// LIVE CUSTOMER MAP
-// ============================================================
-
-class LiveCustomerMap extends StatefulWidget {
-  final String requestId;
-  final LatLng initialLocation;
-
-  const LiveCustomerMap({
-    super.key,
-    required this.requestId,
-    required this.initialLocation,
-  });
-
-  @override
-  State<LiveCustomerMap> createState() =>
-      _LiveCustomerMapState();
-}
-
-class _LiveCustomerMapState
-    extends State<LiveCustomerMap> {
-  final MapController controller =
-      MapController();
-
-  late LatLng customerLocation;
-
-  @override
-  void initState() {
-    super.initState();
-    customerLocation =
-        widget.initialLocation;
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(20),
-      child: StreamBuilder<DocumentSnapshot>(
-        stream: FirebaseFirestore.instance
-            .collection('requests')
-            .doc(widget.requestId)
-            .snapshots(),
-        builder: (context, snapshot) {
-          if (snapshot.hasData &&
-              snapshot.data!.exists) {
-            final data =
-                snapshot.data!.data()
-                    as Map<String, dynamic>;
-
-            if (data['customerLocationLat'] !=
-                    null &&
-                data['customerLocationLng'] !=
-                    null) {
-              customerLocation = LatLng(
-                (data['customerLocationLat']
-                        as num)
-                    .toDouble(),
-                (data['customerLocationLng']
-                        as num)
-                    .toDouble(),
-              );
-            }
-          }
-
-          return Stack(
-            children: [
-              FlutterMap(
-                mapController: controller,
-                options: MapOptions(
-                  initialCenter:
-                      customerLocation,
-                  initialZoom: 15,
-                ),
-                children: [
-                  TileLayer(
-                    urlTemplate:
-                        'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                    userAgentPackageName:
-                        'com.example.maw3idi',
+              SizedBox(
+                width:
+                    double.infinity,
+                height: 50,
+                child:
+                    FilledButton.icon(
+                  onPressed:
+                      online
+                          ? () =>
+                              onAccept(
+                                doc,
+                              )
+                          : null,
+                  icon:
+                      const Icon(
+                    Icons.check,
                   ),
-                  MarkerLayer(
-                    markers: [
-                      Marker(
-                        point:
-                            customerLocation,
-                        width: 75,
-                        height: 70,
-                        child: Column(
-                          children: [
-                            Container(
-                              padding:
-                                  const EdgeInsets
-                                      .symmetric(
-                                horizontal: 7,
-                                vertical: 3,
-                              ),
-                              decoration:
-                                  BoxDecoration(
-                                color: Colors.white,
-                                borderRadius:
-                                    BorderRadius
-                                        .circular(8),
-                              ),
-                              child: const Text(
-                                'الزبون',
-                                style: TextStyle(
-                                  fontWeight:
-                                      FontWeight.bold,
-                                  fontSize: 11,
-                                ),
-                              ),
-                            ),
-                            const Icon(
-                              Icons.location_on,
-                              color: Colors.blue,
-                              size: 38,
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
+                  label:
+                      const Text(
+                    'قبول الطلب',
                   ),
-                ],
-              ),
-
-              Positioned(
-                right: 10,
-                bottom: 10,
-                child: MapControlButton(
-                  icon: Icons.my_location,
-                  onTap: () {
-                    controller.move(
-                      customerLocation,
-                      16,
-                    );
-                  },
                 ),
               ),
+
+            if (isMine &&
+                status != 'completed' &&
+                status != 'cancelled' &&
+                status != 'pending') ...[
+              SizedBox(
+                width:
+                    double.infinity,
+                height: 50,
+                child:
+                    FilledButton.icon(
+                  onPressed: () =>
+                      onNextStatus(
+                    doc,
+                    status,
+                  ),
+                  icon:
+                      const Icon(
+                    Icons.arrow_forward,
+                  ),
+                  label:
+                      Text(
+                    nextButtonText(
+                      status,
+                    ),
+                  ),
+                ),
+              ),
+
+              if (status !=
+                      'driver_arrived' &&
+                  status !=
+                      'completed')
+                const SizedBox(
+                    height: 8),
+
+              if (status !=
+                      'completed' &&
+                  status !=
+                      'driver_arrived')
+                SizedBox(
+                  width:
+                      double.infinity,
+                  height: 45,
+                  child:
+                      OutlinedButton(
+                    onPressed: () =>
+                        onCancel(
+                      doc,
+                    ),
+                    child:
+                        const Text(
+                      'إلغاء الطلب',
+                    ),
+                  ),
+                ),
             ],
-          );
-        },
-      ),
-    );
-  }
-}
-
-// ============================================================
-// HISTORY
-// ============================================================
-
-Future<void> saveRequestId(String id) async {
-  final prefs =
-      await SharedPreferences.getInstance();
-
-  final list =
-      prefs.getStringList('my_requests') ?? [];
-
-  if (!list.contains(id)) {
-    list.insert(0, id);
-  }
-
-  await prefs.setStringList(
-    'my_requests',
-    list,
-  );
-}
-
-class HistoryPage extends StatelessWidget {
-  const HistoryPage({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text(
-          'طلباتي السابقة',
-          style: TextStyle(
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        centerTitle: true,
-      ),
-      backgroundColor:
-          const Color(0xFFF5F7FA),
-      body: FutureBuilder<SharedPreferences>(
-        future:
-            SharedPreferences.getInstance(),
-        builder: (context, snapshot) {
-          if (!snapshot.hasData) {
-            return const Center(
-              child: CircularProgressIndicator(),
-            );
-          }
-
-          final ids = snapshot.data!
-                  .getStringList(
-                    'my_requests',
-                  ) ??
-              [];
-
-          if (ids.isEmpty) {
-            return const Center(
-              child: Text(
-                'ما عندكش طلبات سابقة',
-              ),
-            );
-          }
-
-          return ListView.builder(
-            padding: const EdgeInsets.all(14),
-            itemCount: ids.length,
-            itemBuilder: (context, index) {
-              return FutureBuilder<
-                  DocumentSnapshot>(
-                future:
-                    FirebaseFirestore.instance
-                        .collection(
-                          'requests',
-                        )
-                        .doc(ids[index])
-                        .get(),
-                builder: (
-                  context,
-                  snap,
-                ) {
-                  if (!snap.hasData ||
-                      !snap.data!.exists) {
-                    return const SizedBox();
-                  }
-
-                  final data =
-                      snap.data!.data()
-                          as Map<String, dynamic>;
-
-                  return HistoryCard(
-                    data: data,
-                    requestId: ids[index],
-                  );
-                },
-              );
-            },
-          );
-        },
-      ),
-    );
-  }
-}
-
-class HistoryCard extends StatelessWidget {
-  final Map<String, dynamic> data;
-  final String requestId;
-
-  const HistoryCard({
-    super.key,
-    required this.data,
-    required this.requestId,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final service =
-        data['service'] ?? '';
-    final status =
-        data['status'] ?? '';
-
-    return Card(
-      margin:
-          const EdgeInsets.only(bottom: 12),
-      child: Padding(
-        padding: const EdgeInsets.all(15),
-        child: Column(
-          crossAxisAlignment:
-              CrossAxisAlignment.start,
-          children: [
-            Text(
-              service == 'alo_jibli'
-                  ? '📦 ألو جيبلي'
-                  : '🚗 ألو وصلني',
-              style: const TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 7),
-            Text(
-              'الحالة: $status',
-            ),
-            if (data['phone'] != null)
-              Text(
-                'الهاتف: ${data['phone']}',
-              ),
-            if (status == 'completed')
-              RatingWidget(
-                requestId: requestId,
-              ),
           ],
-        ),
-      ),
-    );
-  }
-}
-
-// ============================================================
-// RATING
-// ============================================================
-
-class RatingWidget extends StatefulWidget {
-  final String requestId;
-
-  const RatingWidget({
-    super.key,
-    required this.requestId,
-  });
-
-  @override
-  State<RatingWidget> createState() =>
-      _RatingWidgetState();
-}
-
-class _RatingWidgetState
-    extends State<RatingWidget> {
-  int rating = 0;
-  bool saved = false;
-
-  Future<void> _saveRating() async {
-    if (rating == 0) return;
-
-    try {
-      await FirebaseFirestore.instance
-          .collection('requests')
-          .doc(widget.requestId)
-          .update({
-        'rating': rating,
-        'ratedAt':
-            FieldValue.serverTimestamp(),
-      });
-
-      if (mounted) {
-        setState(() {
-          saved = true;
-        });
-      }
-    } catch (_) {}
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    if (saved) {
-      return const Padding(
-        padding: EdgeInsets.only(top: 10),
-        child: Text(
-          'شكراً على تقييمك ⭐',
-          style: TextStyle(
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-      );
-    }
-
-    return Column(
-      children: [
-        const SizedBox(height: 10),
-        const Text(
-          'قيّم الخدمة',
-          style: TextStyle(
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        const SizedBox(height: 6),
-        Row(
-          mainAxisAlignment:
-              MainAxisAlignment.center,
-          children: List.generate(
-            5,
-            (index) => IconButton(
-              onPressed: () {
-                setState(() {
-                  rating = index + 1;
-                });
-              },
-              icon: Icon(
-                Icons.star,
-                color: index < rating
-                    ? Colors.amber
-                    : Colors.grey,
-              ),
-            ),
-          ),
-        ),
-        TextButton(
-          onPressed: _saveRating,
-          child: const Text(
-            'إرسال التقييم',
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-// ============================================================
-// STATUS
-// ============================================================
-
-class StatusChip extends StatelessWidget {
-  final String status;
-
-  const StatusChip({
-    super.key,
-    required this.status,
-  });
-
-  String get text {
-    switch (status) {
-      case 'pending':
-        return 'جديد';
-      case 'accepted':
-        return 'تم قبول الطلب';
-      case 'driver_arriving':
-        return 'السائق في الطريق';
-      case 'driver_arrived':
-        return 'السائق وصل';
-      case 'completed':
-        return 'مكتمل';
-      case 'cancelled':
-        return 'ملغى';
-      default:
-        return status;
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding:
-          const EdgeInsets.symmetric(
-        vertical: 11,
-        horizontal: 14,
-      ),
-      decoration: BoxDecoration(
-        color: const Color(0xFFE3F2FD),
-        borderRadius:
-            BorderRadius.circular(14),
-      ),
-      child: Text(
-        text,
-        textAlign: TextAlign.center,
-        style: const TextStyle(
-          fontWeight: FontWeight.bold,
-        ),
-      ),
-    );
-  }
-}
-
-// ============================================================
-// UI
-// ============================================================
-
-class MainButton extends StatelessWidget {
-  final IconData icon;
-  final String text;
-  final VoidCallback onPressed;
-  final Color? color;
-
-  const MainButton({
-    super.key,
-    required this.icon,
-    required this.text,
-    required this.onPressed,
-    this.color,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      width: double.infinity,
-      height: 53,
-      child: ElevatedButton.icon(
-        style: ElevatedButton.styleFrom(
-          backgroundColor:
-              color ??
-              const Color(0xFF1565C0),
-          foregroundColor: Colors.white,
-          shape:
-              RoundedRectangleBorder(
-            borderRadius:
-                BorderRadius.circular(17),
-          ),
-        ),
-        onPressed: onPressed,
-        icon: Icon(icon),
-        label: Text(
-          text,
-          style: const TextStyle(
-            fontSize: 17,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class ModernTextField
-    extends StatelessWidget {
-  final TextEditingController controller;
-  final String hint;
-  final IconData icon;
-  final TextInputType? keyboardType;
-
-  const ModernTextField({
-    super.key,
-    required this.controller,
-    required this.hint,
-    required this.icon,
-    this.keyboardType,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return TextField(
-      controller: controller,
-      keyboardType: keyboardType,
-      decoration: InputDecoration(
-        hintText: hint,
-        prefixIcon: Icon(icon),
-        filled: true,
-        fillColor: Colors.white,
-        border:
-            OutlineInputBorder(
-          borderRadius:
-              BorderRadius.circular(18),
-          borderSide:
-              BorderSide.none,
-        ),
-      ),
-    );
-  }
-}
-
-class MapControlButton
-    extends StatelessWidget {
-  final IconData icon;
-  final VoidCallback onTap;
-
-  const MapControlButton({
-    super.key,
-    required this.icon,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: Colors.white,
-      elevation: 3,
-      borderRadius:
-          BorderRadius.circular(12),
-      child: InkWell(
-        borderRadius:
-            BorderRadius.circular(12),
-        onTap: onTap,
-        child: SizedBox(
-          width: 44,
-          height: 44,
-          child: Icon(icon),
         ),
       ),
     );
