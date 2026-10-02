@@ -4,18 +4,19 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
+
 import 'package:firebase_core/firebase_core.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+
 import 'package:geolocator/geolocator.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:http/http.dart' as http;
 
-const String appName = 'ألو وصلني';
-
-final FirebaseFirestore db = FirebaseFirestore.instance;
+/// ============================================================
+/// FIREBASE MESSAGING
+/// ============================================================
 
 @pragma('vm:entry-point')
 Future<void> firebaseMessagingBackgroundHandler(
@@ -23,6 +24,10 @@ Future<void> firebaseMessagingBackgroundHandler(
 ) async {
   await Firebase.initializeApp();
 }
+
+/// ============================================================
+/// MAIN
+/// ============================================================
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -44,34 +49,122 @@ Future<void> main() async {
   runApp(const AloWaselniApp());
 }
 
+/// ============================================================
+/// APP
+/// ============================================================
+
 class AloWaselniApp extends StatelessWidget {
   const AloWaselniApp({super.key});
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: appName,
+      title: 'ألو وصلني',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         useMaterial3: true,
         colorSchemeSeed: Colors.blue,
         scaffoldBackgroundColor: const Color(0xfff5f7fb),
+        appBarTheme: const AppBarTheme(
+          centerTitle: true,
+        ),
       ),
-      home: const HomePage(),
+      home: const StartPage(),
     );
   }
 }
 
-// ============================================================
-// HELPERS
-// ============================================================
+/// ============================================================
+/// HELPERS
+/// ============================================================
 
-Future<Position?> getCurrentLocation() async {
+String newId() {
+  return DateTime.now().microsecondsSinceEpoch.toString();
+}
+
+String serviceName(String? service) {
+  if (service == 'alo_jibli') {
+    return 'ألو جيبلي';
+  }
+
+  return 'ألو وصلني';
+}
+
+String vehicleName(String? vehicle) {
+  if (vehicle == 'motorcycle') {
+    return 'دراجة';
+  }
+
+  return 'سيارة';
+}
+
+String statusName(String? status) {
+  switch (status) {
+    case 'pending':
+      return 'في انتظار السائق';
+
+    case 'accepted':
+      return 'تم قبول الطلب';
+
+    case 'driver_arriving':
+      return 'السائق في الطريق إليك';
+
+    case 'driver_arrived':
+      return 'السائق وصل';
+
+    case 'completed':
+      return 'تم إكمال الطلب';
+
+    case 'cancelled':
+      return 'تم إلغاء الطلب';
+
+    default:
+      return 'جاري المعالجة';
+  }
+}
+
+IconData statusIcon(String? status) {
+  switch (status) {
+    case 'accepted':
+      return Icons.check_circle;
+
+    case 'driver_arriving':
+      return Icons.navigation;
+
+    case 'driver_arrived':
+      return Icons.location_on;
+
+    case 'completed':
+      return Icons.done_all;
+
+    case 'cancelled':
+      return Icons.cancel;
+
+    default:
+      return Icons.hourglass_top;
+  }
+}
+
+Future<void> callPhoneNumber(String phone) async {
+  final uri = Uri.parse('tel:$phone');
+
   try {
-    bool enabled =
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri);
+    }
+  } catch (_) {}
+}
+
+/// ============================================================
+/// LOCATION
+/// ============================================================
+
+Future<LatLng?> getCurrentLocation() async {
+  try {
+    bool serviceEnabled =
         await Geolocator.isLocationServiceEnabled();
 
-    if (!enabled) {
+    if (!serviceEnabled) {
       return null;
     }
 
@@ -84,162 +177,57 @@ Future<Position?> getCurrentLocation() async {
     }
 
     if (permission == LocationPermission.denied ||
-        permission ==
-            LocationPermission.deniedForever) {
+        permission == LocationPermission.deniedForever) {
       return null;
     }
 
-    return await Geolocator.getCurrentPosition(
-      locationSettings: const LocationSettings(
+    final position =
+        await Geolocator.getCurrentPosition(
+      locationSettings:
+          const LocationSettings(
         accuracy: LocationAccuracy.high,
       ),
+    );
+
+    return LatLng(
+      position.latitude,
+      position.longitude,
     );
   } catch (_) {
     return null;
   }
 }
 
-String serviceName(String value) {
-  switch (value) {
-    case 'alo_waselni':
-      return 'ألو وصلني';
-    case 'alo_jibli':
-      return 'ألو جيبلي';
-    default:
-      return 'طلب';
-  }
-}
+/// ============================================================
+/// START PAGE
+/// ============================================================
 
-String vehicleName(String value) {
-  switch (value) {
-    case 'car':
-      return 'سيارة';
-    case 'motorcycle':
-      return 'دراجة';
-    default:
-      return 'مركبة';
-  }
-}
-
-String statusName(String value) {
-  switch (value) {
-    case 'pending':
-      return 'في انتظار السائق';
-    case 'accepted':
-      return 'تم قبول الطلب';
-    case 'driver_arriving':
-      return 'السائق في الطريق';
-    case 'driver_arrived':
-      return 'السائق وصل';
-    case 'completed':
-      return 'اكتمل الطلب';
-    case 'cancelled':
-      return 'تم إلغاء الطلب';
-    default:
-      return value;
-  }
-}
-
-IconData statusIcon(String value) {
-  switch (value) {
-    case 'pending':
-      return Icons.hourglass_top;
-    case 'accepted':
-      return Icons.check_circle;
-    case 'driver_arriving':
-      return Icons.directions_car;
-    case 'driver_arrived':
-      return Icons.location_on;
-    case 'completed':
-      return Icons.done_all;
-    case 'cancelled':
-      return Icons.cancel;
-    default:
-      return Icons.info;
-  }
-}
-
-Future<void> callPhoneNumber(
-  BuildContext context,
-  String? phone,
-) async {
-  if (phone == null || phone.trim().isEmpty) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('رقم الهاتف غير موجود'),
-      ),
-    );
-    return;
-  }
-
-  final Uri uri = Uri(
-    scheme: 'tel',
-    path: phone.trim(),
-  );
-
-  try {
-    final bool ok = await launchUrl(
-      uri,
-      mode: LaunchMode.externalApplication,
-    );
-
-    if (!ok && context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('تعذر فتح الاتصال'),
-        ),
-      );
-    }
-  } catch (_) {
-    if (context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('تعذر الاتصال'),
-        ),
-      );
-    }
-  }
-}
-
-String newId() {
-  return DateTime.now()
-      .microsecondsSinceEpoch
-      .toString();
-}
-
-// ============================================================
-// HOME
-// ============================================================
-
-class HomePage extends StatefulWidget {
-  const HomePage({super.key});
+class StartPage extends StatefulWidget {
+  const StartPage({super.key});
 
   @override
-  State<HomePage> createState() =>
-      _HomePageState();
+  State<StartPage> createState() => _StartPageState();
 }
 
-class _HomePageState extends State<HomePage> {
+class _StartPageState extends State<StartPage> {
   bool loading = true;
 
   @override
   void initState() {
     super.initState();
-    _openSavedAccount();
+    checkSavedProfile();
   }
 
-  Future<void> _openSavedAccount() async {
+  Future<void> checkSavedProfile() async {
     final prefs =
         await SharedPreferences.getInstance();
 
-    final String role =
-        prefs.getString('last_role') ?? '';
+    final role =
+        prefs.getString('last_role');
 
     if (!mounted) return;
 
-    if (role == 'customer' &&
-        (prefs.getString('customer_id') ?? '')
-            .isNotEmpty) {
+    if (role == 'customer') {
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(
@@ -249,9 +237,7 @@ class _HomePageState extends State<HomePage> {
       return;
     }
 
-    if (role == 'driver_car' &&
-        (prefs.getString('driver_car_id') ?? '')
-            .isNotEmpty) {
+    if (role == 'car_driver') {
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(
@@ -263,11 +249,7 @@ class _HomePageState extends State<HomePage> {
       return;
     }
 
-    if (role == 'driver_motorcycle' &&
-        (prefs.getString(
-                    'driver_motorcycle_id') ??
-                '')
-            .isNotEmpty) {
+    if (role == 'motorcycle_driver') {
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(
@@ -294,6 +276,39 @@ class _HomePageState extends State<HomePage> {
       );
     }
 
+    return const HomePage();
+  }
+}
+
+/// ============================================================
+/// HOME
+/// ============================================================
+
+class HomePage extends StatelessWidget {
+  const HomePage({super.key});
+
+  Future<void> customer(BuildContext context) async {
+    await ensureCustomerProfile(context);
+  }
+
+  Future<void> carDriver(BuildContext context) async {
+    await ensureDriverProfile(
+      context,
+      'car',
+    );
+  }
+
+  Future<void> motorcycleDriver(
+    BuildContext context,
+  ) async {
+    await ensureDriverProfile(
+      context,
+      'motorcycle',
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: const Text(
@@ -302,139 +317,76 @@ class _HomePageState extends State<HomePage> {
             fontWeight: FontWeight.bold,
           ),
         ),
-        centerTitle: true,
       ),
       body: SafeArea(
-        child: ListView(
-          padding: const EdgeInsets.all(20),
-          children: [
-            const SizedBox(height: 15),
-            const Icon(
-              Icons.local_shipping_rounded,
-              size: 80,
-              color: Colors.blue,
-            ),
-            const SizedBox(height: 15),
-            const Text(
-              'مرحبا بك في ألو وصلني',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 27,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'خدمات التوصيل والتنقل داخل البلدية',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                color: Colors.grey,
-                fontSize: 16,
-              ),
-            ),
-            const SizedBox(height: 35),
-            _RoleButton(
-              icon: Icons.person,
-              title: 'أنا الزبون',
-              subtitle: 'اطلب سيارة أو توصيل',
-              color: Colors.blue,
-              onTap: () async {
-                await ensureCustomerProfile(
-                  context,
-                );
-              },
-            ),
-            const SizedBox(height: 15),
-            _RoleButton(
-              icon: Icons.directions_car,
-              title: 'أنا سائق السيارة',
-              subtitle: 'استقبل طلبات ألو وصلني',
-              color: Colors.green,
-              onTap: () async {
-                await ensureDriverProfile(
-                  context,
-                  'car',
-                );
-              },
-            ),
-            const SizedBox(height: 15),
-            _RoleButton(
-              icon: Icons.two_wheeler,
-              title: 'أنا سائق الدراجة',
-              subtitle: 'استقبل طلبات ألو جيبلي',
-              color: Colors.orange,
-              onTap: () async {
-                await ensureDriverProfile(
-                  context,
-                  'motorcycle',
-                );
-              },
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _RoleButton extends StatelessWidget {
-  final IconData icon;
-  final String title;
-  final String subtitle;
-  final Color color;
-  final VoidCallback onTap;
-
-  const _RoleButton({
-    required this.icon,
-    required this.title,
-    required this.subtitle,
-    required this.color,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      elevation: 2,
-      child: InkWell(
-        borderRadius:
-            BorderRadius.circular(18),
-        onTap: onTap,
         child: Padding(
           padding: const EdgeInsets.all(18),
-          child: Row(
+          child: Column(
             children: [
-              CircleAvatar(
-                radius: 29,
-                backgroundColor:
-                    color.withOpacity(.12),
-                child: Icon(
-                  icon,
-                  color: color,
-                  size: 30,
+              const SizedBox(height: 20),
+
+              const Icon(
+                Icons.local_shipping,
+                size: 75,
+                color: Colors.blue,
+              ),
+
+              const SizedBox(height: 15),
+
+              const Text(
+                'ألو وصلني',
+                style: TextStyle(
+                  fontSize: 30,
+                  fontWeight: FontWeight.bold,
                 ),
               ),
-              const SizedBox(width: 15),
+
+              const SizedBox(height: 8),
+
+              const Text(
+                'خدمات التوصيل والتنقل داخل البلدية',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 16,
+                  color: Colors.grey,
+                ),
+              ),
+
+              const SizedBox(height: 35),
+
               Expanded(
-                child: Column(
-                  crossAxisAlignment:
-                      CrossAxisAlignment.start,
+                child: ListView(
                   children: [
-                    Text(
-                      title,
-                      style: const TextStyle(
-                        fontSize: 19,
-                        fontWeight:
-                            FontWeight.bold,
-                      ),
+                    RoleButton(
+                      icon: Icons.person,
+                      title: 'أنا الزبون',
+                      subtitle:
+                          'طلب ألو وصلني أو ألو جيبلي',
+                      onTap: () => customer(context),
                     ),
-                    const SizedBox(height: 4),
-                    Text(subtitle),
+
+                    const SizedBox(height: 15),
+
+                    RoleButton(
+                      icon: Icons.directions_car,
+                      title: 'أنا سائق السيارة',
+                      subtitle:
+                          'استقبال طلبات الزبائن',
+                      onTap: () => carDriver(context),
+                    ),
+
+                    const SizedBox(height: 15),
+
+                    RoleButton(
+                      icon: Icons.two_wheeler,
+                      title: 'أنا سائق الدراجة',
+                      subtitle:
+                          'استقبال طلبات ألو جيبلي',
+                      onTap: () =>
+                          motorcycleDriver(context),
+                    ),
                   ],
                 ),
-              ),
-              const Icon(
-                Icons.arrow_forward_ios,
               ),
             ],
           ),
@@ -444,9 +396,83 @@ class _RoleButton extends StatelessWidget {
   }
 }
 
-// ============================================================
-// CUSTOMER PROFILE
-// ============================================================
+/// ============================================================
+/// ROLE BUTTON
+/// ============================================================
+
+class RoleButton extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final VoidCallback onTap;
+
+  const RoleButton({
+    super.key,
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      elevation: 3,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(16),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.all(18),
+          child: Row(
+            children: [
+              CircleAvatar(
+                radius: 29,
+                child: Icon(
+                  icon,
+                  size: 30,
+                ),
+              ),
+
+              const SizedBox(width: 15),
+
+              Expanded(
+                child: Column(
+                  crossAxisAlignment:
+                      CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: const TextStyle(
+                        fontSize: 19,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 5),
+                    Text(
+                      subtitle,
+                      style: const TextStyle(
+                        color: Colors.grey,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              const Icon(
+                Icons.arrow_forward_ios,
+                size: 18,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// ============================================================
+/// CUSTOMER PROFILE
+/// ============================================================
 
 Future<void> ensureCustomerProfile(
   BuildContext context,
@@ -454,156 +480,64 @@ Future<void> ensureCustomerProfile(
   final prefs =
       await SharedPreferences.getInstance();
 
-  String? id =
+  String? phone =
+      prefs.getString('customer_phone');
+
+  if (phone == null || phone.trim().isEmpty) {
+    phone = await askPhone(context);
+
+    if (phone == null || phone.trim().isEmpty) {
+      return;
+    }
+
+    await prefs.setString(
+      'customer_phone',
+      phone,
+    );
+  }
+
+  String? customerId =
       prefs.getString('customer_id');
 
-  if (id != null && id.isNotEmpty) {
-    await prefs.setString(
-      'last_role',
-      'customer',
-    );
-
-    if (!context.mounted) return;
-
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => const CustomerPage(),
-      ),
-    );
-    return;
-  }
-
-  final controller =
-      TextEditingController();
-
-  final result = await showDialog<String>(
-    context: context,
-    barrierDismissible: false,
-    builder: (dialogContext) {
-      return AlertDialog(
-        title:
-            const Text('تسجيل الزبون'),
-        content: TextField(
-          controller: controller,
-          keyboardType:
-              TextInputType.phone,
-          decoration:
-              const InputDecoration(
-            labelText: 'رقم الهاتف',
-            hintText: '05xxxxxxxx',
-            prefixIcon:
-                Icon(Icons.phone),
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () {
-              Navigator.pop(
-                dialogContext,
-              );
-            },
-            child:
-                const Text('إلغاء'),
-          ),
-          FilledButton(
-            onPressed: () {
-              final phone =
-                  controller.text.trim();
-
-              if (phone.isEmpty) {
-                return;
-              }
-
-              Navigator.pop(
-                dialogContext,
-                phone,
-              );
-            },
-            child:
-                const Text('دخول'),
-          ),
-        ],
-      );
-    },
-  );
-
-  controller.dispose();
-
-  if (result == null ||
-      result.trim().isEmpty) {
-    return;
-  }
-
-  final customerId = newId();
-
-  try {
-    await db
-        .collection('customers')
-        .doc(customerId)
-        .set({
-      'phone': result.trim(),
-      'createdAt':
-          FieldValue.serverTimestamp(),
-      'updatedAt':
-          FieldValue.serverTimestamp(),
-    });
+  if (customerId == null) {
+    customerId = newId();
 
     await prefs.setString(
       'customer_id',
       customerId,
     );
 
-    await prefs.setString(
-      'customer_phone',
-      result.trim(),
-    );
-
-    await prefs.setString(
-      'last_role',
-      'customer',
-    );
-
-    if (!context.mounted) return;
-
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => const CustomerPage(),
-      ),
-    );
-  } catch (e) {
-    if (context.mounted) {
-      ScaffoldMessenger.of(context)
-          .showSnackBar(
-        SnackBar(
-          content:
-              Text('حدث خطأ: $e'),
-        ),
-      );
-    }
+    await FirebaseFirestore.instance
+        .collection('customers')
+        .doc(customerId)
+        .set({
+      'id': customerId,
+      'phone': phone,
+      'createdAt':
+          FieldValue.serverTimestamp(),
+      'updatedAt':
+          FieldValue.serverTimestamp(),
+    });
   }
+
+  await prefs.setString(
+    'last_role',
+    'customer',
+  );
+
+  if (!context.mounted) return;
+
+  Navigator.pushReplacement(
+    context,
+    MaterialPageRoute(
+      builder: (_) => const CustomerPage(),
+    ),
+  );
 }
 
-// ============================================================
-// DRIVER PROFILE
-// ============================================================
-
-String driverIdKey(
-  String vehicleType,
-) {
-  return vehicleType == 'car'
-      ? 'driver_car_id'
-      : 'driver_motorcycle_id';
-}
-
-String driverPhoneKey(
-  String vehicleType,
-) {
-  return vehicleType == 'car'
-      ? 'driver_car_phone'
-      : 'driver_motorcycle_phone';
-}
+/// ============================================================
+/// DRIVER PROFILE
+/// ============================================================
 
 Future<void> ensureDriverProfile(
   BuildContext context,
@@ -612,139 +546,49 @@ Future<void> ensureDriverProfile(
   final prefs =
       await SharedPreferences.getInstance();
 
-  final idKey =
-      driverIdKey(vehicleType);
+  final keyPhone =
+      vehicleType == 'motorcycle'
+          ? 'motorcycle_driver_phone'
+          : 'car_driver_phone';
 
-  String? id =
-      prefs.getString(idKey);
+  final keyId =
+      vehicleType == 'motorcycle'
+          ? 'motorcycle_driver_id'
+          : 'car_driver_id';
 
-  if (id != null && id.isNotEmpty) {
+  String? phone =
+      prefs.getString(keyPhone);
+
+  if (phone == null || phone.trim().isEmpty) {
+    phone = await askPhone(context);
+
+    if (phone == null || phone.trim().isEmpty) {
+      return;
+    }
+
     await prefs.setString(
-      'last_role',
-      vehicleType == 'car'
-          ? 'driver_car'
-          : 'driver_motorcycle',
+      keyPhone,
+      phone,
     );
-
-    if (!context.mounted) return;
-
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => DriverPage(
-          vehicleType: vehicleType,
-        ),
-      ),
-    );
-
-    return;
   }
 
-  final nameController =
-      TextEditingController();
+  String? driverId =
+      prefs.getString(keyId);
 
-  final phoneController =
-      TextEditingController();
+  if (driverId == null) {
+    driverId = newId();
 
-  final result =
-      await showDialog<List<String>>(
-    context: context,
-    barrierDismissible: false,
-    builder: (dialogContext) {
-      return AlertDialog(
-        title: Text(
-          vehicleType == 'car'
-              ? 'تسجيل سائق السيارة'
-              : 'تسجيل سائق الدراجة',
-        ),
-        content: Column(
-          mainAxisSize:
-              MainAxisSize.min,
-          children: [
-            TextField(
-              controller:
-                  nameController,
-              decoration:
-                  const InputDecoration(
-                labelText: 'الاسم',
-                prefixIcon:
-                    Icon(Icons.person),
-              ),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller:
-                  phoneController,
-              keyboardType:
-                  TextInputType.phone,
-              decoration:
-                  const InputDecoration(
-                labelText:
-                    'رقم الهاتف',
-                prefixIcon:
-                    Icon(Icons.phone),
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () {
-              Navigator.pop(
-                dialogContext,
-              );
-            },
-            child:
-                const Text('إلغاء'),
-          ),
-          FilledButton(
-            onPressed: () {
-              final name =
-                  nameController.text
-                      .trim();
+    await prefs.setString(
+      keyId,
+      driverId,
+    );
 
-              final phone =
-                  phoneController.text
-                      .trim();
-
-              if (name.isEmpty ||
-                  phone.isEmpty) {
-                return;
-              }
-
-              Navigator.pop(
-                dialogContext,
-                [
-                  name,
-                  phone,
-                ],
-              );
-            },
-            child:
-                const Text('تسجيل'),
-          ),
-        ],
-      );
-    },
-  );
-
-  nameController.dispose();
-  phoneController.dispose();
-
-  if (result == null ||
-      result.length < 2) {
-    return;
-  }
-
-  final driverId = newId();
-
-  try {
-    await db
+    await FirebaseFirestore.instance
         .collection('drivers')
         .doc(driverId)
         .set({
-      'name': result[0],
-      'phone': result[1],
+      'id': driverId,
+      'phone': phone,
       'vehicleType': vehicleType,
       'online': false,
       'createdAt':
@@ -752,262 +596,288 @@ Future<void> ensureDriverProfile(
       'updatedAt':
           FieldValue.serverTimestamp(),
     });
-
-    await prefs.setString(
-      idKey,
-      driverId,
-    );
-
-    await prefs.setString(
-      driverPhoneKey(vehicleType),
-      result[1],
-    );
-
-    await prefs.setString(
-      'last_role',
-      vehicleType == 'car'
-          ? 'driver_car'
-          : 'driver_motorcycle',
-    );
-
-    if (!context.mounted) return;
-
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => DriverPage(
-          vehicleType: vehicleType,
-        ),
-      ),
-    );
-  } catch (e) {
-    if (context.mounted) {
-      ScaffoldMessenger.of(context)
-          .showSnackBar(
-        SnackBar(
-          content:
-              Text('حدث خطأ: $e'),
-        ),
-      );
-    }
   }
+
+  await prefs.setString(
+    'last_role',
+    vehicleType == 'motorcycle'
+        ? 'motorcycle_driver'
+        : 'car_driver',
+  );
+
+  if (!context.mounted) return;
+
+  Navigator.pushReplacement(
+    context,
+    MaterialPageRoute(
+      builder: (_) => DriverPage(
+        vehicleType: vehicleType,
+      ),
+    ),
+  );
 }
 
-// ============================================================
-// CUSTOMER PAGE
-// ============================================================
+/// ============================================================
+/// PHONE DIALOG
+/// ============================================================
 
-class CustomerPage
-    extends StatelessWidget {
+Future<String?> askPhone(
+  BuildContext context,
+) async {
+  final controller =
+      TextEditingController();
+
+  return showDialog<String>(
+    context: context,
+    builder: (context) {
+      return AlertDialog(
+        title: const Text(
+          'رقم الهاتف',
+        ),
+        content: TextField(
+          controller: controller,
+          keyboardType:
+              TextInputType.phone,
+          decoration:
+              const InputDecoration(
+            hintText:
+                'أدخل رقم هاتفك',
+            border:
+                OutlineInputBorder(),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () =>
+                Navigator.pop(context),
+            child: const Text(
+              'إلغاء',
+            ),
+          ),
+          FilledButton(
+            onPressed: () {
+              final value =
+                  controller.text.trim();
+
+              if (value.isNotEmpty) {
+                Navigator.pop(
+                  context,
+                  value,
+                );
+              }
+            },
+            child: const Text(
+              'متابعة',
+            ),
+          ),
+        ],
+      );
+    },
+  );
+}
+
+/// ============================================================
+/// CUSTOMER PAGE
+/// ============================================================
+
+class CustomerPage extends StatelessWidget {
   const CustomerPage({super.key});
 
-  Future<void> logout(
-    BuildContext context,
-  ) async {
-    final prefs =
-        await SharedPreferences.getInstance();
-
-    await prefs.remove(
-      'customer_id',
-    );
-
-    await prefs.remove(
-      'customer_phone',
-    );
-
-    await prefs.remove(
-      'last_role',
-    );
-
-    if (!context.mounted) return;
-
-    Navigator.pushAndRemoveUntil(
-      context,
-      MaterialPageRoute(
-        builder: (_) =>
-            const HomePage(),
-      ),
-      (route) => false,
-    );
-  }
-
   @override
-  Widget build(
-    BuildContext context,
-  ) {
+  Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title:
-            const Text('أنا الزبون'),
+        title: const Text(
+          'الزبون',
+        ),
         actions: [
           IconButton(
-            tooltip:
-                'تسجيل الخروج',
+            icon: const Icon(
+              Icons.logout,
+            ),
             onPressed: () =>
                 logout(context),
-            icon:
-                const Icon(Icons.logout),
           ),
         ],
       ),
-      body: ListView(
+      body: Padding(
         padding:
-            const EdgeInsets.all(20),
-        children: [
-          const SizedBox(height: 10),
-          const Icon(
-            Icons.person_pin_circle,
-            size: 75,
-            color: Colors.blue,
-          ),
-          const SizedBox(height: 12),
-          const Text(
-            'اختر الخدمة',
-            textAlign:
-                TextAlign.center,
-            style: TextStyle(
-              fontSize: 25,
-              fontWeight:
-                  FontWeight.bold,
+            const EdgeInsets.all(18),
+        child: Column(
+          children: [
+            const SizedBox(height: 15),
+
+            const Text(
+              'وش تحب اليوم؟',
+              style: TextStyle(
+                fontSize: 25,
+                fontWeight:
+                    FontWeight.bold,
+              ),
             ),
-          ),
-          const SizedBox(height: 25),
-          Card(
-            child: ListTile(
-              contentPadding:
-                  const EdgeInsets.all(
-                18,
-              ),
-              leading:
-                  const CircleAvatar(
-                radius: 28,
-                child: Icon(
-                  Icons.directions_car,
-                ),
-              ),
-              title: const Text(
-                'ألو وصلني',
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight:
-                      FontWeight.bold,
-                ),
-              ),
-              subtitle:
-                  const Text(
-                'اطلب سيارة وتابع السائق على الخريطة',
-              ),
-              trailing:
-                  const Icon(
-                Icons.arrow_forward_ios,
-              ),
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) =>
-                        const WaselniPage(),
+
+            const SizedBox(height: 25),
+
+            Expanded(
+              child: ListView(
+                children: [
+                  ServiceCard(
+                    icon:
+                        Icons.directions_car,
+                    title:
+                        'ألو وصلني',
+                    subtitle:
+                        'اطلب سيارة للتنقل',
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) =>
+                              const WaselniPage(),
+                        ),
+                      );
+                    },
                   ),
-                );
-              },
-            ),
-          ),
-          const SizedBox(height: 15),
-          Card(
-            child: ListTile(
-              contentPadding:
-                  const EdgeInsets.all(
-                18,
-              ),
-              leading:
-                  const CircleAvatar(
-                radius: 28,
-                child: Icon(
-                  Icons.two_wheeler,
-                ),
-              ),
-              title: const Text(
-                'ألو جيبلي',
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight:
-                      FontWeight.bold,
-                ),
-              ),
-              subtitle:
-                  const Text(
-                'اطلب توصيل دراجة',
-              ),
-              trailing:
-                  const Icon(
-                Icons.arrow_forward_ios,
-              ),
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) =>
-                        const JibliPage(),
+
+                  const SizedBox(height: 18),
+
+                  ServiceCard(
+                    icon:
+                        Icons.two_wheeler,
+                    title:
+                        'ألو جيبلي',
+                    subtitle:
+                        'خلي السائق يجيبلك حاجتك',
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) =>
+                              const JibliPage(),
+                        ),
+                      );
+                    },
                   ),
-                );
-              },
-            ),
-          ),
-          const SizedBox(height: 15),
-          Card(
-            child: ListTile(
-              contentPadding:
-                  const EdgeInsets.all(
-                18,
-              ),
-              leading:
-                  const CircleAvatar(
-                radius: 28,
-                child: Icon(
-                  Icons.history,
-                ),
-              ),
-              title: const Text(
-                'طلباتي',
-                style: TextStyle(
-                  fontSize: 19,
-                  fontWeight:
-                      FontWeight.bold,
-                ),
-              ),
-              trailing:
-                  const Icon(
-                Icons.arrow_forward_ios,
-              ),
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) =>
-                        const CustomerHistoryPage(),
+
+                  const SizedBox(height: 18),
+
+                  ServiceCard(
+                    icon:
+                        Icons.history,
+                    title:
+                        'طلباتي',
+                    subtitle:
+                        'شوف الطلبات السابقة',
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) =>
+                              const CustomerHistoryPage(),
+                        ),
+                      );
+                    },
                   ),
-                );
-              },
+                ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
 }
 
-// ============================================================
-// REQUEST: ALO WASELNI
-// ============================================================
+/// ============================================================
+/// SERVICE CARD
+/// ============================================================
 
-class WaselniPage
-    extends StatefulWidget {
+class ServiceCard extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final VoidCallback onTap;
+
+  const ServiceCard({
+    super.key,
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      elevation: 3,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius:
+            BorderRadius.circular(18),
+        child: Padding(
+          padding:
+              const EdgeInsets.all(22),
+          child: Row(
+            children: [
+              CircleAvatar(
+                radius: 31,
+                child: Icon(
+                  icon,
+                  size: 32,
+                ),
+              ),
+              const SizedBox(
+                width: 18,
+              ),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment:
+                      CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style:
+                          const TextStyle(
+                        fontSize: 21,
+                        fontWeight:
+                            FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(
+                      height: 5,
+                    ),
+                    Text(
+                      subtitle,
+                      style:
+                          const TextStyle(
+                        color: Colors.grey,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const Icon(
+                Icons.arrow_forward_ios,
+                size: 18,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// ============================================================
+/// ALO WASELNI
+/// ============================================================
+
+class WaselniPage extends StatefulWidget {
   const WaselniPage({super.key});
 
   @override
-  State<WaselniPage>
-      createState() =>
-          _WaselniPageState();
+  State<WaselniPage> createState() =>
+      _WaselniPageState();
 }
 
 class _WaselniPageState
@@ -1019,61 +889,53 @@ class _WaselniPageState
       loading = true;
     });
 
-    final prefs =
-        await SharedPreferences.getInstance();
+    try {
+      final prefs =
+          await SharedPreferences.getInstance();
 
-    final customerId =
-        prefs.getString(
-              'customer_id',
-            ) ??
-            '';
+      final customerId =
+          prefs.getString(
+        'customer_id',
+      );
 
-    final phone =
-        prefs.getString(
-              'customer_phone',
-            ) ??
-            '';
+      final phone =
+          prefs.getString(
+        'customer_phone',
+      );
 
-    final position =
-        await getCurrentLocation();
-
-    if (position == null) {
-      if (mounted) {
-        setState(() {
-          loading = false;
-        });
-
-        ScaffoldMessenger.of(context)
-            .showSnackBar(
-          const SnackBar(
-            content: Text(
-              'فعّل الموقع GPS وحاول من جديد',
-            ),
-          ),
-        );
+      if (customerId == null ||
+          phone == null) {
+        return;
       }
 
-      return;
-    }
+      final location =
+          await getCurrentLocation();
 
-    final requestId = newId();
+      if (location == null) {
+        if (mounted) {
+          showMessage(
+            'فعّل الموقع ثم حاول من جديد',
+          );
+        }
+        return;
+      }
 
-    try {
-      await db
+      final requestId = newId();
+
+      await FirebaseFirestore.instance
           .collection('requests')
           .doc(requestId)
           .set({
-        'customerId':
-            customerId,
+        'id': requestId,
+        'customerId': customerId,
         'phone': phone,
-        'service':
-            'alo_waselni',
+        'service': 'alo_waselni',
         'vehicleType': 'car',
         'status': 'pending',
         'customerLat':
-            position.latitude,
+            location.latitude,
         'customerLng':
-            position.longitude,
+            location.longitude,
         'driverLat': null,
         'driverLng': null,
         'driverId': null,
@@ -1100,110 +962,99 @@ class _WaselniPageState
           ),
         ),
       );
-    } catch (e) {
+    } finally {
       if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(
-          SnackBar(
-            content: Text(
-              'فشل إرسال الطلب: $e',
-            ),
-          ),
-        );
+        setState(() {
+          loading = false;
+        });
       }
-    }
-
-    if (mounted) {
-      setState(() {
-        loading = false;
-      });
     }
   }
 
+  void showMessage(String text) {
+    ScaffoldMessenger.of(context)
+        .showSnackBar(
+      SnackBar(
+        content: Text(text),
+      ),
+    );
+  }
+
   @override
-  Widget build(
-    BuildContext context,
-  ) {
+  Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title:
             const Text('ألو وصلني'),
       ),
-      body: Padding(
-        padding:
-            const EdgeInsets.all(20),
-        child: Column(
-          children: [
-            const Icon(
-              Icons.directions_car,
-              size: 90,
-              color: Colors.blue,
-            ),
-            const SizedBox(height: 20),
-            const Text(
-              'اطلب سيارة',
-              style: TextStyle(
-                fontSize: 27,
-                fontWeight:
-                    FontWeight.bold,
+      body: Center(
+        child: Padding(
+          padding:
+              const EdgeInsets.all(25),
+          child: Column(
+            mainAxisAlignment:
+                MainAxisAlignment.center,
+            children: [
+              const Icon(
+                Icons.directions_car,
+                size: 90,
+                color: Colors.blue,
               ),
-            ),
-            const SizedBox(height: 10),
-            const Text(
-              'حدد موقعك الحالي وسيظهر طلبك للسائقين المتاحين.',
-              textAlign:
-                  TextAlign.center,
-            ),
-            const Spacer(),
-            SizedBox(
-              width:
-                  double.infinity,
-              height: 55,
-              child:
-                  FilledButton.icon(
-                onPressed: loading
-                    ? null
-                    : createRequest,
-                icon: loading
-                    ? const SizedBox(
-                        width: 20,
-                        height: 20,
-                        child:
-                            CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color:
-                              Colors.white,
-                        ),
-                      )
-                    : const Icon(
-                        Icons.send,
-                      ),
-                label: Text(
-                  loading
-                      ? 'جاري إرسال الطلب...'
-                      : 'اطلب الآن',
+
+              const SizedBox(
+                height: 25,
+              ),
+
+              const Text(
+                'اطلب سيارة الآن',
+                style: TextStyle(
+                  fontSize: 25,
+                  fontWeight:
+                      FontWeight.bold,
                 ),
               ),
-            ),
-          ],
+
+              const SizedBox(
+                height: 30,
+              ),
+
+              SizedBox(
+                width:
+                    double.infinity,
+                height: 55,
+                child: FilledButton.icon(
+                  onPressed:
+                      loading
+                          ? null
+                          : createRequest,
+                  icon: const Icon(
+                    Icons.send,
+                  ),
+                  label: Text(
+                    loading
+                        ? 'جاري الطلب...'
+                        : 'اطلب ألو وصلني',
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
   }
 }
 
-// ============================================================
-// REQUEST: ALO JIBLI
-// ============================================================
+/// ============================================================
+/// ALO JIBLI
+/// ============================================================
 
-class JibliPage
-    extends StatefulWidget {
+class JibliPage extends StatefulWidget {
   const JibliPage({super.key});
 
   @override
-  State<JibliPage>
-      createState() =>
-          _JibliPageState();
+  State<JibliPage> createState() =>
+      _JibliPageState();
 }
 
 class _JibliPageState
@@ -1213,22 +1064,13 @@ class _JibliPageState
 
   bool loading = false;
 
-  @override
-  void dispose() {
-    itemController.dispose();
-    super.dispose();
-  }
-
   Future<void> createRequest() async {
-    if (itemController.text
-        .trim()
-        .isEmpty) {
-      ScaffoldMessenger.of(context)
-          .showSnackBar(
-        const SnackBar(
-          content:
-              Text('اكتب واش حاب تجيب'),
-        ),
+    final item =
+        itemController.text.trim();
+
+    if (item.isEmpty) {
+      showMessage(
+        'اكتب واش حاب يجيبلك السائق',
       );
       return;
     }
@@ -1237,64 +1079,54 @@ class _JibliPageState
       loading = true;
     });
 
-    final prefs =
-        await SharedPreferences.getInstance();
+    try {
+      final prefs =
+          await SharedPreferences.getInstance();
 
-    final customerId =
-        prefs.getString(
-              'customer_id',
-            ) ??
-            '';
+      final customerId =
+          prefs.getString(
+        'customer_id',
+      );
 
-    final phone =
-        prefs.getString(
-              'customer_phone',
-            ) ??
-            '';
+      final phone =
+          prefs.getString(
+        'customer_phone',
+      );
 
-    final position =
-        await getCurrentLocation();
-
-    if (position == null) {
-      if (mounted) {
-        setState(() {
-          loading = false;
-        });
-
-        ScaffoldMessenger.of(context)
-            .showSnackBar(
-          const SnackBar(
-            content: Text(
-              'فعّل الموقع GPS وحاول من جديد',
-            ),
-          ),
-        );
+      if (customerId == null ||
+          phone == null) {
+        return;
       }
 
-      return;
-    }
+      final location =
+          await getCurrentLocation();
 
-    final requestId = newId();
+      if (location == null) {
+        if (mounted) {
+          showMessage(
+            'فعّل الموقع ثم حاول من جديد',
+          );
+        }
+        return;
+      }
 
-    try {
-      await db
+      final requestId = newId();
+
+      await FirebaseFirestore.instance
           .collection('requests')
           .doc(requestId)
           .set({
-        'customerId':
-            customerId,
+        'id': requestId,
+        'customerId': customerId,
         'phone': phone,
-        'service':
-            'alo_jibli',
-        'vehicleType':
-            'motorcycle',
-        'item':
-            itemController.text.trim(),
+        'service': 'alo_jibli',
+        'vehicleType': 'motorcycle',
+        'item': item,
         'status': 'pending',
         'customerLat':
-            position.latitude,
+            location.latitude,
         'customerLng':
-            position.longitude,
+            location.longitude,
         'driverLat': null,
         'driverLng': null,
         'driverId': null,
@@ -1321,30 +1153,32 @@ class _JibliPageState
           ),
         ),
       );
-    } catch (e) {
+    } finally {
       if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(
-          SnackBar(
-            content: Text(
-              'فشل إرسال الطلب: $e',
-            ),
-          ),
-        );
+        setState(() {
+          loading = false;
+        });
       }
-    }
-
-    if (mounted) {
-      setState(() {
-        loading = false;
-      });
     }
   }
 
+  void showMessage(String text) {
+    ScaffoldMessenger.of(context)
+        .showSnackBar(
+      SnackBar(
+        content: Text(text),
+      ),
+    );
+  }
+
   @override
-  Widget build(
-    BuildContext context,
-  ) {
+  void dispose() {
+    itemController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title:
@@ -1355,63 +1189,66 @@ class _JibliPageState
             const EdgeInsets.all(20),
         child: Column(
           children: [
+            const SizedBox(
+              height: 25,
+            ),
+
             const Icon(
               Icons.two_wheeler,
-              size: 90,
-              color: Colors.orange,
+              size: 85,
+              color: Colors.blue,
             ),
-            const SizedBox(height: 15),
+
+            const SizedBox(
+              height: 20,
+            ),
+
             const Text(
-              'ألو جيبلي',
+              'وش حاب يجيبلك السائق؟',
               style: TextStyle(
-                fontSize: 27,
+                fontSize: 22,
                 fontWeight:
                     FontWeight.bold,
               ),
             ),
-            const SizedBox(height: 20),
+
+            const SizedBox(
+              height: 20,
+            ),
+
             TextField(
               controller:
                   itemController,
-              maxLines: 3,
+              maxLines: 4,
               decoration:
                   const InputDecoration(
-                labelText:
-                    'واش حاب نجيبولك؟',
                 hintText:
-                    'مثال: دواء، أكل، غرض...',
+                    'مثال: خبز، دواء، غرض...',
                 border:
                     OutlineInputBorder(),
               ),
             ),
-            const Spacer(),
+
+            const SizedBox(
+              height: 20,
+            ),
+
             SizedBox(
               width:
                   double.infinity,
               height: 55,
-              child:
-                  FilledButton.icon(
-                onPressed: loading
-                    ? null
-                    : createRequest,
-                icon: loading
-                    ? const SizedBox(
-                        width: 20,
-                        height: 20,
-                        child:
-                            CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color:
-                              Colors.white,
-                        ),
-                      )
-                    : const Icon(
-                        Icons.send,
-                      ),
+              child: FilledButton.icon(
+                onPressed:
+                    loading
+                        ? null
+                        : createRequest,
+                icon: const Icon(
+                  Icons.send,
+                ),
                 label: Text(
                   loading
-                      ? 'جاري الإرسال...'
-                      : 'أرسل الطلب',
+                      ? 'جاري الطلب...'
+                      : 'اطلب ألو جيبلي',
                 ),
               ),
             ),
@@ -1422,9 +1259,9 @@ class _JibliPageState
   }
 }
 
-// ============================================================
-// CUSTOMER TRACKING
-// ============================================================
+/// ============================================================
+/// CUSTOMER TRACKING
+/// ============================================================
 
 class CustomerTrackingPage
     extends StatefulWidget {
@@ -1448,7 +1285,45 @@ class _CustomerTrackingPageState
   @override
   void initState() {
     super.initState();
-    startCustomerLocationTracking();
+
+    locationTimer =
+        Timer.periodic(
+      const Duration(seconds: 5),
+      (_) => updateCustomerLocation(),
+    );
+  }
+
+  Future<void>
+      updateCustomerLocation() async {
+    try {
+      final location =
+          await getCurrentLocation();
+
+      if (location == null) return;
+
+      await FirebaseFirestore.instance
+          .collection('requests')
+          .doc(widget.requestId)
+          .update({
+        'customerLat':
+            location.latitude,
+        'customerLng':
+            location.longitude,
+        'updatedAt':
+            FieldValue.serverTimestamp(),
+      });
+    } catch (_) {}
+  }
+
+  Future<void> cancelRequest() async {
+    await FirebaseFirestore.instance
+        .collection('requests')
+        .doc(widget.requestId)
+        .update({
+      'status': 'cancelled',
+      'updatedAt':
+          FieldValue.serverTimestamp(),
+    });
   }
 
   @override
@@ -1457,76 +1332,17 @@ class _CustomerTrackingPageState
     super.dispose();
   }
 
-  void startCustomerLocationTracking() {
-    locationTimer = Timer.periodic(
-      const Duration(seconds: 5),
-      (_) async {
-        await updateCustomerLocation();
-      },
-    );
-  }
-
-  Future<void> updateCustomerLocation() async {
-    try {
-      final position =
-          await getCurrentLocation();
-
-      if (position == null) return;
-
-      await db
-          .collection('requests')
-          .doc(widget.requestId)
-          .update({
-        'customerLat':
-            position.latitude,
-        'customerLng':
-            position.longitude,
-        'updatedAt':
-            FieldValue.serverTimestamp(),
-      });
-    } catch (_) {}
-  }
-
-  Future<void> cancelRequest() async {
-    try {
-      await db
-          .collection('requests')
-          .doc(widget.requestId)
-          .update({
-        'status': 'cancelled',
-        'updatedAt':
-            FieldValue.serverTimestamp(),
-      });
-
-      if (!mounted) return;
-
-      Navigator.pop(context);
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(
-          SnackBar(
-            content:
-                Text('تعذر الإلغاء: $e'),
-          ),
-        );
-      }
-    }
-  }
-
   @override
-  Widget build(
-    BuildContext context,
-  ) {
+  Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title:
-            const Text('متابعة الطلب'),
+            const Text('تتبع الطلب'),
       ),
       body: StreamBuilder<
-          DocumentSnapshot<
-              Map<String, dynamic>>>(
-        stream: db
+          DocumentSnapshot<Map<String, dynamic>>>(
+        stream: FirebaseFirestore
+            .instance
             .collection('requests')
             .doc(widget.requestId)
             .snapshots(),
@@ -1551,8 +1367,7 @@ class _CustomerTrackingPageState
           }
 
           final status =
-              data['status'] ??
-                  'pending';
+              data['status'] as String?;
 
           final customerLat =
               (data['customerLat']
@@ -1574,121 +1389,169 @@ class _CustomerTrackingPageState
                       as num?)
                   ?.toDouble();
 
+          final customer =
+              customerLat != null &&
+                      customerLng != null
+                  ? LatLng(
+                      customerLat,
+                      customerLng,
+                    )
+                  : null;
+
+          final driver =
+              driverLat != null &&
+                      driverLng != null
+                  ? LatLng(
+                      driverLat,
+                      driverLng,
+                    )
+                  : null;
+
           final driverPhone =
               data['driverPhone']
-                  ?.toString();
+                  as String?;
+
+          final vehicleType =
+              data['vehicleType']
+                  as String?;
 
           return Column(
             children: [
-              _StatusHeader(
-                status: status,
+              Padding(
+                padding:
+                    const EdgeInsets.all(12),
+                child: Card(
+                  child: Padding(
+                    padding:
+                        const EdgeInsets.all(15),
+                    child: Row(
+                      children: [
+                        CircleAvatar(
+                          child: Icon(
+                            statusIcon(
+                              status,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(
+                          width: 12,
+                        ),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment:
+                                CrossAxisAlignment
+                                    .start,
+                            children: [
+                              Text(
+                                statusName(
+                                  status,
+                                ),
+                                style:
+                                    const TextStyle(
+                                  fontSize: 17,
+                                  fontWeight:
+                                      FontWeight.bold,
+                                ),
+                              ),
+                              const SizedBox(
+                                height: 4,
+                              ),
+                              Text(
+                                serviceName(
+                                  data['service']
+                                      as String?,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
               ),
+
               Expanded(
                 child: LocationMap(
-                  customerLat:
-                      customerLat,
-                  customerLng:
-                      customerLng,
-                  driverLat:
-                      driverLat,
-                  driverLng:
-                      driverLng,
-                  showCustomer:
-                      true,
-                  showDriver:
+                  customer: customer,
+                  driver: driver,
+                  vehicleType:
+                      vehicleType,
+                  autoFollowDriver:
                       true,
                 ),
               ),
-              if (driverPhone !=
-                      null &&
-                  driverPhone.isNotEmpty)
+
+              if (driverPhone != null &&
+                  driverPhone.isNotEmpty &&
+                  status != 'completed' &&
+                  status != 'cancelled')
                 Padding(
                   padding:
                       const EdgeInsets.fromLTRB(
                     15,
                     10,
                     15,
-                    0,
+                    5,
                   ),
                   child: SizedBox(
                     width:
                         double.infinity,
                     child:
                         FilledButton.icon(
-                      onPressed: () {
-                        callPhoneNumber(
-                          context,
-                          driverPhone,
-                        );
-                      },
-                      icon:
-                          const Icon(
+                      onPressed: () =>
+                          callPhoneNumber(
+                        driverPhone,
+                      ),
+                      icon: const Icon(
                         Icons.phone,
                       ),
-                      label:
-                          const Text(
+                      label: Text(
                         'اتصل بالسائق',
                       ),
                     ),
                   ),
                 ),
-              Padding(
-                padding:
-                    const EdgeInsets.all(
-                  15,
-                ),
-                child: Column(
-                  children: [
-                    if (data['item'] !=
-                        null)
-                      Text(
-                        'الطلب: ${data['item']}',
-                        style:
-                            const TextStyle(
-                          fontWeight:
-                              FontWeight
-                                  .bold,
-                        ),
+
+              if (status == 'pending')
+                Padding(
+                  padding:
+                      const EdgeInsets.fromLTRB(
+                    15,
+                    5,
+                    15,
+                    15,
+                  ),
+                  child: SizedBox(
+                    width:
+                        double.infinity,
+                    child:
+                        OutlinedButton.icon(
+                      onPressed:
+                          cancelRequest,
+                      icon: const Icon(
+                        Icons.cancel,
                       ),
-                    const SizedBox(
-                      height: 8,
+                      label: const Text(
+                        'إلغاء الطلب',
+                      ),
                     ),
-                    if (status ==
-                        'pending')
-                      SizedBox(
-                        width:
-                            double.infinity,
-                        child:
-                            OutlinedButton
-                                .icon(
-                          onPressed:
-                              cancelRequest,
-                          icon:
-                              const Icon(
-                            Icons.close,
-                          ),
-                          label:
-                              const Text(
-                            'إلغاء الطلب',
-                          ),
-                        ),
-                      ),
-                    if (status ==
-                        'completed')
-                      const Text(
-                        'تم إكمال الطلب بنجاح',
-                        style:
-                            TextStyle(
-                          color:
-                              Colors.green,
-                          fontWeight:
-                              FontWeight
-                                  .bold,
-                        ),
-                      ),
-                  ],
+                  ),
                 ),
-              ),
+
+              if (status == 'completed')
+                const Padding(
+                  padding:
+                      EdgeInsets.all(15),
+                  child: Text(
+                    'تم إكمال الطلب بنجاح',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight:
+                          FontWeight.bold,
+                    ),
+                  ),
+                ),
             ],
           );
         },
@@ -1697,59 +1560,11 @@ class _CustomerTrackingPageState
   }
 }
 
-// ============================================================
-// STATUS HEADER
-// ============================================================
+/// ============================================================
+/// DRIVER PAGE
+/// ============================================================
 
-class _StatusHeader
-    extends StatelessWidget {
-  final String status;
-
-  const _StatusHeader({
-    required this.status,
-  });
-
-  @override
-  Widget build(
-    BuildContext context,
-  ) {
-    return Container(
-      width: double.infinity,
-      padding:
-          const EdgeInsets.all(14),
-      color: Colors.white,
-      child: Row(
-        children: [
-          Icon(
-            statusIcon(status),
-            color: Theme.of(context)
-                .colorScheme
-                .primary,
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Text(
-              statusName(status),
-              style:
-                  const TextStyle(
-                fontSize: 17,
-                fontWeight:
-                    FontWeight.bold,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// ============================================================
-// DRIVER PAGE
-// ============================================================
-
-class DriverPage
-    extends StatefulWidget {
+class DriverPage extends StatefulWidget {
   final String vehicleType;
 
   const DriverPage({
@@ -1758,20 +1573,18 @@ class DriverPage
   });
 
   @override
-  State<DriverPage>
-      createState() =>
-          _DriverPageState();
+  State<DriverPage> createState() =>
+      _DriverPageState();
 }
 
 class _DriverPageState
     extends State<DriverPage> {
-  String driverId = '';
-  String driverPhone = '';
-
   bool online = false;
-  bool loading = true;
 
   Timer? locationTimer;
+
+  String? driverId;
+  String? phone;
 
   @override
   void initState() {
@@ -1779,61 +1592,30 @@ class _DriverPageState
     loadDriver();
   }
 
-  @override
-  void dispose() {
-    locationTimer?.cancel();
-    super.dispose();
-  }
-
   Future<void> loadDriver() async {
     final prefs =
         await SharedPreferences.getInstance();
 
     driverId =
-        prefs.getString(
-              driverIdKey(
-                widget.vehicleType,
-              ),
-            ) ??
-            '';
+        widget.vehicleType == 'motorcycle'
+            ? prefs.getString(
+                'motorcycle_driver_id',
+              )
+            : prefs.getString(
+                'car_driver_id',
+              );
 
-    driverPhone =
-        prefs.getString(
-              driverPhoneKey(
-                widget.vehicleType,
-              ),
-            ) ??
-            '';
-
-    try {
-      final token =
-          await FirebaseMessaging
-              .instance
-              .getToken();
-
-      if (token != null &&
-          driverId.isNotEmpty) {
-        await db
-            .collection('drivers')
-            .doc(driverId)
-            .set(
-          {
-            'fcmToken': token,
-            'updatedAt':
-                FieldValue
-                    .serverTimestamp(),
-          },
-          SetOptions(
-            merge: true,
-          ),
-        );
-      }
-    } catch (_) {}
+    phone =
+        widget.vehicleType == 'motorcycle'
+            ? prefs.getString(
+                'motorcycle_driver_phone',
+              )
+            : prefs.getString(
+                'car_driver_phone',
+              );
 
     if (mounted) {
-      setState(() {
-        loading = false;
-      });
+      setState(() {});
     }
   }
 
@@ -1844,114 +1626,89 @@ class _DriverPageState
       online = value;
     });
 
-    try {
-      await db
-          .collection('drivers')
-          .doc(driverId)
-          .set(
-        {
-          'online': value,
-          'vehicleType':
-              widget.vehicleType,
-          'phone': driverPhone,
-          'updatedAt':
-              FieldValue.serverTimestamp(),
-        },
-        SetOptions(
-          merge: true,
-        ),
-      );
+    if (driverId == null) return;
 
-      if (value) {
-        startLocationTracking();
-      } else {
-        locationTimer?.cancel();
-        locationTimer = null;
-      }
-    } catch (e) {
-      if (mounted) {
-        setState(() {
-          online = !value;
-        });
+    await FirebaseFirestore.instance
+        .collection('drivers')
+        .doc(driverId)
+        .update({
+      'online': value,
+      'vehicleType':
+          widget.vehicleType,
+      'phone': phone,
+      'updatedAt':
+          FieldValue.serverTimestamp(),
+    });
 
-        ScaffoldMessenger.of(context)
-            .showSnackBar(
-          SnackBar(
-            content:
-                Text('حدث خطأ: $e'),
-          ),
-        );
-      }
+    if (value) {
+      startLocationUpdates();
+    } else {
+      locationTimer?.cancel();
     }
   }
 
-  void startLocationTracking() {
+  void startLocationUpdates() {
     locationTimer?.cancel();
 
-    updateDriverLocation();
-
-    locationTimer = Timer.periodic(
+    locationTimer =
+        Timer.periodic(
       const Duration(seconds: 5),
-      (_) {
-        updateDriverLocation();
-      },
+      (_) => updateDriverLocation(),
     );
+
+    updateDriverLocation();
   }
 
-  Future<void> updateDriverLocation() async {
-    if (driverId.isEmpty ||
-        !online) {
-      return;
-    }
-
-    final position =
-        await getCurrentLocation();
-
-    if (position == null) {
+  Future<void>
+      updateDriverLocation() async {
+    if (!online ||
+        driverId == null) {
       return;
     }
 
     try {
-      await db
+      final location =
+          await getCurrentLocation();
+
+      if (location == null) return;
+
+      await FirebaseFirestore.instance
           .collection('drivers')
           .doc(driverId)
-          .set(
-        {
-          'lat': position.latitude,
-          'lng': position.longitude,
-          'online': true,
-          'updatedAt':
-              FieldValue.serverTimestamp(),
-        },
-        SetOptions(
-          merge: true,
-        ),
-      );
+          .update({
+        'lat': location.latitude,
+        'lng': location.longitude,
+        'online': true,
+        'vehicleType':
+            widget.vehicleType,
+        'phone': phone,
+        'updatedAt':
+            FieldValue.serverTimestamp(),
+      });
 
-      final query = await db
-          .collection('requests')
-          .where(
-            'driverId',
-            isEqualTo: driverId,
-          )
-          .get();
+      final activeRequests =
+          await FirebaseFirestore.instance
+              .collection('requests')
+              .where(
+                'driverId',
+                isEqualTo: driverId,
+              )
+              .get();
 
       for (final doc
-          in query.docs) {
+          in activeRequests.docs) {
         final data = doc.data();
-        final status =
-            data['status'];
 
-        if (status == 'accepted' ||
-            status ==
-                'driver_arriving' ||
-            status ==
-                'driver_arrived') {
+        final status =
+            data['status'] as String?;
+
+        if (status != 'completed' &&
+            status != 'cancelled') {
           await doc.reference.update({
             'driverLat':
-                position.latitude,
+                location.latitude,
             'driverLng':
-                position.longitude,
+                location.longitude,
             'updatedAt':
                 FieldValue.serverTimestamp(),
           });
@@ -1960,43 +1717,62 @@ class _DriverPageState
     } catch (_) {}
   }
 
+  Future<void> acceptRequest(
+    DocumentSnapshot<Map<String, dynamic>>
+        doc,
+  ) async {
+    if (driverId == null ||
+        phone == null) {
+      return;
+    }
+
+    await doc.reference.update({
+      'status': 'accepted',
+      'driverId': driverId,
+      'driverPhone': phone,
+      'vehicleType':
+          widget.vehicleType,
+      'acceptedAt':
+          FieldValue.serverTimestamp(),
+      'updatedAt':
+          FieldValue.serverTimestamp(),
+    });
+  }
+
+  Future<void> updateStatus(
+    DocumentSnapshot<Map<String, dynamic>>
+        doc,
+    String status,
+  ) async {
+    await doc.reference.update({
+      'status': status,
+      'updatedAt':
+          FieldValue.serverTimestamp(),
+    });
+  }
+
   Future<void> logout() async {
     locationTimer?.cancel();
-
-    try {
-      await db
-          .collection('drivers')
-          .doc(driverId)
-          .set(
-        {
-          'online': false,
-          'updatedAt':
-              FieldValue.serverTimestamp(),
-        },
-        SetOptions(
-          merge: true,
-        ),
-      );
-    } catch (_) {}
 
     final prefs =
         await SharedPreferences.getInstance();
 
     await prefs.remove(
-      driverIdKey(
-        widget.vehicleType,
-      ),
-    );
-
-    await prefs.remove(
-      driverPhoneKey(
-        widget.vehicleType,
-      ),
-    );
-
-    await prefs.remove(
       'last_role',
     );
+
+    if (driverId != null) {
+      try {
+        await FirebaseFirestore.instance
+            .collection('drivers')
+            .doc(driverId)
+            .update({
+          'online': false,
+          'updatedAt':
+              FieldValue.serverTimestamp(),
+        });
+      } catch (_) {}
+    }
 
     if (!mounted) return;
 
@@ -2006,414 +1782,270 @@ class _DriverPageState
         builder: (_) =>
             const HomePage(),
       ),
-      (route) => false,
+      (_) => false,
     );
   }
 
-  Future<void> acceptRequest(
-    String requestId,
-    Map<String, dynamic> data,
-  ) async {
-    try {
-      final driverDoc =
-          await db
-              .collection('drivers')
-              .doc(driverId)
-              .get();
-
-      final driverData =
-          driverDoc.data() ?? {};
-
-      final phone =
-          driverData['phone']
-                  ?.toString() ??
-              driverPhone;
-
-      await db
-          .collection('requests')
-          .doc(requestId)
-          .update({
-        'status': 'accepted',
-        'driverId': driverId,
-        'driverPhone': phone,
-        'driverVehicleType':
-            widget.vehicleType,
-        'acceptedAt':
-            FieldValue.serverTimestamp(),
-        'updatedAt':
-            FieldValue.serverTimestamp(),
-      });
-
-      if (!mounted) return;
-
-      ScaffoldMessenger.of(context)
-          .showSnackBar(
-        const SnackBar(
-          content:
-              Text('تم قبول الطلب'),
-        ),
-      );
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(
-          SnackBar(
-            content: Text(
-              'تعذر قبول الطلب: $e',
-            ),
-          ),
-        );
-      }
-    }
-  }
-
-  Future<void> updateStatus(
-    String requestId,
-    String status,
-  ) async {
-    try {
-      await db
-          .collection('requests')
-          .doc(requestId)
-          .update({
-        'status': status,
-        'updatedAt':
-            FieldValue.serverTimestamp(),
-      });
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(
-          SnackBar(
-            content: Text(
-              'تعذر تحديث الحالة: $e',
-            ),
-          ),
-        );
-      }
-    }
+  @override
+  void dispose() {
+    locationTimer?.cancel();
+    super.dispose();
   }
 
   @override
-  Widget build(
-    BuildContext context,
-  ) {
-    if (loading) {
-      return const Scaffold(
-        body: Center(
-          child:
-              CircularProgressIndicator(),
-        ),
-      );
-    }
-
-    final service =
-        widget.vehicleType == 'car'
-            ? 'alo_waselni'
-            : 'alo_jibli';
+  Widget build(BuildContext context) {
+    final isMotorcycle =
+        widget.vehicleType ==
+            'motorcycle';
 
     return Scaffold(
       appBar: AppBar(
         title: Text(
-          widget.vehicleType == 'car'
-              ? 'سائق السيارة'
-              : 'سائق الدراجة',
+          isMotorcycle
+              ? 'سائق الدراجة'
+              : 'سائق السيارة',
         ),
         actions: [
           IconButton(
+            icon: const Icon(
+              Icons.logout,
+            ),
             onPressed: logout,
-            icon:
-                const Icon(Icons.logout),
           ),
         ],
       ),
       body: Column(
         children: [
-          Container(
-            color: Colors.white,
-            padding:
-                const EdgeInsets.symmetric(
-              horizontal: 15,
-              vertical: 10,
-            ),
-            child: Row(
-              children: [
-                Icon(
-                  widget.vehicleType ==
-                          'car'
-                      ? Icons
-                          .directions_car
-                      : Icons.two_wheeler,
-                  size: 32,
-                ),
-                const SizedBox(
-                  width: 12,
-                ),
-                const Expanded(
-                  child: Text(
-                    'متاح لاستقبال الطلبات',
-                    style:
-                        TextStyle(
-                      fontSize: 17,
-                      fontWeight:
-                          FontWeight
-                              .bold,
+          Card(
+            margin:
+                const EdgeInsets.all(12),
+            child: Padding(
+              padding:
+                  const EdgeInsets.all(15),
+              child: Row(
+                children: [
+                  CircleAvatar(
+                    radius: 27,
+                    child: Icon(
+                      isMotorcycle
+                          ? Icons.two_wheeler
+                          : Icons.directions_car,
                     ),
                   ),
-                ),
-                Switch(
-                  value: online,
-                  onChanged: setOnline,
-                ),
-              ],
+                  const SizedBox(
+                    width: 12,
+                  ),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment:
+                          CrossAxisAlignment
+                              .start,
+                      children: [
+                        Text(
+                          isMotorcycle
+                              ? 'سائق الدراجة'
+                              : 'سائق السيارة',
+                          style:
+                              const TextStyle(
+                            fontSize: 18,
+                            fontWeight:
+                                FontWeight.bold,
+                          ),
+                        ),
+                        Text(
+                          online
+                              ? 'متصل ويستقبل الطلبات'
+                              : 'غير متصل',
+                          style:
+                              TextStyle(
+                            color: online
+                                ? Colors.green
+                                : Colors.grey,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Switch(
+                    value: online,
+                    onChanged:
+                        setOnline,
+                  ),
+                ],
+              ),
             ),
           ),
-          if (!online)
-            const Expanded(
-              child: Center(
-                child: Column(
-                  mainAxisSize:
-                      MainAxisSize.min,
-                  children: [
-                    Icon(
-                      Icons
-                          .power_settings_new,
-                      size: 70,
-                      color:
-                          Colors.grey,
-                    ),
-                    SizedBox(
-                      height: 15,
-                    ),
-                    Text(
-                      'أنت غير متاح',
-                      style:
-                          TextStyle(
-                        fontSize: 20,
-                        fontWeight:
-                            FontWeight
-                                .bold,
-                      ),
-                    ),
-                    SizedBox(
-                      height: 6,
-                    ),
-                    Text(
-                      'فعّل الزر لاستقبال الطلبات',
-                    ),
-                  ],
-                ),
-              ),
-            )
-          else
-            Expanded(
-              child: StreamBuilder<
-                  QuerySnapshot<
-                      Map<String,
-                          dynamic>>>(
-                stream: db
-                    .collection(
-                        'requests')
-                    .where(
-                      'vehicleType',
-                      isEqualTo:
-                          widget.vehicleType,
-                    )
-                    .snapshots(),
-                builder: (
-                  context,
-                  snapshot,
-                ) {
-                  if (snapshot
-                          .connectionState ==
-                      ConnectionState
-                          .waiting) {
-                    return const Center(
-                      child:
-                          CircularProgressIndicator(),
-                    );
-                  }
 
-                  if (!snapshot
-                          .hasData ||
-                      snapshot.data!
-                          .docs
-                          .isEmpty) {
-                    return const Center(
-                      child: Text(
-                        'لا توجد طلبات حاليا',
-                        style:
-                            TextStyle(
-                          fontSize: 18,
+          Expanded(
+            child: !online
+                ? const Center(
+                    child: Column(
+                      mainAxisAlignment:
+                          MainAxisAlignment
+                              .center,
+                      children: [
+                        Icon(
+                          Icons.power_settings_new,
+                          size: 70,
+                          color: Colors.grey,
                         ),
-                      ),
-                    );
-                  }
-
-                  final docs = snapshot
-                      .data!
-                      .docs
-                      .where((doc) {
-                    final data =
-                        doc.data();
-
-                    final requestService =
-                        data['service']
-                            ?.toString();
-
-                    final status =
-                        data['status']
-                            ?.toString();
-
-                    final requestDriver =
-                        data['driverId']
-                            ?.toString();
-
-                    if (requestService !=
-                        service) {
-                      return false;
-                    }
-
-                    if (status ==
-                        'pending') {
-                      return true;
-                    }
-
-                    if (requestDriver ==
-                            driverId &&
-                        (status ==
-                                'accepted' ||
-                            status ==
-                                'driver_arriving' ||
-                            status ==
-                                'driver_arrived')) {
-                      return true;
-                    }
-
-                    return false;
-                  }).toList();
-
-                  if (docs.isEmpty) {
-                    return const Center(
-                      child: Text(
-                        'لا توجد طلبات حاليا',
-                        style:
-                            TextStyle(
-                          fontSize: 18,
+                        SizedBox(
+                          height: 15,
                         ),
-                      ),
-                    );
-                  }
-
-                  docs.sort(
-                    (a, b) {
-                      final aTime =
-                          a.data()[
-                              'createdAt'];
-
-                      final bTime =
-                          b.data()[
-                              'createdAt'];
-
-                      if (aTime
-                              is Timestamp &&
-                          bTime
-                              is Timestamp) {
-                        return bTime
-                            .compareTo(
-                                aTime);
+                        Text(
+                          'فعّل الاتصال لاستقبال الطلبات',
+                          style: TextStyle(
+                            fontSize: 17,
+                          ),
+                        ),
+                      ],
+                    ),
+                  )
+                : StreamBuilder<
+                    QuerySnapshot<
+                        Map<String,
+                            dynamic>>>(
+                    stream:
+                        FirebaseFirestore
+                            .instance
+                            .collection(
+                              'requests',
+                            )
+                            .where(
+                              'vehicleType',
+                              isEqualTo:
+                                  widget
+                                      .vehicleType,
+                            )
+                            .snapshots(),
+                    builder:
+                        (context, snapshot) {
+                      if (!snapshot.hasData) {
+                        return const Center(
+                          child:
+                              CircularProgressIndicator(),
+                        );
                       }
 
-                      return 0;
-                    },
-                  );
+                      final requests =
+                          snapshot.data!.docs
+                              .where((doc) {
+                        final data =
+                            doc.data();
 
-                  return ListView
-                      .builder(
-                    padding:
-                        const EdgeInsets
-                            .all(12),
-                    itemCount:
-                        docs.length,
-                    itemBuilder:
-                        (context,
-                            index) {
-                      final doc =
-                          docs[index];
+                        final status =
+                            data['status']
+                                as String?;
 
-                      return DriverRequestCard(
-                        requestId:
-                            doc.id,
-                        data:
-                            doc.data(),
-                        driverId:
-                            driverId,
-                        onAccept: () {
-                          acceptRequest(
-                            doc.id,
-                            doc.data(),
-                          );
-                        },
-                        onStatusChange:
-                            (status) {
-                          updateStatus(
-                            doc.id,
-                            status,
+                        return status ==
+                            'pending';
+                      }).toList();
+
+                      if (requests.isEmpty) {
+                        return const Center(
+                          child: Column(
+                            mainAxisAlignment:
+                                MainAxisAlignment
+                                    .center,
+                            children: [
+                              Icon(
+                                Icons.inbox,
+                                size: 70,
+                                color:
+                                    Colors.grey,
+                              ),
+                              SizedBox(
+                                height: 15,
+                              ),
+                              Text(
+                                'لا توجد طلبات حالياً',
+                                style:
+                                    TextStyle(
+                                  fontSize: 18,
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                      }
+
+                      return ListView.builder(
+                        padding:
+                            const EdgeInsets
+                                .all(12),
+                        itemCount:
+                            requests.length,
+                        itemBuilder:
+                            (context, index) {
+                          return DriverRequestCard(
+                            doc:
+                                requests[index],
+                            vehicleType:
+                                widget
+                                    .vehicleType,
+                            onAccept:
+                                () =>
+                                    acceptRequest(
+                              requests[index],
+                            ),
+                            onStatus:
+                                (status) =>
+                                    updateStatus(
+                              requests[index],
+                              status,
+                            ),
                           );
                         },
                       );
                     },
-                  );
-                },
-              ),
-            ),
+                  ),
+          ),
         ],
       ),
     );
   }
 }
 
-// ============================================================
-// DRIVER REQUEST CARD
-// ============================================================
+/// ============================================================
+/// DRIVER REQUEST CARD
+/// ============================================================
 
 class DriverRequestCard
     extends StatelessWidget {
-  final String requestId;
-  final Map<String, dynamic> data;
-  final String driverId;
+  final DocumentSnapshot<
+      Map<String, dynamic>> doc;
+
+  final String vehicleType;
+
   final VoidCallback onAccept;
-  final Function(String)
-      onStatusChange;
+
+  final Function(String status)
+      onStatus;
 
   const DriverRequestCard({
     super.key,
-    required this.requestId,
-    required this.data,
-    required this.driverId,
+    required this.doc,
+    required this.vehicleType,
     required this.onAccept,
-    required this.onStatusChange,
+    required this.onStatus,
   });
 
   @override
-  Widget build(
-    BuildContext context,
-  ) {
-    final service =
-        data['service']
-                ?.toString() ??
-            '';
+  Widget build(BuildContext context) {
+    final data = doc.data();
 
-    final status =
-        data['status']
-                ?.toString() ??
-            'pending';
+    if (data == null) {
+      return const SizedBox();
+    }
+
+    final service =
+        data['service'] as String?;
 
     final phone =
-        data['phone']?.toString();
+        data['phone'] as String?;
 
     final item =
-        data['item']?.toString();
+        data['item'] as String?;
 
     final customerLat =
         (data['customerLat']
@@ -2435,36 +2067,47 @@ class DriverRequestCard
                 as num?)
             ?.toDouble();
 
-    final bool mine =
-        data['driverId']
-                ?.toString() ==
-            driverId;
+    final customer =
+        customerLat != null &&
+                customerLng != null
+            ? LatLng(
+                customerLat,
+                customerLng,
+              )
+            : null;
+
+    final driver =
+        driverLat != null &&
+                driverLng != null
+            ? LatLng(
+                driverLat,
+                driverLng,
+              )
+            : null;
+
+    final status =
+        data['status'] as String?;
 
     return Card(
       margin:
           const EdgeInsets.only(
         bottom: 15,
       ),
-      clipBehavior:
-          Clip.antiAlias,
       child: Padding(
         padding:
-            const EdgeInsets.all(12),
+            const EdgeInsets.all(15),
         child: Column(
           crossAxisAlignment:
-              CrossAxisAlignment
-                  .start,
+              CrossAxisAlignment.start,
           children: [
             Row(
               children: [
                 CircleAvatar(
                   child: Icon(
                     service ==
-                            'alo_waselni'
-                        ? Icons
-                            .directions_car
-                        : Icons
-                            .two_wheeler,
+                            'alo_jibli'
+                        ? Icons.two_wheeler
+                        : Icons.directions_car,
                   ),
                 ),
                 const SizedBox(
@@ -2473,101 +2116,82 @@ class DriverRequestCard
                 Expanded(
                   child: Text(
                     serviceName(
-                        service),
+                      service,
+                    ),
                     style:
                         const TextStyle(
-                      fontSize: 18,
+                      fontSize: 19,
                       fontWeight:
-                          FontWeight
-                              .bold,
+                          FontWeight.bold,
                     ),
-                  ),
-                ),
-                Chip(
-                  label: Text(
-                    statusName(
-                        status),
                   ),
                 ),
               ],
             ),
-            if (item != null &&
-                item.isNotEmpty) ...[
-              const SizedBox(
-                height: 8,
-              ),
+
+            const SizedBox(
+              height: 10,
+            ),
+
+            if (item != null)
               Text(
-                'الطلب: $item',
+                'الغرض: $item',
                 style:
                     const TextStyle(
-                  fontWeight:
-                      FontWeight
-                          .bold,
+                  fontSize: 16,
                 ),
               ),
-            ],
-            const SizedBox(
-              height: 10,
-            ),
-            SizedBox(
-              height: 260,
-              child: LocationMap(
-                customerLat:
-                    customerLat,
-                customerLng:
-                    customerLng,
-                driverLat:
-                    driverLat,
-                driverLng:
-                    driverLng,
-                showCustomer:
-                    true,
-                showDriver:
-                    mine,
-              ),
-            ),
-            const SizedBox(
-              height: 10,
-            ),
+
             if (phone != null &&
                 phone.isNotEmpty)
-              SizedBox(
-                width:
-                    double.infinity,
-                child:
-                    OutlinedButton
-                        .icon(
-                  onPressed: () {
-                    callPhoneNumber(
-                      context,
-                      phone,
-                    );
-                  },
-                  icon:
-                      const Icon(
-                    Icons.phone,
+              ListTile(
+                contentPadding:
+                    EdgeInsets.zero,
+                leading: const Icon(
+                  Icons.phone,
+                ),
+                title: Text(
+                  phone,
+                ),
+                trailing:
+                    IconButton(
+                  icon: const Icon(
+                    Icons.call,
+                    color: Colors.green,
                   ),
-                  label:
-                      const Text(
-                    'اتصل بالزبون',
+                  onPressed: () =>
+                      callPhoneNumber(
+                    phone,
                   ),
                 ),
               ),
+
+            if (customer != null)
+              SizedBox(
+                height: 230,
+                child: LocationMap(
+                  customer: customer,
+                  driver: driver,
+                  vehicleType:
+                      vehicleType,
+                  autoFollowDriver:
+                      false,
+                ),
+              ),
+
             const SizedBox(
-              height: 8,
+              height: 10,
             ),
-            if (status ==
-                'pending')
+
+            if (status == 'pending')
               SizedBox(
                 width:
                     double.infinity,
                 child:
-                    FilledButton
-                        .icon(
+                    FilledButton.icon(
                   onPressed:
                       onAccept,
-                  icon:
-                      const Icon(
+                  icon: const Icon(
                     Icons.check,
                   ),
                   label:
@@ -2576,75 +2200,53 @@ class DriverRequestCard
                   ),
                 ),
               ),
-            if (mine &&
-                status ==
-                    'accepted')
+
+            if (status == 'accepted')
               SizedBox(
                 width:
                     double.infinity,
                 child:
-                    FilledButton
-                        .icon(
-                  onPressed: () {
-                    onStatusChange(
-                      'driver_arriving',
-                    );
-                  },
-                  icon:
-                      const Icon(
-                    Icons.navigation,
+                    FilledButton(
+                  onPressed: () =>
+                      onStatus(
+                    'driver_arriving',
                   ),
-                  label:
-                      const Text(
+                  child: const Text(
                     'أنا في الطريق',
                   ),
                 ),
               ),
-            if (mine &&
-                status ==
-                    'driver_arriving')
+
+            if (status ==
+                'driver_arriving')
               SizedBox(
                 width:
                     double.infinity,
                 child:
-                    FilledButton
-                        .icon(
-                  onPressed: () {
-                    onStatusChange(
-                      'driver_arrived',
-                    );
-                  },
-                  icon:
-                      const Icon(
-                    Icons.location_on,
+                    FilledButton(
+                  onPressed: () =>
+                      onStatus(
+                    'driver_arrived',
                   ),
-                  label:
-                      const Text(
+                  child: const Text(
                     'وصلت للزبون',
                   ),
                 ),
               ),
-            if (mine &&
-                status ==
-                    'driver_arrived')
+
+            if (status ==
+                'driver_arrived')
               SizedBox(
                 width:
                     double.infinity,
                 child:
-                    FilledButton
-                        .icon(
-                  onPressed: () {
-                    onStatusChange(
-                      'completed',
-                    );
-                  },
-                  icon:
-                      const Icon(
-                    Icons.done_all,
+                    FilledButton(
+                  onPressed: () =>
+                      onStatus(
+                    'completed',
                   ),
-                  label:
-                      const Text(
-                    'إنهاء الطلب',
+                  child: const Text(
+                    'إكمال الطلب',
                   ),
                 ),
               ),
@@ -2655,9 +2257,10 @@ class DriverRequestCard
   }
 }
 
-// ============================================================
-// REAL ROAD ROUTE
-// ============================================================
+/// ============================================================
+/// REAL ROAD ROUTE
+/// OSRM + OPENSTREETMAP
+/// ============================================================
 
 class RouteResult {
   final List<LatLng> points;
@@ -2681,7 +2284,9 @@ Future<RouteResult?> fetchRealRoute(
       'route/v1/driving/'
       '${start.longitude},${start.latitude};'
       '${end.longitude},${end.latitude}'
-      '?overview=full&geometries=geojson&steps=false',
+      '?overview=full'
+      '&geometries=geojson'
+      '&steps=false',
     );
 
     final response =
@@ -2697,17 +2302,17 @@ Future<RouteResult?> fetchRealRoute(
       ),
     );
 
-    if (response.statusCode !=
-        200) {
+    if (response.statusCode != 200) {
       return null;
     }
 
     final Map<String, dynamic>
         jsonData =
-        jsonDecode(response.body);
+        jsonDecode(
+      response.body,
+    );
 
-    if (jsonData['code'] !=
-        'Ok') {
+    if (jsonData['code'] != 'Ok') {
       return null;
     }
 
@@ -2719,8 +2324,7 @@ Future<RouteResult?> fetchRealRoute(
       return null;
     }
 
-    final route =
-        routes.first;
+    final route = routes.first;
 
     final geometry =
         route['geometry'];
@@ -2783,27 +2387,24 @@ Future<RouteResult?> fetchRealRoute(
   }
 }
 
-// ============================================================
-// MAP WITH REAL ROAD ROUTE
-// ============================================================
+/// ============================================================
+/// LOCATION MAP
+/// ============================================================
 
-class LocationMap
-    extends StatefulWidget {
-  final double? customerLat;
-  final double? customerLng;
-  final double? driverLat;
-  final double? driverLng;
-  final bool showCustomer;
-  final bool showDriver;
+class LocationMap extends StatefulWidget {
+  final LatLng? customer;
+  final LatLng? driver;
+
+  final String? vehicleType;
+
+  final bool autoFollowDriver;
 
   const LocationMap({
     super.key,
-    required this.customerLat,
-    required this.customerLng,
-    required this.driverLat,
-    required this.driverLng,
-    required this.showCustomer,
-    required this.showDriver,
+    required this.customer,
+    required this.driver,
+    this.vehicleType,
+    this.autoFollowDriver = false,
   });
 
   @override
@@ -2813,70 +2414,41 @@ class LocationMap
 
 class _LocationMapState
     extends State<LocationMap> {
-  final MapController
-      mapController =
+  final MapController mapController =
       MapController();
 
   List<LatLng> routePoints = [];
 
-  double? routeDistance;
-  double? routeDuration;
+  double routeDistance = 0;
+
+  double routeDuration = 0;
 
   bool routeLoading = false;
 
+  bool mapReady = false;
+
   LatLng? lastRouteStart;
+
   LatLng? lastRouteEnd;
 
   Timer? routeTimer;
-
-  LatLng? get customerPoint {
-    if (widget.customerLat ==
-            null ||
-        widget.customerLng ==
-            null) {
-      return null;
-    }
-
-    return LatLng(
-      widget.customerLat!,
-      widget.customerLng!,
-    );
-  }
-
-  LatLng? get driverPoint {
-    if (widget.driverLat ==
-            null ||
-        widget.driverLng ==
-            null) {
-      return null;
-    }
-
-    return LatLng(
-      widget.driverLat!,
-      widget.driverLng!,
-    );
-  }
-
-  LatLng get center {
-    if (driverPoint != null) {
-      return driverPoint!;
-    }
-
-    if (customerPoint != null) {
-      return customerPoint!;
-    }
-
-    return const LatLng(
-      35.6971,
-      -0.6308,
-    );
-  }
 
   @override
   void initState() {
     super.initState();
 
-    _scheduleRouteUpdate();
+    routeTimer =
+        Timer(const Duration(milliseconds: 500), () {
+      updateRoute();
+
+      if (widget.autoFollowDriver &&
+          widget.driver != null &&
+          mapReady) {
+        followDriver(
+          widget.driver!,
+        );
+      }
+    });
   }
 
   @override
@@ -2887,97 +2459,108 @@ class _LocationMapState
       oldWidget,
     );
 
-    final oldDriverLat =
-        oldWidget.driverLat;
+    final driverChanged =
+        _positionChanged(
+      oldWidget.driver,
+      widget.driver,
+    );
 
-    final oldDriverLng =
-        oldWidget.driverLng;
+    final customerChanged =
+        _positionChanged(
+      oldWidget.customer,
+      widget.customer,
+    );
 
-    final oldCustomerLat =
-        oldWidget.customerLat;
+    if (driverChanged ||
+        customerChanged) {
+      scheduleRouteUpdate();
+    }
 
-    final oldCustomerLng =
-        oldWidget.customerLng;
-
-    final changed =
-        oldDriverLat !=
-                widget.driverLat ||
-            oldDriverLng !=
-                widget.driverLng ||
-            oldCustomerLat !=
-                widget.customerLat ||
-            oldCustomerLng !=
-                widget.customerLng;
-
-    if (changed) {
-      _scheduleRouteUpdate();
+    if (widget.autoFollowDriver &&
+        driverChanged &&
+        widget.driver != null &&
+        mapReady) {
+      followDriver(
+        widget.driver!,
+      );
     }
   }
 
-  void _scheduleRouteUpdate() {
-    routeTimer?.cancel();
-
-    routeTimer = Timer(
-      const Duration(
-        milliseconds: 500,
-      ),
-      () {
-        updateRoute();
-      },
-    );
-  }
-
-  bool _movedEnough(
-    LatLng? oldPoint,
-    LatLng? newPoint,
+  bool _positionChanged(
+    LatLng? a,
+    LatLng? b,
   ) {
-    if (oldPoint == null ||
-        newPoint == null) {
+    if (a == null && b == null) {
+      return false;
+    }
+
+    if (a == null || b == null) {
       return true;
     }
 
     final distance =
         const Distance().as(
       LengthUnit.Meter,
-      oldPoint,
-      newPoint,
+      a,
+      b,
     );
 
     return distance >= 20;
   }
 
+  void scheduleRouteUpdate() {
+    routeTimer?.cancel();
+
+    routeTimer =
+        Timer(const Duration(milliseconds: 500), () {
+      updateRoute();
+    });
+  }
+
   Future<void> updateRoute() async {
-    final customer =
-        customerPoint;
-
     final driver =
-        driverPoint;
+        widget.driver;
 
-    if (customer == null ||
-        driver == null) {
+    final customer =
+        widget.customer;
+
+    if (driver == null ||
+        customer == null) {
       if (mounted) {
         setState(() {
           routePoints = [];
-          routeDistance = null;
-          routeDuration = null;
-          routeLoading = false;
+          routeDistance = 0;
+          routeDuration = 0;
         });
       }
 
       return;
     }
 
-    final bool enoughMovement =
-        _movedEnough(
-              lastRouteStart,
-              driver,
-            ) ||
-            _movedEnough(
-              lastRouteEnd,
-              customer,
-            );
+    bool shouldFetch = true;
 
-    if (!enoughMovement &&
+    if (lastRouteStart != null &&
+        lastRouteEnd != null) {
+      final driverMovement =
+          const Distance().as(
+        LengthUnit.Meter,
+        lastRouteStart!,
+        driver,
+      );
+
+      final customerMovement =
+          const Distance().as(
+        LengthUnit.Meter,
+        lastRouteEnd!,
+        customer,
+      );
+
+      shouldFetch =
+          driverMovement >= 20 ||
+              customerMovement >= 20;
+    }
+
+    if (!shouldFetch &&
         routePoints.isNotEmpty) {
       return;
     }
@@ -3019,6 +2602,17 @@ class _LocationMapState
     }
   }
 
+  void followDriver(
+    LatLng position,
+  ) {
+    try {
+      mapController.move(
+        position,
+        16,
+      );
+    } catch (_) {}
+  }
+
   String formatDistance(
     double meters,
   ) {
@@ -3033,14 +2627,14 @@ class _LocationMapState
     double seconds,
   ) {
     final minutes =
-        (seconds / 60).ceil();
+        (seconds / 60).round();
 
-    if (minutes <= 1) {
+    if (minutes < 1) {
       return 'أقل من دقيقة';
     }
 
     if (minutes < 60) {
-      return '$minutes دقيقة';
+      return '$minutes د';
     }
 
     final hours =
@@ -3050,7 +2644,7 @@ class _LocationMapState
         minutes % 60;
 
     if (remaining == 0) {
-      return '$hours ساعة';
+      return '$hours س';
     }
 
     return '$hours س و $remaining د';
@@ -3063,231 +2657,253 @@ class _LocationMapState
   }
 
   @override
-  Widget build(
-    BuildContext context,
-  ) {
-    final List<Marker>
-        markers = [];
+  Widget build(BuildContext context) {
+    final center =
+        widget.driver ??
+            widget.customer ??
+            const LatLng(
+              35.6971,
+              -0.6308,
+            );
 
-    if (widget.showCustomer &&
-        customerPoint != null) {
-      markers.add(
-        Marker(
-          point:
-              customerPoint!,
-          width: 55,
-          height: 55,
-          child:
-              const Icon(
-            Icons.person_pin_circle,
-            size: 48,
-            color: Colors.red,
+    final driverIcon =
+        widget.vehicleType ==
+                'motorcycle'
+            ? Icons.two_wheeler
+            : Icons.directions_car;
+
+    return Stack(
+      children: [
+        FlutterMap(
+          mapController:
+              mapController,
+          options: MapOptions(
+            initialCenter: center,
+            initialZoom: 14,
+            onMapReady: () {
+              mapReady = true;
+
+              if (widget
+                      .autoFollowDriver &&
+                  widget.driver !=
+                      null) {
+                followDriver(
+                  widget.driver!,
+                );
+              }
+            },
           ),
-        ),
-      );
-    }
-
-    if (widget.showDriver &&
-        driverPoint != null) {
-      markers.add(
-        Marker(
-          point:
-              driverPoint!,
-          width: 55,
-          height: 55,
-          child:
-              const Icon(
-            Icons.directions_car,
-            size: 43,
-            color: Colors.blue,
-          ),
-        ),
-      );
-    }
-
-    return ClipRRect(
-      borderRadius:
-          BorderRadius.circular(
-        15,
-      ),
-      child: Stack(
-        children: [
-          FlutterMap(
-            mapController:
-                mapController,
-            options: MapOptions(
-              initialCenter:
-                  center,
-              initialZoom: 15,
-              minZoom: 5,
-              maxZoom: 19,
+          children: [
+            TileLayer(
+              urlTemplate:
+                  'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+              userAgentPackageName:
+                  'com.example.maw3idi',
             ),
-            children: [
-              TileLayer(
-                urlTemplate:
-                    'https://tile.openstreetmap.org/'
-                    '{z}/{x}/{y}.png',
-                userAgentPackageName:
-                    'com.example.maw3idi',
-              ),
 
-              // المسار الحقيقي
-              if (routePoints.length >=
-                  2)
-                PolylineLayer(
-                  polylines: [
-                    Polyline(
-                      points:
-                          routePoints,
-                      strokeWidth: 6,
-                      color:
-                          Colors.blue,
-                      borderStrokeWidth:
-                          2,
-                      borderColor:
-                          Colors.white,
-                    ),
-                  ],
-                ),
-
-              MarkerLayer(
-                markers: markers,
-              ),
-
-              RichAttributionWidget(
-                attributions: [
-                  TextSourceAttribution(
-                    'OpenStreetMap contributors',
+            if (routePoints.isNotEmpty)
+              PolylineLayer(
+                polylines: [
+                  Polyline(
+                    points:
+                        routePoints,
+                    strokeWidth: 8,
+                    color:
+                        Colors.white,
+                  ),
+                  Polyline(
+                    points:
+                        routePoints,
+                    strokeWidth: 5,
+                    color:
+                        Colors.blue,
                   ),
                 ],
               ),
-            ],
-          ),
 
-          // معلومات المسافة والوقت
-          if (routeDistance !=
-                  null &&
-              routeDuration !=
-                  null)
-            Positioned(
-              top: 12,
-              left: 12,
-              right: 12,
-              child: Material(
-                elevation: 5,
-                borderRadius:
-                    BorderRadius.circular(
-                  14,
-                ),
-                color:
-                    Colors.white,
-                child: Padding(
-                  padding:
-                      const EdgeInsets
-                          .symmetric(
-                    horizontal: 15,
-                    vertical: 11,
-                  ),
-                  child: Row(
-                    children: [
-                      const Icon(
+            MarkerLayer(
+              markers: [
+                if (widget.customer !=
+                    null)
+                  Marker(
+                    point:
+                        widget.customer!,
+                    width: 55,
+                    height: 55,
+                    child:
+                        Container(
+                      decoration:
+                          BoxDecoration(
+                        color:
+                            Colors.white,
+                        shape:
+                            BoxShape.circle,
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors
+                                .black
+                                .withOpacity(
+                              0.20,
+                            ),
+                            blurRadius: 6,
+                          ),
+                        ],
+                      ),
+                      child:
+                          const Icon(
                         Icons
-                            .route,
+                            .location_on,
+                        size: 38,
+                        color:
+                            Colors.red,
+                      ),
+                    ),
+                  ),
+
+                if (widget.driver !=
+                    null)
+                  Marker(
+                    point:
+                        widget.driver!,
+                    width: 58,
+                    height: 58,
+                    child:
+                        Container(
+                      decoration:
+                          BoxDecoration(
+                        color:
+                            Colors.white,
+                        shape:
+                            BoxShape.circle,
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors
+                                .black
+                                .withOpacity(
+                              0.20,
+                            ),
+                            blurRadius: 7,
+                          ),
+                        ],
+                      ),
+                      child:
+                          Icon(
+                        driverIcon,
+                        size: 35,
                         color:
                             Colors.blue,
                       ),
-                      const SizedBox(
-                        width: 8,
-                      ),
-                      Expanded(
-                        child: Text(
-                          'المسافة: ${formatDistance(routeDistance!)}',
-                          style:
-                              const TextStyle(
-                            fontWeight:
-                                FontWeight
-                                    .bold,
-                          ),
-                        ),
-                      ),
-                      const Icon(
-                        Icons
-                            .access_time,
-                        color:
-                            Colors.green,
-                      ),
-                      const SizedBox(
-                        width: 6,
-                      ),
-                      Text(
-                        formatDuration(
-                          routeDuration!,
-                        ),
+                    ),
+                  ),
+              ],
+            ),
+          ],
+        ),
+
+        if (routePoints.isNotEmpty)
+          Positioned(
+            top: 12,
+            left: 12,
+            right: 12,
+            child: Card(
+              elevation: 4,
+              child: Padding(
+                padding:
+                    const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 10,
+                ),
+                child: Row(
+                  children: [
+                    const Icon(
+                      Icons.route,
+                      color:
+                          Colors.blue,
+                    ),
+                    const SizedBox(
+                      width: 10,
+                    ),
+                    Expanded(
+                      child: Text(
+                        '${formatDistance(routeDistance)} • ${formatDuration(routeDuration)}',
                         style:
                             const TextStyle(
                           fontWeight:
-                              FontWeight
-                                  .bold,
+                              FontWeight.bold,
                         ),
                       ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
               ),
             ),
+          ),
 
-          // تحميل المسار
-          if (routeLoading)
-            Positioned(
-              bottom: 12,
-              left: 12,
-              child: Material(
-                elevation: 4,
-                borderRadius:
-                    BorderRadius.circular(
-                  20,
+        if (routeLoading)
+          Positioned(
+            bottom: 12,
+            left: 12,
+            right: 12,
+            child: Card(
+              child: Padding(
+                padding:
+                    const EdgeInsets.all(
+                  10,
                 ),
-                color:
-                    Colors.white,
-                child: const Padding(
-                  padding:
-                      EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 8,
-                  ),
-                  child: Row(
-                    mainAxisSize:
-                        MainAxisSize.min,
-                    children: [
-                      SizedBox(
-                        width: 17,
-                        height: 17,
-                        child:
-                            CircularProgressIndicator(
-                          strokeWidth:
-                              2,
-                        ),
+                child: Row(
+                  mainAxisAlignment:
+                      MainAxisAlignment
+                          .center,
+                  children: const [
+                    SizedBox(
+                      width: 18,
+                      height: 18,
+                      child:
+                          CircularProgressIndicator(
+                        strokeWidth: 2,
                       ),
-                      SizedBox(
-                        width: 8,
-                      ),
-                      Text(
-                        'جاري تحديث المسار...',
-                      ),
-                    ],
-                  ),
+                    ),
+                    SizedBox(
+                      width: 10,
+                    ),
+                    Text(
+                      'جاري تحديث المسار...',
+                    ),
+                  ],
                 ),
               ),
             ),
-        ],
-      ),
+          ),
+
+        if (widget.autoFollowDriver &&
+            widget.driver != null)
+          Positioned(
+            right: 12,
+            bottom: 12,
+            child: FloatingActionButton
+                .small(
+              heroTag: null,
+              onPressed: () {
+                if (widget.driver !=
+                    null) {
+                  followDriver(
+                    widget.driver!,
+                  );
+                }
+              },
+              child: const Icon(
+                Icons.my_location,
+              ),
+            ),
+          ),
+      ],
     );
   }
 }
 
-// ============================================================
-// CUSTOMER HISTORY
-// ============================================================
+/// ============================================================
+/// CUSTOMER HISTORY
+/// ============================================================
 
 class CustomerHistoryPage
     extends StatelessWidget {
@@ -3296,42 +2912,32 @@ class CustomerHistoryPage
   });
 
   @override
-  Widget build(
-    BuildContext context,
-  ) {
+  Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title:
             const Text('طلباتي'),
       ),
-      body:
-          FutureBuilder<
-              SharedPreferences>(
+      body: FutureBuilder<
+          SharedPreferences>(
         future:
-            SharedPreferences
-                .getInstance(),
-        builder: (
-          context,
-          prefsSnapshot,
-        ) {
-          if (!prefsSnapshot
-              .hasData) {
+            SharedPreferences.getInstance(),
+        builder:
+            (context, prefsSnapshot) {
+          if (!prefsSnapshot.hasData) {
             return const Center(
               child:
                   CircularProgressIndicator(),
             );
           }
 
-          final prefs =
-              prefsSnapshot.data!;
-
           final customerId =
-              prefs.getString(
-                    'customer_id',
-                  ) ??
-                  '';
+              prefsSnapshot.data!
+                  .getString(
+            'customer_id',
+          );
 
-          if (customerId.isEmpty) {
+          if (customerId == null) {
             return const Center(
               child: Text(
                 'لا يوجد حساب',
@@ -3343,130 +2949,92 @@ class CustomerHistoryPage
               QuerySnapshot<
                   Map<String,
                       dynamic>>>(
-            stream: db
-                .collection(
-                    'requests')
+            stream: FirebaseFirestore
+                .instance
+                .collection('requests')
                 .where(
                   'customerId',
                   isEqualTo:
                       customerId,
                 )
                 .snapshots(),
-            builder: (
-              context,
-              snapshot,
-            ) {
-              if (snapshot
-                      .connectionState ==
-                  ConnectionState
-                      .waiting) {
+            builder:
+                (context, snapshot) {
+              if (!snapshot.hasData) {
                 return const Center(
                   child:
                       CircularProgressIndicator(),
                 );
               }
 
-              if (!snapshot
-                      .hasData ||
-                  snapshot.data!
-                      .docs
-                      .isEmpty) {
+              final docs =
+                  snapshot.data!.docs;
+
+              if (docs.isEmpty) {
                 return const Center(
                   child: Text(
-                    'لا توجد طلبات بعد',
+                    'ما عندك حتى طلب سابق',
                   ),
                 );
               }
 
-              final docs = snapshot
-                  .data!
-                  .docs
-                  .toList();
-
-              docs.sort(
-                (a, b) {
-                  final aTime =
-                      a.data()[
-                          'createdAt'];
-
-                  final bTime =
-                      b.data()[
-                          'createdAt'];
-
-                  if (aTime
-                          is Timestamp &&
-                      bTime
-                          is Timestamp) {
-                    return bTime
-                        .compareTo(
-                            aTime);
-                  }
-
-                  return 0;
-                },
-              );
-
-              return ListView
-                  .builder(
+              return ListView.builder(
                 padding:
-                    const EdgeInsets
-                        .all(12),
+                    const EdgeInsets.all(
+                  12,
+                ),
                 itemCount:
                     docs.length,
                 itemBuilder:
-                    (context,
-                        index) {
+                    (context, index) {
                   final data =
-                      docs[index]
-                          .data();
+                      docs[index].data();
 
                   final status =
                       data['status']
-                              ?.toString() ??
-                          'pending';
+                          as String?;
 
                   final service =
                       data['service']
-                              ?.toString() ??
-                          '';
+                          as String?;
+
+                  final item =
+                      data['item']
+                          as String?;
 
                   return Card(
-                    child:
-                        ListTile(
+                    margin:
+                        const EdgeInsets
+                            .only(
+                      bottom: 12,
+                    ),
+                    child: ListTile(
                       leading:
-                          Icon(
-                        statusIcon(
-                            status),
+                          CircleAvatar(
+                        child: Icon(
+                          service ==
+                                  'alo_jibli'
+                              ? Icons
+                                  .two_wheeler
+                              : Icons
+                                  .directions_car,
+                        ),
                       ),
                       title: Text(
                         serviceName(
-                            service),
+                          service,
+                        ),
                       ),
                       subtitle:
                           Text(
-                        statusName(
-                            status),
+                        item != null
+                            ? '$item\n${statusName(status)}'
+                            : statusName(
+                                status,
+                              ),
                       ),
-                      trailing:
-                          const Icon(
-                        Icons
-                            .arrow_forward_ios,
-                        size: 18,
-                      ),
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder:
-                                (_) =>
-                                    CustomerTrackingPage(
-                              requestId:
-                                  docs[index]
-                                      .id,
-                            ),
-                          ),
-                        );
-                      },
+                      isThreeLine:
+                          item != null,
                     ),
                   );
                 },
@@ -3477,4 +3045,30 @@ class CustomerHistoryPage
       ),
     );
   }
+}
+
+/// ============================================================
+/// LOGOUT
+/// ============================================================
+
+Future<void> logout(
+  BuildContext context,
+) async {
+  final prefs =
+      await SharedPreferences.getInstance();
+
+  await prefs.remove(
+    'last_role',
+  );
+
+  if (!context.mounted) return;
+
+  Navigator.pushAndRemoveUntil(
+    context,
+    MaterialPageRoute(
+      builder: (_) =>
+          const HomePage(),
+    ),
+    (_) => false,
+  );
 }
